@@ -81,6 +81,7 @@ public partial class SimpleConsole : IConsoleService
             buffer = this.RentBuffer(0, prompt);
             this.buffers.Add(buffer);
             this.StartingCursorTop = Console.CursorTop;
+            buffer.Top = this.StartingCursorTop;
         }
 
         if (!string.IsNullOrEmpty(prompt))
