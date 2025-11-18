@@ -127,7 +127,7 @@ ProcessKeyInfo:
             else if (keyInfo.Key == ConsoleKey.Escape)
             {
                 Console.Out.WriteLine();
-                this.ClearBuffers();
+                this.Clear();
                 return new(InputResultKind.Canceled);
             }
             else if (keyInfo.Key == ConsoleKey.C &&
@@ -185,7 +185,7 @@ ProcessKeyInfo:
                 if (result is not null)
                 {
                     Console.Out.WriteLine();
-                    this.ClearBuffers();
+                    this.Clear();
                     return new(result);
                 }
 
@@ -200,7 +200,7 @@ ProcessKeyInfo:
         // Terminated
         // this.SetCursorPosition(this.WindowWidth - 1, this.CursorTop, true);
         Console.Out.WriteLine();
-        this.ClearBuffers();
+        this.Clear();
         return new(InputResultKind.Terminated);
     }
 
@@ -853,13 +853,17 @@ Exit:
         return buffer;
     }
 
-    private void ClearBuffers()
+    private void Clear()
     {
-        foreach (var buffer in this.buffers)
+        using (this.lockObject.EnterScope())
         {
-            this.bufferPool.Return(buffer);
-        }
+            this.MultilineMode = false;
+            foreach (var buffer in this.buffers)
+            {
+                this.bufferPool.Return(buffer);
+            }
 
-        this.buffers.Clear();
+            this.buffers.Clear();
+        }
     }
 }
