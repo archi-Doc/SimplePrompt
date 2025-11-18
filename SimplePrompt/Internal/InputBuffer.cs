@@ -593,7 +593,7 @@ internal class InputBuffer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetCursorIndex()
+    internal int GetCursorIndex()
         => this.GetCursorIndex(this.CursorLeft, this.CursorTop);
 
     private void MoveLeft(int arrayPosition)

@@ -218,15 +218,16 @@ ProcessKeyInfo:
 
             using (this.lockObject.EnterScope())
             {
-                var cursorLeft = this.CursorLeft;
-                var cursorTop = this.CursorTop;
+                var location = this.GetLocation();
 
                 this.SetCursorAtFirst();
                 Console.Out.Write(message);
                 Console.Out.Write(EraseLineAndReturn);
                 this.RedrawInternal();
 
-                this.SetCursorPosition(cursorLeft, cursorTop, false);
+                var buffer = this.buffers[location.BufferIndex];
+                var cursor = buffer.ToCursor(location.CursorIndex);
+                this.SetCursorPosition(buffer.Left + cursor.Left, buffer.Top + cursor.Top, false);
             }
         }
         catch
@@ -635,6 +636,33 @@ ProcessKeyInfo:
             {
                 return null;
             }
+        }
+    }
+
+    private (int BufferIndex, int CursorIndex) GetLocation()
+    {
+        var y = this.StartingCursorTop;
+        InputBuffer? buffer = null;
+        foreach (var x in this.buffers)
+        {
+            x.UpdateHeight(false);
+            y += x.Height;
+            if (buffer is null &&
+                this.CursorTop >= x.Top &&
+                this.CursorTop < y)
+            {
+                buffer = x;
+                break;
+            }
+        }
+
+        if (buffer is null)
+        {
+            return default;
+        }
+        else
+        {
+            return (buffer.Index, buffer.GetCursorIndex());
         }
     }
 
