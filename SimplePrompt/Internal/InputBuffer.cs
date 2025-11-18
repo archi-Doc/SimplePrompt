@@ -376,8 +376,7 @@ internal class InputBuffer
         var charSpan = this.charArray.AsSpan(startIndex, length);
         var widthSpan = this.widthArray.AsSpan(startIndex, length);
         var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
-        var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)
-BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
+        var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
 
         var startCursor = this.Left + (this.Top * this.WindowWidth) + startPosition;
         var windowRemaining = (this.WindowWidth * this.WindowHeight) - startCursor;

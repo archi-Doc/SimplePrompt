@@ -14,6 +14,7 @@ public partial class SimpleConsole : IConsoleService
     private const int WindowBufferMargin = 1024;
     private static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
     private static readonly ConsoleKeyInfo SpaceKeyInfo = new(' ', ConsoleKey.Spacebar, false, false, false);
+
     public static ReadOnlySpan<char> EraseLineAndReturn => "\u001b[K\n";
 
     public ILogger? Logger { get; set; }
@@ -183,7 +184,7 @@ ProcessKeyInfo:
         return new(InputResultKind.Terminated);
     }
 
-    void IConsoleService.Write(string? message = null)
+    void IConsoleService.Write(string? message)
     {
         if (Environment.NewLine == "\r\n" && message is not null)
         {
@@ -661,6 +662,7 @@ ProcessKeyInfo:
                 goto Exit;
             }
         }
+
 Exit:
         this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, this.WindowBufferCapacity - span.Length));
 
