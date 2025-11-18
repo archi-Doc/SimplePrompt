@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Playground/Playground.csproj" Id="04e2665c-8e1f-415e-a517-a4a22e0c73d9" />
+  <Project Path="SimplePrompt/SimplePrompt.csproj" />
+</Solution>
