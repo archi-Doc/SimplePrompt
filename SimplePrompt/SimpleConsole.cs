@@ -15,6 +15,8 @@ public partial class SimpleConsole : IConsoleService
     private static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
     private static readonly ConsoleKeyInfo SpaceKeyInfo = new(' ', ConsoleKey.Spacebar, false, false, false);
 
+    public static ReadOnlySpan<char> EraseLine => "\u001b[K";
+
     public static ReadOnlySpan<char> EraseLineAndReturn => "\u001b[K\n";
 
     public ILogger? Logger { get; set; }
@@ -77,7 +79,6 @@ public partial class SimpleConsole : IConsoleService
 
         using (this.lockObject.EnterScope())
         {
-            this.ReturnAllBuffersInternal();
             buffer = this.RentBuffer(0, prompt);
             this.buffers.Add(buffer);
             this.StartingCursorTop = Console.CursorTop;
@@ -122,6 +123,7 @@ ProcessKeyInfo:
             else if (keyInfo.Key == ConsoleKey.Escape)
             {
                 Console.Out.WriteLine();
+                this.ClearBuffers();
                 return new(InputResultKind.Canceled);
             }
             else if (keyInfo.Key == ConsoleKey.C &&
@@ -129,6 +131,17 @@ ProcessKeyInfo:
             { // Ctrl+C
                 // ThreadCore.Root.Terminate(); // Send a termination signal to the root.
                 // return null;
+            }
+
+            if (keyInfo.Key == ConsoleKey.F1)
+            {
+                this.WriteLine("Inserted text");
+                continue;
+            }
+            else if (keyInfo.Key == ConsoleKey.F2)
+            {
+                this.WriteLine("Inserted text1\ntext2");
+                continue;
             }
 
             bool flush = true;
@@ -168,6 +181,7 @@ ProcessKeyInfo:
                 if (result is not null)
                 {
                     Console.Out.WriteLine();
+                    this.ClearBuffers();
                     return new(result);
                 }
 
@@ -182,6 +196,7 @@ ProcessKeyInfo:
         // Terminated
         // this.SetCursorPosition(this.WindowWidth - 1, this.CursorTop, true);
         Console.Out.WriteLine();
+        this.ClearBuffers();
         return new(InputResultKind.Terminated);
     }
 
@@ -227,7 +242,7 @@ ProcessKeyInfo:
 
                 var buffer = this.buffers[location.BufferIndex];
                 var cursor = buffer.ToCursor(location.CursorIndex);
-                this.SetCursorPosition(buffer.Left + cursor.Left, buffer.Top + cursor.Top, false);
+                this.SetCursorPosition(buffer.Left + cursor.Left, buffer.Top + cursor.Top, true);
             }
         }
         catch
@@ -629,7 +644,6 @@ ProcessKeyInfo:
                 });
 
                 this.SetCursorAtEnd();
-                this.ReturnAllBuffersInternal();
                 return result;
             }
             else
@@ -671,6 +685,17 @@ ProcessKeyInfo:
         var firstBuffer = 0;//
         var span = this.windowBuffer.AsSpan();
 
+        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+        this.StartingCursorTop = this.CursorTop;
+        var y = this.StartingCursorTop;
+        for (var i = 0; i < this.buffers.Count; i++)
+        {
+            var buffer = this.buffers[i];
+            buffer.Left = 0;
+            buffer.Top = y;
+            y += buffer.Height;
+        }
+
         for (var i = firstBuffer; i < this.buffers.Count; i++)
         {
             var buffer = this.buffers[i];
@@ -681,22 +706,42 @@ ProcessKeyInfo:
                 goto Exit;
             }
 
+            // Input color
+            var colorString = ConsoleHelper.GetForegroundColorEscapeCode(this.InputColor);
+            if (!TryCopy(colorString.AsSpan(), ref span))
+            {
+                goto Exit;
+            }
+
             if (!TryCopy(buffer.TextSpan, ref span))
             {
                 goto Exit;
             }
 
-            if (!TryCopy(EraseLineAndReturn, ref span))
+            // Reset color
+            if (!TryCopy(ConsoleHelper.ResetSpan, ref span))
             {
                 goto Exit;
+            }
+
+            if (i == (this.buffers.Count - 1))
+            {
+                if (!TryCopy(EraseLine, ref span))
+                {
+                    goto Exit;
+                }
+            }
+            else
+            {
+                if (!TryCopy(EraseLineAndReturn, ref span))
+                {
+                    goto Exit;
+                }
             }
         }
 
 Exit:
         this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, this.WindowBufferCapacity - span.Length));
-
-        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
-        this.StartingCursorTop = this.CursorTop;
 
         bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
         {
@@ -758,7 +803,7 @@ Exit:
         return buffer;
     }
 
-    private void ReturnAllBuffersInternal()
+    private void ClearBuffers()
     {
         foreach (var buffer in this.buffers)
         {
