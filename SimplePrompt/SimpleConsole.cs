@@ -8,12 +8,13 @@ using Arc.Unit;
 
 namespace SimplePrompt;
 
-public partial class InputConsole : IConsoleService
+public partial class SimpleConsole : IConsoleService
 {
     private const int CharBufferSize = 1024;
-    private const int WindowBufferMargin = 512;
+    private const int WindowBufferMargin = 1024;
     private static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
     private static readonly ConsoleKeyInfo SpaceKeyInfo = new(' ', ConsoleKey.Spacebar, false, false, false);
+    public static ReadOnlySpan<char> EraseLineAndReturn => "\u001b[K\n";
 
     public ILogger? Logger { get; set; }
 
@@ -53,7 +54,7 @@ public partial class InputConsole : IConsoleService
     private char[] windowBuffer = [];
     private byte[] utf8Buffer = [];
 
-    public InputConsole(ConsoleColor inputColor = (ConsoleColor)(-1))
+    public SimpleConsole(ConsoleColor inputColor = (ConsoleColor)(-1))
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
@@ -65,8 +66,8 @@ public partial class InputConsole : IConsoleService
         }
     }
 
-    public InputResult ReadLine(string? prompt)
-        => this.ReadLine(prompt);
+    InputResult IConsoleService.ReadLine(string? prompt)
+        => this.ReadLine(prompt, default).Result;
 
     public async Task<InputResult> ReadLine(string? prompt = default, string? multilinePrompt = default)
     {
@@ -182,7 +183,7 @@ ProcessKeyInfo:
         return new(InputResultKind.Terminated);
     }
 
-    public void Write(string? message = null)
+    void IConsoleService.Write(string? message = null)
     {
         if (Environment.NewLine == "\r\n" && message is not null)
         {
@@ -207,14 +208,31 @@ ProcessKeyInfo:
 
         try
         {
-            Console.WriteLine(message);
+            if (this.buffers.Count == 0)
+            {
+                Console.Out.WriteLine(message);
+                return;
+            }
+
+            using (this.lockObject.EnterScope())
+            {
+                var cursorLeft = this.CursorLeft;
+                var cursorTop = this.CursorTop;
+
+                this.SetCursorAtFirst();
+                Console.Out.Write(message);
+                Console.Out.Write(EraseLineAndReturn);
+                this.RedrawInternal();
+
+                this.SetCursorPosition(cursorLeft, cursorTop, false);
+            }
         }
         catch
         {
         }
     }
 
-    public ConsoleKeyInfo ReadKey(bool intercept)
+    ConsoleKeyInfo IConsoleService.ReadKey(bool intercept)
     {
         try
         {
@@ -226,7 +244,7 @@ ProcessKeyInfo:
         }
     }
 
-    public bool KeyAvailable
+    bool IConsoleService.KeyAvailable
     {
         get
         {
@@ -360,6 +378,17 @@ ProcessKeyInfo:
         var cursorLeft = buffer.Left + buffer.PromtWidth;
         var cursorTop = buffer.Top;
         this.SetCursorPosition(cursorLeft, cursorTop, false);
+    }
+
+    private void SetCursorAtFirst()
+    {
+        if (this.buffers.Count == 0)
+        {
+            return;
+        }
+
+        var buffer = this.buffers[0];
+        this.SetCursorPosition(buffer.Left, buffer.Top, false);
     }
 
     private void SetCursorAtEnd()
@@ -607,6 +636,50 @@ ProcessKeyInfo:
         }
     }
 
+    private void RedrawInternal()
+    {
+        var firstBuffer = 0;//
+        var span = this.windowBuffer.AsSpan();
+
+        for (var i = firstBuffer; i < this.buffers.Count; i++)
+        {
+            var buffer = this.buffers[i];
+
+            if (buffer.Prompt is not null &&
+                !TryCopy(buffer.Prompt.AsSpan(), ref span))
+            {
+                goto Exit;
+            }
+
+            if (!TryCopy(buffer.TextSpan, ref span))
+            {
+                goto Exit;
+            }
+
+            if (!TryCopy(EraseLineAndReturn, ref span))
+            {
+                goto Exit;
+            }
+        }
+Exit:
+        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, this.WindowBufferCapacity - span.Length));
+
+        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+        this.StartingCursorTop = this.CursorTop;
+
+        bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
+        {
+            if (source.Length > destination.Length)
+            {
+                return false;
+            }
+
+            source.CopyTo(destination);
+            destination = destination.Slice(source.Length);
+            return true;
+        }
+    }
+
     private int GetBuffersHeightInternal()
     {
         var height = 0;
@@ -621,33 +694,30 @@ ProcessKeyInfo:
 
     private InputBuffer? PrepareAndFindBuffer()
     {
-        using (this.lockObject.EnterScope())
+        if (this.buffers.Count == 0)
         {
-            if (this.buffers.Count == 0)
-            {
-                return null;
-            }
-
-            // Calculate buffer heights.
-            var y = this.StartingCursorTop;
-            InputBuffer? buffer = null;
-            foreach (var x in this.buffers)
-            {
-                x.Left = 0;
-                x.Top = y;
-                x.UpdateHeight(false);
-                y += x.Height;
-                if (buffer is null &&
-                    this.CursorTop >= x.Top &&
-                    this.CursorTop < y)
-                {
-                    buffer = x;
-                }
-            }
-
-            buffer ??= this.buffers[0];
-            return buffer;
+            return null;
         }
+
+        // Calculate buffer heights.
+        var y = this.StartingCursorTop;
+        InputBuffer? buffer = null;
+        foreach (var x in this.buffers)
+        {
+            x.Left = 0;
+            x.Top = y;
+            x.UpdateHeight(false);
+            y += x.Height;
+            if (buffer is null &&
+                this.CursorTop >= x.Top &&
+                this.CursorTop < y)
+            {
+                buffer = x;
+            }
+        }
+
+        buffer ??= this.buffers[0];
+        return buffer;
     }
 
     private InputBuffer RentBuffer(int index, string? prompt)

@@ -17,7 +17,7 @@ internal sealed class RawConsole
     private const char VtSequenceEndTag = '~';
     private const char ModifierSeparator = ';';
 
-    private readonly InputConsole inputConsole;
+    private readonly SimpleConsole inputConsole;
     private readonly Encoding encoding;
     private readonly TermInfo.Database? db;
     private readonly TerminalFormatStrings terminalFormatStrings;
@@ -40,7 +40,7 @@ internal sealed class RawConsole
 
     public bool IsCharsEmpty => this.charsStartIndex >= this.charsEndIndex;
 
-    public RawConsole(InputConsole inputConsole, CancellationToken cancellationToken = default)
+    public RawConsole(SimpleConsole inputConsole, CancellationToken cancellationToken = default)
     {
         this.inputConsole = inputConsole;
         this.encoding = Encoding.UTF8;

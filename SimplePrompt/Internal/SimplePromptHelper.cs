@@ -4,7 +4,7 @@ using System.Globalization;
 
 namespace SimplePrompt;
 
-internal static class InputConsoleHelper
+internal static class SimplePromptHelper
 {
     public static byte GetCharWidth(int codePoint)
     {

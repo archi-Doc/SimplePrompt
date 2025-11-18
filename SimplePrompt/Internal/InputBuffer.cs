@@ -14,7 +14,7 @@ internal class InputBuffer
     private const int BufferMargin = 32;
     private const int MaxPromptWidth = 256;
 
-    public InputConsole InputConsole { get; }
+    public SimpleConsole InputConsole { get; }
 
     public int Index { get; set; }
 
@@ -53,7 +53,7 @@ internal class InputBuffer
     private char[] charArray = new char[BufferSize];
     private byte[] widthArray = new byte[BufferSize];
 
-    public InputBuffer(InputConsole inputConsole)
+    public InputBuffer(SimpleConsole inputConsole)
     {
         this.InputConsole = inputConsole;
     }
@@ -228,7 +228,7 @@ internal class InputBuffer
         }
 
         this.Prompt = prompt;
-        this.PromtWidth = InputConsoleHelper.GetWidth(this.Prompt);
+        this.PromtWidth = SimplePromptHelper.GetWidth(this.Prompt);
         this.Length = 0;
         this.Width = 0;
         this.Height = 1;
@@ -269,13 +269,13 @@ internal class InputBuffer
                 if (char.IsHighSurrogate(c) && (i + 1) < charBuffer.Length && char.IsLowSurrogate(charBuffer[i + 1]))
                 {
                     var codePoint = char.ConvertToUtf32(c, charBuffer[i + 1]);
-                    w = InputConsoleHelper.GetCharWidth(codePoint);
+                    w = SimplePromptHelper.GetCharWidth(codePoint);
                     this.widthArray[arrayPosition + i++] = 0;
                     this.widthArray[arrayPosition + i] = (byte)w;
                 }
                 else
                 {
-                    w = InputConsoleHelper.GetCharWidth(c);
+                    w = SimplePromptHelper.GetCharWidth(c);
                     this.widthArray[arrayPosition + i] = (byte)w;
                 }
 
