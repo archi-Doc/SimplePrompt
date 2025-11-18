@@ -12,7 +12,7 @@ namespace SimplePrompt;
 public partial class SimpleConsole : IConsoleService
 {
     private const int CharBufferSize = 1024;
-    private const int WindowBufferSize = 256 * 1024;
+    private const int WindowBufferSize = 64 * 1024;
     private static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
     private static readonly ConsoleKeyInfo SpaceKeyInfo = new(' ', ConsoleKey.Spacebar, false, false, false);
 
@@ -42,19 +42,19 @@ public partial class SimpleConsole : IConsoleService
 
     internal bool MultilineMode { get; set; }
 
-    internal ReadOnlySpan<char> WindowBuffer => this.windowBuffer.AsSpan();
+    internal char[] WindowBuffer => this.windowBuffer;
 
-    internal ReadOnlySpan<byte> Utf8Buffer => this.utf8Buffer.AsSpan();
+    internal byte[] Utf8Buffer => this.utf8Buffer;
 
     internal List<InputBuffer> Buffers => this.buffers;
 
     private readonly char[] charBuffer = new char[CharBufferSize];
+    private readonly char[] windowBuffer = [];
+    private readonly byte[] utf8Buffer = [];
     private readonly ObjectPool<InputBuffer> bufferPool;
 
     private readonly Lock lockObject = new();
     private List<InputBuffer> buffers = new();
-    private char[] windowBuffer = [];
-    private byte[] utf8Buffer = [];
 
     public SimpleConsole(ConsoleColor inputColor = (ConsoleColor)(-1))
     {
@@ -179,7 +179,7 @@ ProcessKeyInfo:
 
             if (flush)
             {// Flush
-                var result = this.Flush(keyInfo, this.charBuffer.AsSpan().Slice(0, position), multilinePrompt);
+                var result = this.Flush(keyInfo, this.charBuffer.AsSpan(0, position), multilinePrompt);
                 position = 0;
                 if (result is not null)
                 {
@@ -252,45 +252,6 @@ ProcessKeyInfo:
         }
     }
 
-    private void WriteInternal(ReadOnlySpan<char> message)
-    {
-        var span = this.WindowBuffer;
-
-        while (message.Length > 0)
-        {
-            ReadOnlySpan<char> text;
-            var i = message.IndexOf('\n');
-            if (i > 0 && message[i - 1] == '\r')
-            {// text\r\n
-                text = message.Slice(0, i - 1);
-                message = message.Slice(i + 1);
-            }
-            else if (i >= 0)
-            {// text\n
-                text = message.Slice(0, i);
-                message = message.Slice(i + 1);
-            }
-            else
-            {// text
-                text = message;
-                message = default;
-            }
-
-            // Text
-            if (!TryCopy(text, ref span))
-            {
-                break;
-            }
-
-            if (!TryCopy(EraseLineAndReturn, ref span))
-            {
-                break;
-            }
-        }
-
-        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, this.windowBuffer.Length - span.Length));
-    }
-
     ConsoleKeyInfo IConsoleService.ReadKey(bool intercept)
     {
         try
@@ -326,7 +287,7 @@ ProcessKeyInfo:
             return;
         }*/
 
-        var buffer = this.windowBuffer.AsSpan();
+        var buffer = this.WindowBuffer.AsSpan();
         var written = 0;
         ReadOnlySpan<char> span;
 
@@ -365,7 +326,7 @@ ProcessKeyInfo:
             written += span.Length;
         }
 
-        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, written));
+        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, written));
 
         this.CursorLeft = cursorLeft;
         this.CursorTop = cursorTop;
@@ -429,6 +390,45 @@ ProcessKeyInfo:
         this.SetCursor(this.buffers[index]);
     }
 
+    private void WriteInternal(ReadOnlySpan<char> message)
+    {
+        var span = this.WindowBuffer.AsSpan();
+
+        while (message.Length > 0)
+        {
+            ReadOnlySpan<char> text;
+            var i = message.IndexOf('\n');
+            if (i > 0 && message[i - 1] == '\r')
+            {// text\r\n
+                text = message.Slice(0, i - 1);
+                message = message.Slice(i + 1);
+            }
+            else if (i >= 0)
+            {// text\n
+                text = message.Slice(0, i);
+                message = message.Slice(i + 1);
+            }
+            else
+            {// text
+                text = message;
+                message = default;
+            }
+
+            // Text
+            if (!TryCopy(text, ref span))
+            {
+                break;
+            }
+
+            if (!TryCopy(EraseLineAndReturn, ref span))
+            {
+                break;
+            }
+        }
+
+        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
+    }
+
     private void ClearLastLine(int dif)
     {
         var buffer = this.buffers[this.buffers.Count - 1];
@@ -473,7 +473,7 @@ ProcessKeyInfo:
 
     private void ClearLine(int top)
     {
-        var buffer = this.windowBuffer.AsSpan();
+        var buffer = this.WindowBuffer.AsSpan();
         var written = 0;
         ReadOnlySpan<char> span;
 
@@ -512,7 +512,7 @@ ProcessKeyInfo:
         buffer = buffer.Slice(span.Length);
         written += span.Length;*/
 
-        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, written));
+        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, written));
     }
 
     private static bool IsControl(ConsoleKeyInfo keyInfo)
@@ -701,6 +701,7 @@ ProcessKeyInfo:
         InputBuffer? buffer = null;
         foreach (var x in this.buffers)
         {
+            x.Top = y;
             x.UpdateHeight(false);
             y += x.Height;
             if (buffer is null &&
@@ -725,7 +726,7 @@ ProcessKeyInfo:
     private void RedrawInternal()
     {
         var firstBuffer = 0;//
-        var span = this.windowBuffer.AsSpan();
+        var span = this.WindowBuffer.AsSpan();
 
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
         this.StartingCursorTop = this.CursorTop;
@@ -783,7 +784,7 @@ ProcessKeyInfo:
         }
 
 Exit:
-        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, this.windowBuffer.Length - span.Length));
+        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

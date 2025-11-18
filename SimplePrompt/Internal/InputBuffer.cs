@@ -399,7 +399,7 @@ internal class InputBuffer
         var appendLineFeed = startCursor == (this.WindowWidth * this.WindowHeight);
 
         ReadOnlySpan<char> span;
-        var buffer = this.InputConsole.WindowBuffer;
+        var buffer = this.InputConsole.WindowBuffer.AsSpan();
         var written = 0;
 
         // Hide cursor
@@ -515,7 +515,7 @@ internal class InputBuffer
 
         try
         {
-            this.InputConsole.RawConsole.WriteInternal(this.InputConsole.WindowBuffer.Slice(0, written));
+            this.InputConsole.RawConsole.WriteInternal(this.InputConsole.WindowBuffer.AsSpan(0, written));
             // Console.Out.Write(this.InputConsole.WindowBuffer.AsSpan(0, written));
 
             // this.SetCursorPosition(newCursorLeft - this.Left, newCursorTop - this.Top, true);
