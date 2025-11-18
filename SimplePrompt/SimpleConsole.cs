@@ -12,7 +12,7 @@ namespace SimplePrompt;
 public partial class SimpleConsole : IConsoleService
 {
     private const int CharBufferSize = 1024;
-    private const int WindowBufferMargin = 1024;
+    private const int WindowBufferSize = 256 * 1024;
     private static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
     private static readonly ConsoleKeyInfo SpaceKeyInfo = new(' ', ConsoleKey.Spacebar, false, false, false);
 
@@ -42,13 +42,11 @@ public partial class SimpleConsole : IConsoleService
 
     internal bool MultilineMode { get; set; }
 
-    internal char[] WindowBuffer => this.windowBuffer;
+    internal ReadOnlySpan<char> WindowBuffer => this.windowBuffer.AsSpan();
 
-    internal byte[] Utf8Buffer => this.utf8Buffer;
+    internal ReadOnlySpan<byte> Utf8Buffer => this.utf8Buffer.AsSpan();
 
     internal List<InputBuffer> Buffers => this.buffers;
-
-    private int WindowBufferCapacity => (this.WindowWidth * this.WindowHeight * 2) + WindowBufferMargin;
 
     private readonly char[] charBuffer = new char[CharBufferSize];
     private readonly ObjectPool<InputBuffer> bufferPool;
@@ -69,8 +67,9 @@ public partial class SimpleConsole : IConsoleService
             this.InputColor = inputColor;
         }
 
-        this.PrepareWindow();
-        this.Prepare();
+        this.charBuffer = new char[CharBufferSize];
+        this.windowBuffer = new char[WindowBufferSize];
+        this.utf8Buffer = new byte[WindowBufferSize * 3];
     }
 
     InputResult IConsoleService.ReadLine(string? prompt)
@@ -255,7 +254,7 @@ ProcessKeyInfo:
 
     private void WriteInternal(ReadOnlySpan<char> message)
     {
-        var span = this.windowBuffer.AsSpan();
+        var span = this.WindowBuffer;
 
         while (message.Length > 0)
         {
@@ -608,12 +607,6 @@ ProcessKeyInfo:
         else if (this.CursorTop >= this.WindowHeight)
         {
             this.CursorTop = this.WindowHeight - 1;
-        }
-
-        if (this.windowBuffer.Length != this.WindowBufferCapacity)
-        {
-            this.windowBuffer = new char[this.WindowBufferCapacity];
-            this.utf8Buffer = new byte[this.WindowBufferCapacity * 3];
         }
     }
 
