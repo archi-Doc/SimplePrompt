@@ -5,6 +5,11 @@ using Microsoft.Win32.SafeHandles;
 
 namespace SimplePrompt;
 
+#pragma warning disable SA1202 // Elements should be ordered by access
+#pragma warning disable SA1300 // Element should begin with upper-case letter
+#pragma warning disable SA1307 // Accessible fields should begin with upper-case letter
+#pragma warning disable SA1310 // Field names should not contain underscore
+
 internal static partial class Interop
 {
     [Flags]

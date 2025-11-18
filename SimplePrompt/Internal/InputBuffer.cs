@@ -138,12 +138,12 @@ internal class InputBuffer
             }
             else if (key == ConsoleKey.Home)
             {
-                this.SetCursorPosition(this.PromtWidth, 0, false);
+                this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
             }
             else if (key == ConsoleKey.End)
             {
                 var newCursor = this.ToCursor(this.Width);
-                this.SetCursorPosition(newCursor.Left, newCursor.Top, false);
+                this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
             }
             else if (key == ConsoleKey.LeftArrow)
             {
@@ -210,7 +210,7 @@ internal class InputBuffer
 
         this.Length = 0;
         this.Width = 0;
-        this.SetCursorPosition(this.PromtWidth, 0, false);
+        this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
         // this.UpdateConsole(0, this.Length, 0, true);
     }
 
@@ -611,7 +611,7 @@ internal class InputBuffer
             if (this.CursorLeft != newCursor.Left ||
                 this.CursorTop != newCursor.Top)
             {
-                this.SetCursorPosition(newCursor.Left, newCursor.Top, false);
+                this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
             }
         }
     }
@@ -631,7 +631,7 @@ internal class InputBuffer
             if (this.CursorLeft != newCursor.Left ||
                 this.CursorTop != newCursor.Top)
             {
-                this.SetCursorPosition(newCursor.Left, newCursor.Top, false);
+                this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
             }
         }
     }
@@ -685,22 +685,22 @@ internal class InputBuffer
             buffer.CursorTop != newCursor.Top ||
             buffer != this)
         {
-            buffer.SetCursorPosition(newCursor.Left, newCursor.Top, false);
+            buffer.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
         }
     }
 
     /// <summary>
     /// Specifies the cursor position relative to the current InputBuffer’s Left and Top.
     /// </summary>
-    private void SetCursorPosition(int cursorLeft, int cursorTop, bool showCursor)
+    private void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
     {
         try
         {
-            if (showCursor ||
+            if (cursorOperation == CursorOperation.Show ||
                 cursorLeft != this.CursorLeft ||
                 cursorTop != this.CursorTop)
             {
-                this.InputConsole.SetCursorPosition(this.Left + cursorLeft, this.Top + cursorTop, showCursor);
+                this.InputConsole.SetCursorPosition(this.Left + cursorLeft, this.Top + cursorTop, cursorOperation);
             }
         }
         catch

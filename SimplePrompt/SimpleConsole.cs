@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Runtime.CompilerServices;
 using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
@@ -67,6 +68,9 @@ public partial class SimpleConsole : IConsoleService
         {
             this.InputColor = inputColor;
         }
+
+        this.PrepareWindow();
+        this.Prepare();
     }
 
     InputResult IConsoleService.ReadLine(string? prompt)
@@ -140,7 +144,7 @@ ProcessKeyInfo:
             }
             else if (keyInfo.Key == ConsoleKey.F2)
             {
-                this.WriteLine("Inserted text1\ntext2");
+                this.WriteLine("Text1\nText2");
                 continue;
             }
 
@@ -218,10 +222,10 @@ ProcessKeyInfo:
 
     public void WriteLine(string? message = null)
     {
-        if (Environment.NewLine == "\r\n" && message is not null)
+        /*if (Environment.NewLine == "\r\n" && message is not null)
         {
             message = Arc.BaseHelper.ConvertLfToCrLf(message);
-        }
+        }*/
 
         try
         {
@@ -235,19 +239,57 @@ ProcessKeyInfo:
             {
                 var location = this.GetLocation();
 
-                this.SetCursorAtFirst();
-                Console.Out.Write(message);
-                Console.Out.Write(EraseLineAndReturn);
+                this.SetCursorAtFirst(CursorOperation.Hide);
+                this.WriteInternal(message);
                 this.RedrawInternal();
 
                 var buffer = this.buffers[location.BufferIndex];
                 var cursor = buffer.ToCursor(location.CursorIndex);
-                this.SetCursorPosition(buffer.Left + cursor.Left, buffer.Top + cursor.Top, true);
+                this.SetCursorPosition(buffer.Left + cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
             }
         }
         catch
         {
         }
+    }
+
+    private void WriteInternal(ReadOnlySpan<char> message)
+    {
+        var span = this.windowBuffer.AsSpan();
+
+        while (message.Length > 0)
+        {
+            ReadOnlySpan<char> text;
+            var i = message.IndexOf('\n');
+            if (i > 0 && message[i - 1] == '\r')
+            {// text\r\n
+                text = message.Slice(0, i - 1);
+                message = message.Slice(i + 1);
+            }
+            else if (i >= 0)
+            {// text\n
+                text = message.Slice(0, i);
+                message = message.Slice(i + 1);
+            }
+            else
+            {// text
+                text = message;
+                message = default;
+            }
+
+            // Text
+            if (!TryCopy(text, ref span))
+            {
+                break;
+            }
+
+            if (!TryCopy(EraseLineAndReturn, ref span))
+            {
+                break;
+            }
+        }
+
+        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, this.windowBuffer.Length - span.Length));
     }
 
     ConsoleKeyInfo IConsoleService.ReadKey(bool intercept)
@@ -277,7 +319,7 @@ ProcessKeyInfo:
         }
     }
 
-    internal void SetCursorPosition(int cursorLeft, int cursorTop, bool showCursor)
+    internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
     {// Move and show cursor.
         /*if (this.CursorLeft == cursorLeft &&
             this.CursorTop == cursorTop)
@@ -309,9 +351,16 @@ ProcessKeyInfo:
         buffer = buffer.Slice(1);
         written += 1;
 
-        if (showCursor)
+        if (cursorOperation == CursorOperation.Show)
         {
             span = ConsoleHelper.ShowCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
+        }
+        else if (cursorOperation == CursorOperation.Hide)
+        {
+            span = ConsoleHelper.HideCursorSpan;
             span.CopyTo(buffer);
             buffer = buffer.Slice(span.Length);
             written += span.Length;
@@ -356,7 +405,7 @@ ProcessKeyInfo:
             this.ClearLine(top);
         }
 
-        this.SetCursorPosition(cursorLeft, cursorTop, true);
+        this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.Show);
     }
 
     internal void TryDeleteBuffer(int index)
@@ -395,10 +444,10 @@ ProcessKeyInfo:
     {
         var cursorLeft = buffer.Left + buffer.PromtWidth;
         var cursorTop = buffer.Top;
-        this.SetCursorPosition(cursorLeft, cursorTop, false);
+        this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.None);
     }
 
-    private void SetCursorAtFirst()
+    private void SetCursorAtFirst(CursorOperation cursorOperation)
     {
         if (this.buffers.Count == 0)
         {
@@ -406,10 +455,10 @@ ProcessKeyInfo:
         }
 
         var buffer = this.buffers[0];
-        this.SetCursorPosition(buffer.Left, buffer.Top, false);
+        this.SetCursorPosition(buffer.Left, buffer.Top, cursorOperation);
     }
 
-    private void SetCursorAtEnd()
+    private void SetCursorAtEnd(CursorOperation cursorOperation)
     {
         if (this.buffers.Count == 0)
         {
@@ -420,7 +469,7 @@ ProcessKeyInfo:
         var newCursor = buffer.ToCursor(buffer.Width);
         newCursor.Left += buffer.Left;
         newCursor.Top += buffer.Top;
-        this.SetCursorPosition(newCursor.Left, newCursor.Top, false);
+        this.SetCursorPosition(newCursor.Left, newCursor.Top, cursorOperation);
     }
 
     private void ClearLine(int top)
@@ -643,7 +692,7 @@ ProcessKeyInfo:
                     }
                 });
 
-                this.SetCursorAtEnd();
+                this.SetCursorAtEnd(CursorOperation.None);
                 return result;
             }
             else
@@ -741,19 +790,20 @@ ProcessKeyInfo:
         }
 
 Exit:
-        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, this.WindowBufferCapacity - span.Length));
+        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, this.windowBuffer.Length - span.Length));
+    }
 
-        bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
+    {
+        if (source.Length > destination.Length)
         {
-            if (source.Length > destination.Length)
-            {
-                return false;
-            }
-
-            source.CopyTo(destination);
-            destination = destination.Slice(source.Length);
-            return true;
+            return false;
         }
+
+        source.CopyTo(destination);
+        destination = destination.Slice(source.Length);
+        return true;
     }
 
     private int GetBuffersHeightInternal()
