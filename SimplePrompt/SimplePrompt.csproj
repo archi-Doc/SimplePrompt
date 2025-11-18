@@ -11,7 +11,7 @@
     <PackageId>SimplePrompt</PackageId>
     <Authors>archi-Doc</Authors>
     <Product>SimplePrompt</Product>
-    <Description>SimplePrompt</Description>
+    <Description>A simple line editor for .NET console apps </Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/archi-Doc/SimplePrompt</PackageProjectUrl>
     <RepositoryUrl>https://github.com/archi-Doc/SimplePrompt</RepositoryUrl>
