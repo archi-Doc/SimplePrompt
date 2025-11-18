@@ -2,7 +2,7 @@
 
 using System.Globalization;
 
-namespace Arc.InputConsole;
+namespace SimplePrompt;
 
 internal static class InputConsoleHelper
 {

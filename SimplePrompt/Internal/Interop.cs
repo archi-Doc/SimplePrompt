@@ -3,7 +3,7 @@
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-namespace ConsoleBufferTest;
+namespace SimplePrompt;
 
 #pragma warning disable SA1202 // Elements should be ordered by access
 #pragma warning disable SA1300 // Element should begin with upper-case letter

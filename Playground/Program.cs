@@ -1,17 +1,12 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
-using System.Globalization;
-using System.Text;
-using System.Threading;
 using Arc;
-using Arc.InputConsole;
 using Arc.Threading;
 using Arc.Unit;
 using Microsoft.Extensions.DependencyInjection;
-using SimpleCommandLine;
+using SimplePrompt;
 
-namespace ConsoleBufferTest;
+namespace Playground;
 
 internal class Program
 {

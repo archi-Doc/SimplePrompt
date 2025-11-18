@@ -6,7 +6,7 @@ using Arc.Unit;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
-namespace Arc.InputConsole;
+namespace SimplePrompt;
 
 public partial class InputConsole : IConsoleService
 {

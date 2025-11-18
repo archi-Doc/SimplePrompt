@@ -1,15 +1,12 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
-using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
+using Arc;
 using Arc.Unit;
 
 #pragma warning disable SA1202 // Elements should be ordered by access
 
-namespace Arc.InputConsole;
+namespace SimplePrompt;
 
 internal class InputBuffer
 {
@@ -379,7 +376,8 @@ internal class InputBuffer
         var charSpan = this.charArray.AsSpan(startIndex, length);
         var widthSpan = this.widthArray.AsSpan(startIndex, length);
         var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
-        var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
+        var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)
+BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
 
         var startCursor = this.Left + (this.Top * this.WindowWidth) + startPosition;
         var windowRemaining = (this.WindowWidth * this.WindowHeight) - startCursor;
