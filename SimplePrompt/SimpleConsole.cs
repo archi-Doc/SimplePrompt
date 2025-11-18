@@ -1,19 +1,24 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Runtime.CompilerServices;
 using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
-namespace Arc.InputConsole;
+namespace SimplePrompt;
 
-public partial class InputConsole : IConsoleService
+public partial class SimpleConsole : IConsoleService
 {
     private const int CharBufferSize = 1024;
-    private const int WindowBufferMargin = 512;
+    private const int WindowBufferSize = 64 * 1024;
     private static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
     private static readonly ConsoleKeyInfo SpaceKeyInfo = new(' ', ConsoleKey.Spacebar, false, false, false);
+
+    public static ReadOnlySpan<char> EraseLine => "\u001b[K";
+
+    public static ReadOnlySpan<char> EraseLineAndReturn => "\u001b[K\n";
 
     public ILogger? Logger { get; set; }
 
@@ -43,17 +48,15 @@ public partial class InputConsole : IConsoleService
 
     internal List<InputBuffer> Buffers => this.buffers;
 
-    private int WindowBufferCapacity => (this.WindowWidth * this.WindowHeight * 2) + WindowBufferMargin;
-
     private readonly char[] charBuffer = new char[CharBufferSize];
+    private readonly char[] windowBuffer = [];
+    private readonly byte[] utf8Buffer = [];
     private readonly ObjectPool<InputBuffer> bufferPool;
 
     private readonly Lock lockObject = new();
     private List<InputBuffer> buffers = new();
-    private char[] windowBuffer = [];
-    private byte[] utf8Buffer = [];
 
-    public InputConsole(ConsoleColor inputColor = (ConsoleColor)(-1))
+    public SimpleConsole(ConsoleColor inputColor = (ConsoleColor)(-1))
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
@@ -63,10 +66,14 @@ public partial class InputConsole : IConsoleService
         {
             this.InputColor = inputColor;
         }
+
+        this.charBuffer = new char[CharBufferSize];
+        this.windowBuffer = new char[WindowBufferSize];
+        this.utf8Buffer = new byte[WindowBufferSize * 3];
     }
 
-    public InputResult ReadLine(string? prompt)
-        => this.ReadLine(prompt);
+    InputResult IConsoleService.ReadLine(string? prompt)
+        => this.ReadLine(prompt, default).Result;
 
     public async Task<InputResult> ReadLine(string? prompt = default, string? multilinePrompt = default)
     {
@@ -75,10 +82,10 @@ public partial class InputConsole : IConsoleService
 
         using (this.lockObject.EnterScope())
         {
-            this.ReturnAllBuffersInternal();
             buffer = this.RentBuffer(0, prompt);
             this.buffers.Add(buffer);
             this.StartingCursorTop = Console.CursorTop;
+            buffer.Top = this.StartingCursorTop;
         }
 
         if (!string.IsNullOrEmpty(prompt))
@@ -119,6 +126,7 @@ ProcessKeyInfo:
             else if (keyInfo.Key == ConsoleKey.Escape)
             {
                 Console.Out.WriteLine();
+                this.Clear();
                 return new(InputResultKind.Canceled);
             }
             else if (keyInfo.Key == ConsoleKey.C &&
@@ -126,6 +134,17 @@ ProcessKeyInfo:
             { // Ctrl+C
                 // ThreadCore.Root.Terminate(); // Send a termination signal to the root.
                 // return null;
+            }
+
+            if (keyInfo.Key == ConsoleKey.F1)
+            {
+                this.WriteLine("Inserted text");
+                continue;
+            }
+            else if (keyInfo.Key == ConsoleKey.F2)
+            {
+                this.WriteLine("Text1\nText2");
+                continue;
             }
 
             bool flush = true;
@@ -160,11 +179,12 @@ ProcessKeyInfo:
 
             if (flush)
             {// Flush
-                var result = this.Flush(keyInfo, this.charBuffer.AsSpan().Slice(0, position), multilinePrompt);
+                var result = this.Flush(keyInfo, this.charBuffer.AsSpan(0, position), multilinePrompt);
                 position = 0;
                 if (result is not null)
                 {
                     Console.Out.WriteLine();
+                    this.Clear();
                     return new(result);
                 }
 
@@ -179,10 +199,11 @@ ProcessKeyInfo:
         // Terminated
         // this.SetCursorPosition(this.WindowWidth - 1, this.CursorTop, true);
         Console.Out.WriteLine();
+        this.Clear();
         return new(InputResultKind.Terminated);
     }
 
-    public void Write(string? message = null)
+    void IConsoleService.Write(string? message)
     {
         if (Environment.NewLine == "\r\n" && message is not null)
         {
@@ -200,21 +221,38 @@ ProcessKeyInfo:
 
     public void WriteLine(string? message = null)
     {
-        if (Environment.NewLine == "\r\n" && message is not null)
+        /*if (Environment.NewLine == "\r\n" && message is not null)
         {
             message = Arc.BaseHelper.ConvertLfToCrLf(message);
-        }
+        }*/
 
         try
         {
-            Console.WriteLine(message);
+            if (this.buffers.Count == 0)
+            {
+                Console.Out.WriteLine(message);
+                return;
+            }
+
+            using (this.lockObject.EnterScope())
+            {
+                var location = this.GetLocation();
+
+                this.SetCursorAtFirst(CursorOperation.Hide);
+                this.WriteInternal(message);
+                this.RedrawInternal();
+
+                var buffer = this.buffers[location.BufferIndex];
+                var cursor = buffer.ToCursor(location.CursorIndex);
+                this.SetCursorPosition(buffer.Left + cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
+            }
         }
         catch
         {
         }
     }
 
-    public ConsoleKeyInfo ReadKey(bool intercept)
+    ConsoleKeyInfo IConsoleService.ReadKey(bool intercept)
     {
         try
         {
@@ -226,7 +264,7 @@ ProcessKeyInfo:
         }
     }
 
-    public bool KeyAvailable
+    bool IConsoleService.KeyAvailable
     {
         get
         {
@@ -241,7 +279,7 @@ ProcessKeyInfo:
         }
     }
 
-    internal void SetCursorPosition(int cursorLeft, int cursorTop, bool showCursor)
+    internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
     {// Move and show cursor.
         /*if (this.CursorLeft == cursorLeft &&
             this.CursorTop == cursorTop)
@@ -249,7 +287,7 @@ ProcessKeyInfo:
             return;
         }*/
 
-        var buffer = this.windowBuffer.AsSpan();
+        var buffer = this.WindowBuffer.AsSpan();
         var written = 0;
         ReadOnlySpan<char> span;
 
@@ -273,15 +311,22 @@ ProcessKeyInfo:
         buffer = buffer.Slice(1);
         written += 1;
 
-        if (showCursor)
+        if (cursorOperation == CursorOperation.Show)
         {
             span = ConsoleHelper.ShowCursorSpan;
             span.CopyTo(buffer);
             buffer = buffer.Slice(span.Length);
             written += span.Length;
         }
+        else if (cursorOperation == CursorOperation.Hide)
+        {
+            span = ConsoleHelper.HideCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
+        }
 
-        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, written));
+        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, written));
 
         this.CursorLeft = cursorLeft;
         this.CursorTop = cursorTop;
@@ -320,7 +365,7 @@ ProcessKeyInfo:
             this.ClearLine(top);
         }
 
-        this.SetCursorPosition(cursorLeft, cursorTop, true);
+        this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.Show);
     }
 
     internal void TryDeleteBuffer(int index)
@@ -345,6 +390,45 @@ ProcessKeyInfo:
         this.SetCursor(this.buffers[index]);
     }
 
+    private void WriteInternal(ReadOnlySpan<char> message)
+    {
+        var span = this.WindowBuffer.AsSpan();
+
+        while (message.Length > 0)
+        {
+            ReadOnlySpan<char> text;
+            var i = message.IndexOf('\n');
+            if (i > 0 && message[i - 1] == '\r')
+            {// text\r\n
+                text = message.Slice(0, i - 1);
+                message = message.Slice(i + 1);
+            }
+            else if (i >= 0)
+            {// text\n
+                text = message.Slice(0, i);
+                message = message.Slice(i + 1);
+            }
+            else
+            {// text
+                text = message;
+                message = default;
+            }
+
+            // Text
+            if (!TryCopy(text, ref span))
+            {
+                break;
+            }
+
+            if (!TryCopy(EraseLineAndReturn, ref span))
+            {
+                break;
+            }
+        }
+
+        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
+    }
+
     private void ClearLastLine(int dif)
     {
         var buffer = this.buffers[this.buffers.Count - 1];
@@ -359,10 +443,21 @@ ProcessKeyInfo:
     {
         var cursorLeft = buffer.Left + buffer.PromtWidth;
         var cursorTop = buffer.Top;
-        this.SetCursorPosition(cursorLeft, cursorTop, false);
+        this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.None);
     }
 
-    private void SetCursorAtEnd()
+    private void SetCursorAtFirst(CursorOperation cursorOperation)
+    {
+        if (this.buffers.Count == 0)
+        {
+            return;
+        }
+
+        var buffer = this.buffers[0];
+        this.SetCursorPosition(buffer.Left, buffer.Top, cursorOperation);
+    }
+
+    private void SetCursorAtEnd(CursorOperation cursorOperation)
     {
         if (this.buffers.Count == 0)
         {
@@ -373,12 +468,12 @@ ProcessKeyInfo:
         var newCursor = buffer.ToCursor(buffer.Width);
         newCursor.Left += buffer.Left;
         newCursor.Top += buffer.Top;
-        this.SetCursorPosition(newCursor.Left, newCursor.Top, false);
+        this.SetCursorPosition(newCursor.Left, newCursor.Top, cursorOperation);
     }
 
     private void ClearLine(int top)
     {
-        var buffer = this.windowBuffer.AsSpan();
+        var buffer = this.WindowBuffer.AsSpan();
         var written = 0;
         ReadOnlySpan<char> span;
 
@@ -417,7 +512,7 @@ ProcessKeyInfo:
         buffer = buffer.Slice(span.Length);
         written += span.Length;*/
 
-        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, written));
+        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, written));
     }
 
     private static bool IsControl(ConsoleKeyInfo keyInfo)
@@ -513,12 +608,6 @@ ProcessKeyInfo:
         {
             this.CursorTop = this.WindowHeight - 1;
         }
-
-        if (this.windowBuffer.Length != this.WindowBufferCapacity)
-        {
-            this.windowBuffer = new char[this.WindowBufferCapacity];
-            this.utf8Buffer = new byte[this.WindowBufferCapacity * 3];
-        }
     }
 
     private string? Flush(ConsoleKeyInfo keyInfo, Span<char> charBuffer, string? multilinePrompt)
@@ -596,8 +685,7 @@ ProcessKeyInfo:
                     }
                 });
 
-                this.SetCursorAtEnd();
-                this.ReturnAllBuffersInternal();
+                this.SetCursorAtEnd(CursorOperation.None);
                 return result;
             }
             else
@@ -605,6 +693,111 @@ ProcessKeyInfo:
                 return null;
             }
         }
+    }
+
+    private (int BufferIndex, int CursorIndex) GetLocation()
+    {
+        var y = this.StartingCursorTop;
+        InputBuffer? buffer = null;
+        foreach (var x in this.buffers)
+        {
+            x.Top = y;
+            x.UpdateHeight(false);
+            y += x.Height;
+            if (buffer is null &&
+                this.CursorTop >= x.Top &&
+                this.CursorTop < y)
+            {
+                buffer = x;
+                break;
+            }
+        }
+
+        if (buffer is null)
+        {
+            return default;
+        }
+        else
+        {
+            return (buffer.Index, buffer.GetCursorIndex());
+        }
+    }
+
+    private void RedrawInternal()
+    {
+        var firstBuffer = 0;//
+        var span = this.WindowBuffer.AsSpan();
+
+        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+        this.StartingCursorTop = this.CursorTop;
+        var y = this.StartingCursorTop;
+        for (var i = 0; i < this.buffers.Count; i++)
+        {
+            var buffer = this.buffers[i];
+            buffer.Left = 0;
+            buffer.Top = y;
+            y += buffer.Height;
+        }
+
+        for (var i = firstBuffer; i < this.buffers.Count; i++)
+        {
+            var buffer = this.buffers[i];
+
+            if (buffer.Prompt is not null &&
+                !TryCopy(buffer.Prompt.AsSpan(), ref span))
+            {
+                goto Exit;
+            }
+
+            // Input color
+            var colorString = ConsoleHelper.GetForegroundColorEscapeCode(this.InputColor);
+            if (!TryCopy(colorString.AsSpan(), ref span))
+            {
+                goto Exit;
+            }
+
+            if (!TryCopy(buffer.TextSpan, ref span))
+            {
+                goto Exit;
+            }
+
+            // Reset color
+            if (!TryCopy(ConsoleHelper.ResetSpan, ref span))
+            {
+                goto Exit;
+            }
+
+            if (i == (this.buffers.Count - 1))
+            {
+                if (!TryCopy(EraseLine, ref span))
+                {
+                    goto Exit;
+                }
+            }
+            else
+            {
+                if (!TryCopy(EraseLineAndReturn, ref span))
+                {
+                    goto Exit;
+                }
+            }
+        }
+
+Exit:
+        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
+    {
+        if (source.Length > destination.Length)
+        {
+            return false;
+        }
+
+        source.CopyTo(destination);
+        destination = destination.Slice(source.Length);
+        return true;
     }
 
     private int GetBuffersHeightInternal()
@@ -621,33 +814,30 @@ ProcessKeyInfo:
 
     private InputBuffer? PrepareAndFindBuffer()
     {
-        using (this.lockObject.EnterScope())
+        if (this.buffers.Count == 0)
         {
-            if (this.buffers.Count == 0)
-            {
-                return null;
-            }
-
-            // Calculate buffer heights.
-            var y = this.StartingCursorTop;
-            InputBuffer? buffer = null;
-            foreach (var x in this.buffers)
-            {
-                x.Left = 0;
-                x.Top = y;
-                x.UpdateHeight(false);
-                y += x.Height;
-                if (buffer is null &&
-                    this.CursorTop >= x.Top &&
-                    this.CursorTop < y)
-                {
-                    buffer = x;
-                }
-            }
-
-            buffer ??= this.buffers[0];
-            return buffer;
+            return null;
         }
+
+        // Calculate buffer heights.
+        var y = this.StartingCursorTop;
+        InputBuffer? buffer = null;
+        foreach (var x in this.buffers)
+        {
+            x.Left = 0;
+            x.Top = y;
+            x.UpdateHeight(false);
+            y += x.Height;
+            if (buffer is null &&
+                this.CursorTop >= x.Top &&
+                this.CursorTop < y)
+            {
+                buffer = x;
+            }
+        }
+
+        buffer ??= this.buffers[0];
+        return buffer;
     }
 
     private InputBuffer RentBuffer(int index, string? prompt)
@@ -657,13 +847,17 @@ ProcessKeyInfo:
         return buffer;
     }
 
-    private void ReturnAllBuffersInternal()
+    private void Clear()
     {
-        foreach (var buffer in this.buffers)
+        using (this.lockObject.EnterScope())
         {
-            this.bufferPool.Return(buffer);
-        }
+            this.MultilineMode = false;
+            foreach (var buffer in this.buffers)
+            {
+                this.bufferPool.Return(buffer);
+            }
 
-        this.buffers.Clear();
+            this.buffers.Clear();
+        }
     }
 }

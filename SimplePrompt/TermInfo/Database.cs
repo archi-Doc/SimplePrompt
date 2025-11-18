@@ -3,7 +3,7 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace Arc.InputConsole;
+namespace SimplePrompt;
 
 #pragma warning disable SA1203 // Constants should appear before fields
 

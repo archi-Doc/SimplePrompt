@@ -1,15 +1,12 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
-using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
+using Arc;
 using Arc.Unit;
 
 #pragma warning disable SA1202 // Elements should be ordered by access
 
-namespace Arc.InputConsole;
+namespace SimplePrompt;
 
 internal class InputBuffer
 {
@@ -17,7 +14,7 @@ internal class InputBuffer
     private const int BufferMargin = 32;
     private const int MaxPromptWidth = 256;
 
-    public InputConsole InputConsole { get; }
+    public SimpleConsole InputConsole { get; }
 
     public int Index { get; set; }
 
@@ -56,7 +53,7 @@ internal class InputBuffer
     private char[] charArray = new char[BufferSize];
     private byte[] widthArray = new byte[BufferSize];
 
-    public InputBuffer(InputConsole inputConsole)
+    public InputBuffer(SimpleConsole inputConsole)
     {
         this.InputConsole = inputConsole;
     }
@@ -141,12 +138,12 @@ internal class InputBuffer
             }
             else if (key == ConsoleKey.Home)
             {
-                this.SetCursorPosition(this.PromtWidth, 0, false);
+                this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
             }
             else if (key == ConsoleKey.End)
             {
                 var newCursor = this.ToCursor(this.Width);
-                this.SetCursorPosition(newCursor.Left, newCursor.Top, false);
+                this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
             }
             else if (key == ConsoleKey.LeftArrow)
             {
@@ -213,7 +210,7 @@ internal class InputBuffer
 
         this.Length = 0;
         this.Width = 0;
-        this.SetCursorPosition(this.PromtWidth, 0, false);
+        this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
         // this.UpdateConsole(0, this.Length, 0, true);
     }
 
@@ -231,7 +228,7 @@ internal class InputBuffer
         }
 
         this.Prompt = prompt;
-        this.PromtWidth = InputConsoleHelper.GetWidth(this.Prompt);
+        this.PromtWidth = SimplePromptHelper.GetWidth(this.Prompt);
         this.Length = 0;
         this.Width = 0;
         this.Height = 1;
@@ -272,13 +269,13 @@ internal class InputBuffer
                 if (char.IsHighSurrogate(c) && (i + 1) < charBuffer.Length && char.IsLowSurrogate(charBuffer[i + 1]))
                 {
                     var codePoint = char.ConvertToUtf32(c, charBuffer[i + 1]);
-                    w = InputConsoleHelper.GetCharWidth(codePoint);
+                    w = SimplePromptHelper.GetCharWidth(codePoint);
                     this.widthArray[arrayPosition + i++] = 0;
                     this.widthArray[arrayPosition + i] = (byte)w;
                 }
                 else
                 {
-                    w = InputConsoleHelper.GetCharWidth(c);
+                    w = SimplePromptHelper.GetCharWidth(c);
                     this.widthArray[arrayPosition + i] = (byte)w;
                 }
 
@@ -596,7 +593,7 @@ internal class InputBuffer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetCursorIndex()
+    internal int GetCursorIndex()
         => this.GetCursorIndex(this.CursorLeft, this.CursorTop);
 
     private void MoveLeft(int arrayPosition)
@@ -614,7 +611,7 @@ internal class InputBuffer
             if (this.CursorLeft != newCursor.Left ||
                 this.CursorTop != newCursor.Top)
             {
-                this.SetCursorPosition(newCursor.Left, newCursor.Top, false);
+                this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
             }
         }
     }
@@ -634,7 +631,7 @@ internal class InputBuffer
             if (this.CursorLeft != newCursor.Left ||
                 this.CursorTop != newCursor.Top)
             {
-                this.SetCursorPosition(newCursor.Left, newCursor.Top, false);
+                this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
             }
         }
     }
@@ -688,22 +685,22 @@ internal class InputBuffer
             buffer.CursorTop != newCursor.Top ||
             buffer != this)
         {
-            buffer.SetCursorPosition(newCursor.Left, newCursor.Top, false);
+            buffer.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
         }
     }
 
     /// <summary>
     /// Specifies the cursor position relative to the current InputBuffer’s Left and Top.
     /// </summary>
-    private void SetCursorPosition(int cursorLeft, int cursorTop, bool showCursor)
+    private void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
     {
         try
         {
-            if (showCursor ||
+            if (cursorOperation == CursorOperation.Show ||
                 cursorLeft != this.CursorLeft ||
                 cursorTop != this.CursorTop)
             {
-                this.InputConsole.SetCursorPosition(this.Left + cursorLeft, this.Top + cursorTop, showCursor);
+                this.InputConsole.SetCursorPosition(this.Left + cursorLeft, this.Top + cursorTop, cursorOperation);
             }
         }
         catch

@@ -2,9 +2,9 @@
 
 using System.Globalization;
 
-namespace Arc.InputConsole;
+namespace SimplePrompt;
 
-internal static class InputConsoleHelper
+internal static class SimplePromptHelper
 {
     public static byte GetCharWidth(int codePoint)
     {

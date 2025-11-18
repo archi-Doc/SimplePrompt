@@ -1,17 +1,12 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
-using System.Globalization;
-using System.Text;
-using System.Threading;
 using Arc;
-using Arc.InputConsole;
 using Arc.Threading;
 using Arc.Unit;
 using Microsoft.Extensions.DependencyInjection;
-using SimpleCommandLine;
+using SimplePrompt;
 
-namespace ConsoleBufferTest;
+namespace Playground;
 
 internal class Program
 {
@@ -65,8 +60,8 @@ internal class Program
         // Console.Write("Enter to start:");
         // Console.ReadLine();
 
-        var inputConsole = new InputConsole();
-        inputConsole.Logger = product.Context.ServiceProvider.GetRequiredService<ILogger<InputConsole>>();
+        var simpleConsole = new SimpleConsole();
+        simpleConsole.Logger = product.Context.ServiceProvider.GetRequiredService<ILogger<SimpleConsole>>();
 
         // var sp = ConsoleHelper.GetForegroundColorEscapeCode(ConsoleColor.Red);
         // Console.Write($">> {sp}");
@@ -76,7 +71,7 @@ internal class Program
 
         while (!ThreadCore.Root.IsTerminated)
         {
-            var result = await inputConsole.ReadLine($"{Console.CursorTop}> ", "# "); // Success, Canceled, Terminated
+            var result = await simpleConsole.ReadLine($"{Console.CursorTop}> ", "# "); // Success, Canceled, Terminated
 
             if (result.Kind == InputResultKind.Terminated)
             {
@@ -84,7 +79,7 @@ internal class Program
             }
             else if (result.Kind == InputResultKind.Canceled)
             {
-                inputConsole.WriteLine("Canceled");
+                simpleConsole.WriteLine("Canceled");
                 continue;
             }
             else if (string.Equals(result.Text, "exit", StringComparison.InvariantCultureIgnoreCase))
@@ -101,13 +96,13 @@ internal class Program
                 _ = Task.Run(async () =>
                 {
                     await Task.Delay(1000);
-                    inputConsole.WriteLine("AAAAA");
+                    simpleConsole.WriteLine("AAAAA");
                 });
             }
             else
             {
                 var text = BaseHelper.RemoveCrLf(result.Text);
-                inputConsole.WriteLine($"Command: {text}");
+                simpleConsole.WriteLine($"Command: {text}");
             }
         }
 

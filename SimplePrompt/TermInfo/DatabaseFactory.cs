@@ -1,10 +1,9 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Diagnostics.CodeAnalysis;
-using ConsoleBufferTest;
 using Microsoft.Win32.SafeHandles;
 
-namespace Arc.InputConsole;
+namespace SimplePrompt;
 
 internal static partial class TermInfo
 {
