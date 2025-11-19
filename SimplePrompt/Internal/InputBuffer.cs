@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System;
 using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Unit;
@@ -56,6 +57,17 @@ internal class InputBuffer
     public InputBuffer(SimpleConsole inputConsole)
     {
         this.InputConsole = inputConsole;
+    }
+
+    public override string ToString()
+    {
+        const int MaxLength = 32;
+        if (this.TextSpan.Length <= MaxLength)
+        {
+            return new string(this.TextSpan);
+        }
+
+        return new string(this.TextSpan.Slice(0, MaxLength));
     }
 
     public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)

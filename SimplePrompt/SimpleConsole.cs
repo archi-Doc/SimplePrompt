@@ -803,7 +803,7 @@ Exit:
     private int GetBuffersHeightInternal()
     {
         var height = 0;
-        for (var i = 1; i < this.buffers.Count; i++)
+        for (var i = 0; i < (this.buffers.Count - 1); i++)
         {
             this.buffers[i].UpdateHeight(false);
             height += this.buffers[i].Height;
