@@ -24,15 +24,6 @@ internal class Program
             ThreadCore.Root.Terminate(); // Send a termination signal to the root.
         };
 
-        /*var st = Console.OpenStandardInput();
-        var buffer = new byte[100];
-        while (true)
-        {
-            // var n = st.Read(buffer.AsSpan(0, 1));
-            var r = Interop.Sys.ReadConsoleInput(InputHandle, out var ir, 1, out int numEventsRead);
-            Console.WriteLine(r);
-        }*/
-
         var builder = new UnitBuilder()
             .Configure(context =>
             {
@@ -57,17 +48,14 @@ internal class Program
         logger.TryGet()?.Log("Start");
 
         Console.WriteLine(Environment.OSVersion.ToString());
-        // Console.Write("Enter to start:");
-        // Console.ReadLine();
 
-        var simpleConsole = new SimpleConsole();
-        simpleConsole.Logger = product.Context.ServiceProvider.GetRequiredService<ILogger<SimpleConsole>>();
-
-        // var sp = ConsoleHelper.GetForegroundColorEscapeCode(ConsoleColor.Red);
-        // Console.Write($">> {sp}");
-        // var st = Console.ReadLine();
-
-        // Test();
+        var simpleConsole = SimpleConsole.GetOrCreate();
+        simpleConsole.Configuration = new SimpleConsoleConfiguration()
+        {
+            InputColor = ConsoleColor.Yellow,
+            MultilineIdentifier = "|",
+            CancelReadLineOnEscape = true,
+        };
 
         while (!ThreadCore.Root.IsTerminated)
         {
@@ -97,6 +85,14 @@ internal class Program
                 {
                     await Task.Delay(1000);
                     simpleConsole.WriteLine("AAAAA");
+                });
+            }
+            else if (string.Equals(result.Text, "b", StringComparison.InvariantCultureIgnoreCase))
+            {
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(1000);
+                    Console.WriteLine("ABC123ABC123\r\nABC123ABC123\nABC123ABC123");
                 });
             }
             else

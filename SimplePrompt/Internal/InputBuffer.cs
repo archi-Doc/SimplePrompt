@@ -6,7 +6,7 @@ using Arc.Unit;
 
 #pragma warning disable SA1202 // Elements should be ordered by access
 
-namespace SimplePrompt;
+namespace SimplePrompt.Internal;
 
 internal class InputBuffer
 {
@@ -18,14 +18,12 @@ internal class InputBuffer
 
     public int Index { get; set; }
 
-    public int Left { get; set; }
-
     public int Top { get; set; }
 
     /// <summary>
     /// Gets the cursor's horizontal position relative to the buffer's left edge.
     /// </summary>
-    public int CursorLeft => this.InputConsole.CursorLeft - this.Left;
+    public int CursorLeft => this.InputConsole.CursorLeft;
 
     /// <summary>
     /// Gets the cursor's vertical position relative to the buffer's top edge.
@@ -58,6 +56,17 @@ internal class InputBuffer
         this.InputConsole = inputConsole;
     }
 
+    public override string ToString()
+    {
+        const int MaxLength = 32;
+        if (this.TextSpan.Length <= MaxLength)
+        {
+            return new string(this.TextSpan);
+        }
+
+        return new string(this.TextSpan.Slice(0, MaxLength));
+    }
+
     public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
         if (charBuffer.Length > 0)
@@ -71,6 +80,16 @@ internal class InputBuffer
             var key = keyInfo.Key;
             if (key == ConsoleKey.Enter)
             {// Exit or Multiline """
+                if (!this.InputConsole.Configuration.AllowEmptyLineInput)
+                {
+                    if (this.InputConsole.Buffers.Count == 0 ||
+                    (this.InputConsole.Buffers.Count == 1 &&
+                    this.InputConsole.Buffers[0].Length == 0))
+                    {// Empty input
+                        return false;
+                    }
+                }
+
                 return true;
             }
             else if (key == ConsoleKey.Backspace)
@@ -252,9 +271,7 @@ internal class InputBuffer
 
     private void ProcessCharacterInternal(int arrayPosition, Span<char> charBuffer)
     {
-        // var bufferWidth = InputConsoleHelper.GetWidth(charBuffer);
-
-        if (this.InputConsole.IsInsertMode)
+        // if (this.InputConsole.IsInsertMode)
         {// Insert
             this.EnsureCapacity(this.Length + charBuffer.Length);
 
@@ -286,9 +303,10 @@ internal class InputBuffer
             this.Width += width;
             this.Write(arrayPosition, this.Length, width, 0);
         }
-        else
+
+        /*else
         {// Overtype (Not implemented yet)
-            /*this.EnsureCapacity(arrayPosition + charBuffer.Length);
+            this.EnsureCapacity(arrayPosition + charBuffer.Length);
 
             charBuffer.CopyTo(this.charArray.AsSpan(arrayPosition));
             for (var i = 0; i < charBuffer.Length; i++)
@@ -316,8 +334,8 @@ internal class InputBuffer
                 this.Width += dif;
             }
 
-            this.UpdateConsole(arrayPosition, arrayPosition + charBuffer.Length, 0);*/
-        }
+            this.UpdateConsole(arrayPosition, arrayPosition + charBuffer.Length, 0);
+        }*/
     }
 
     private int GetArrayPosition()
@@ -378,7 +396,7 @@ internal class InputBuffer
         var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
         var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
 
-        var startCursor = this.Left + (this.Top * this.WindowWidth) + startPosition;
+        var startCursor = (this.Top * this.WindowWidth) + startPosition;
         var windowRemaining = (this.WindowWidth * this.WindowHeight) - startCursor;
         if (totalWidth > windowRemaining)
         {
@@ -386,12 +404,12 @@ internal class InputBuffer
 
         var startCursorLeft = startCursor % this.WindowWidth;
         var startCursorTop = startCursor / this.WindowWidth;
+        if (startCursorTop < 0)
+        {
+            return;
+        }
 
         var scroll = startCursorTop + 1 + ((startCursorLeft + totalWidth) / this.WindowWidth) - this.WindowHeight;
-        if (scroll > 0)
-        {
-            this.InputConsole.Scroll(scroll);
-        }
 
         startCursor += cursorDif;
         var newCursorLeft = startCursor % this.WindowWidth;
@@ -408,7 +426,7 @@ internal class InputBuffer
         written += span.Length;
         buffer = buffer.Slice(span.Length);
 
-        if (startCursorLeft != (this.Left + this.CursorLeft) || startCursorTop != (this.Top + this.CursorTop))
+        if (startCursorLeft != this.CursorLeft || startCursorTop != (this.Top + this.CursorTop))
         {// Move cursor
             span = ConsoleHelper.SetCursorSpan;
             span.CopyTo(buffer);
@@ -440,7 +458,7 @@ internal class InputBuffer
         }
 
         // Input color
-        span = ConsoleHelper.GetForegroundColorEscapeCode(this.InputConsole.InputColor).AsSpan();
+        span = ConsoleHelper.GetForegroundColorEscapeCode(this.InputConsole.Configuration.InputColor).AsSpan();
         span.CopyTo(buffer);
         written += span.Length;
         buffer = buffer.Slice(span.Length);
@@ -512,6 +530,11 @@ internal class InputBuffer
         span.CopyTo(buffer);
         buffer = buffer.Slice(span.Length);
         written += span.Length;
+
+        if (scroll > 0)
+        {
+            this.InputConsole.Scroll(scroll, true);
+        }
 
         try
         {
@@ -700,7 +723,7 @@ internal class InputBuffer
                 cursorLeft != this.CursorLeft ||
                 cursorTop != this.CursorTop)
             {
-                this.InputConsole.SetCursorPosition(this.Left + cursorLeft, this.Top + cursorTop, cursorOperation);
+                this.InputConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
             }
         }
         catch

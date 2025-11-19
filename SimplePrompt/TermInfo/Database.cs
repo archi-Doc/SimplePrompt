@@ -3,7 +3,7 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace SimplePrompt;
+namespace SimplePrompt.Internal;
 
 #pragma warning disable SA1203 // Constants should appear before fields
 
@@ -24,11 +24,11 @@ internal static partial class TermInfo
 
         internal Database(string term, byte[] data)
         {
-            this._term = term;
-            this._data = data;
-
             const int MagicLegacyNumber = 0x11A;
             const int Magic32BitNumber = 0x21E;
+
+            this._term = term;
+            this._data = data;
             short magic = ReadInt16(data, 0);
             this._readAs32Bit =
                 magic == MagicLegacyNumber ? false :

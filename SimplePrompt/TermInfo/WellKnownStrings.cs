@@ -1,6 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-namespace SimplePrompt;
+namespace SimplePrompt.Internal;
 
 internal static partial class TermInfo
 {

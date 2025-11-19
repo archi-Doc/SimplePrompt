@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Arc;
 
-namespace SimplePrompt;
+namespace SimplePrompt.Internal;
 
 internal sealed class RawConsole
 {
@@ -17,7 +17,7 @@ internal sealed class RawConsole
     private const char VtSequenceEndTag = '~';
     private const char ModifierSeparator = ';';
 
-    private readonly SimpleConsole inputConsole;
+    private readonly SimpleConsole simpleConsole;
     private readonly Encoding encoding;
     private readonly TermInfo.Database? db;
     private readonly TerminalFormatStrings terminalFormatStrings;
@@ -36,20 +36,18 @@ internal sealed class RawConsole
 
     public Span<char> CharsSpan => this.chars.AsSpan(this.charsStartIndex, this.charsEndIndex - this.charsStartIndex);
 
-    public bool IsBytesEmpty => this.bytesLength == 0;
-
     public bool IsCharsEmpty => this.charsStartIndex >= this.charsEndIndex;
 
     public RawConsole(SimpleConsole inputConsole, CancellationToken cancellationToken = default)
     {
-        this.inputConsole = inputConsole;
+        this.simpleConsole = inputConsole;
         this.encoding = Encoding.UTF8;
 
         try
         {
             this.InitializeStdin();
             this.db = TermInfo.DatabaseFactory.ReadActiveDatabase();
-            Console.WriteLine("Stdin");
+            // Console.WriteLine("Stdin");
         }
         catch
         {
@@ -91,21 +89,21 @@ internal sealed class RawConsole
                             var readLength = Interop.Sys.ReadStdin(buffer, span.Length);
                             this.bytesLength += readLength;
                         }
-
-                        var validLength = BaseHelper.GetValidUtf8Length(this.bytes.AsSpan(0, this.bytesLength));
-
-                        Debug.Assert(this.IsCharsEmpty);
-                        this.charsStartIndex = 0;
-                        this.charsEndIndex = this.encoding.GetChars(this.bytes.AsSpan(0, validLength), this.chars.AsSpan());
-                        this.bytesLength -= validLength;
-                        if (validLength < this.bytesLength)
-                        {// Move remaining bytes to the front
-                            this.bytes.AsSpan(validLength, this.bytesLength).CopyTo(this.bytes.AsSpan());
-                        }
                     }
                     finally
                     {
                         Interop.Sys.UninitializeConsoleAfterRead();
+                    }
+
+                    var validLength = BaseHelper.GetValidUtf8Length(this.bytes.AsSpan(0, this.bytesLength));
+
+                    Debug.Assert(this.IsCharsEmpty);
+                    this.charsStartIndex = 0;
+                    this.charsEndIndex = this.encoding.GetChars(this.bytes.AsSpan(0, validLength), this.chars.AsSpan());
+                    this.bytesLength -= validLength;
+                    if (validLength < this.bytesLength)
+                    {// Move remaining bytes to the front
+                        this.bytes.AsSpan(validLength, this.bytesLength).CopyTo(this.bytes.AsSpan());
                     }
 
                     return this.TryConsumeBufferInternal(out keyInfo);
@@ -136,15 +134,15 @@ internal sealed class RawConsole
         {
             if (this.handle is not null)
             {
-                var length = Encoding.UTF8.GetBytes(data, this.inputConsole.Utf8Buffer);
-                fixed (byte* p = this.inputConsole.Utf8Buffer)
+                var length = Encoding.UTF8.GetBytes(data, this.simpleConsole.Utf8Buffer);
+                fixed (byte* p = this.simpleConsole.Utf8Buffer)
                 {
                     _ = Interop.Sys.Write(this.handle, p, length);
                 }
             }
             else
             {
-                Console.Out.Write(data);
+                this.simpleConsole.UnderlyingTextWriter.Write(data);
             }
         }
         catch
