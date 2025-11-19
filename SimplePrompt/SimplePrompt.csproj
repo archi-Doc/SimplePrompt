@@ -11,7 +11,7 @@
     <PackageId>SimplePrompt</PackageId>
     <Authors>archi-Doc</Authors>
     <Product>SimplePrompt</Product>
-    <Description>A simple line editor for .NET console apps </Description>
+    <Description>A simple console interface with advanced input handling capabilities including multiline support and custom prompts.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/archi-Doc/SimplePrompt</PackageProjectUrl>
     <RepositoryUrl>https://github.com/archi-Doc/SimplePrompt</RepositoryUrl>

@@ -10,14 +10,23 @@ using SimplePrompt.Internal;
 
 namespace SimplePrompt;
 
+/// <summary>
+/// Provides a simple console interface with advanced input handling capabilities including multiline support and custom prompts.
+/// This class implements <see cref="IConsoleService"/> and manages console input/output operations.
+/// </summary>
 public partial class SimpleConsole : IConsoleService
 {
     // public static readonly SimpleConsole Instance = new();
+
     private const int CharBufferSize = 1024;
     private const int WindowBufferSize = 64 * 1024;
-
     private static SimpleConsole? _instance;
 
+    /// <summary>
+    /// Gets or creates the singleton instance of <see cref="SimpleConsole"/> using thread-safe lazy initialization.
+    /// If an instance already exists, it returns the existing instance; otherwise, it creates and initializes a new one.
+    /// </summary>
+    /// <returns>The singleton <see cref="SimpleConsole"/> instance.</returns>
     public static SimpleConsole GetOrCreate()
     {
         var instance = Volatile.Read(ref _instance);
@@ -37,6 +46,9 @@ public partial class SimpleConsole : IConsoleService
         return instance;
     }
 
+    /// <summary>
+    /// Gets or sets the configuration settings for the console, including input colors and multiline identifiers.
+    /// </summary>
     public SimpleConsoleConfiguration Configuration { get; set; }
 
     // public bool IsInsertMode { get; set; } = true;
@@ -85,6 +97,14 @@ public partial class SimpleConsole : IConsoleService
     InputResult IConsoleService.ReadLine(string? prompt)
         => this.ReadLine(prompt, default).Result;
 
+    /// <summary>
+    /// Asynchronously reads a line of input from the console with support for multiline editing.
+    /// </summary>
+    /// <param name="prompt">The optional prompt text to display before user input. If null or empty, no prompt is displayed.</param>
+    /// <param name="multilinePrompt">The optional prompt text to display for continuation lines in multiline mode. Used when the multiline identifier is detected.</param>
+    /// <returns>
+    /// A task that represents the asynchronous operation. The task result contains an <see cref="InputResult"/>.
+    /// </returns>
     public async Task<InputResult> ReadLine(string? prompt = default, string? multilinePrompt = default)
     {
         InputBuffer? buffer;
