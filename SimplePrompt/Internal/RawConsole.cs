@@ -36,8 +36,6 @@ internal sealed class RawConsole
 
     public Span<char> CharsSpan => this.chars.AsSpan(this.charsStartIndex, this.charsEndIndex - this.charsStartIndex);
 
-    public bool IsBytesEmpty => this.bytesLength == 0;
-
     public bool IsCharsEmpty => this.charsStartIndex >= this.charsEndIndex;
 
     public RawConsole(SimpleConsole inputConsole, CancellationToken cancellationToken = default)
@@ -49,7 +47,7 @@ internal sealed class RawConsole
         {
             this.InitializeStdin();
             this.db = TermInfo.DatabaseFactory.ReadActiveDatabase();
-            Console.WriteLine("Stdin");
+            // Console.WriteLine("Stdin");
         }
         catch
         {
@@ -91,21 +89,21 @@ internal sealed class RawConsole
                             var readLength = Interop.Sys.ReadStdin(buffer, span.Length);
                             this.bytesLength += readLength;
                         }
-
-                        var validLength = BaseHelper.GetValidUtf8Length(this.bytes.AsSpan(0, this.bytesLength));
-
-                        Debug.Assert(this.IsCharsEmpty);
-                        this.charsStartIndex = 0;
-                        this.charsEndIndex = this.encoding.GetChars(this.bytes.AsSpan(0, validLength), this.chars.AsSpan());
-                        this.bytesLength -= validLength;
-                        if (validLength < this.bytesLength)
-                        {// Move remaining bytes to the front
-                            this.bytes.AsSpan(validLength, this.bytesLength).CopyTo(this.bytes.AsSpan());
-                        }
                     }
                     finally
                     {
                         Interop.Sys.UninitializeConsoleAfterRead();
+                    }
+
+                    var validLength = BaseHelper.GetValidUtf8Length(this.bytes.AsSpan(0, this.bytesLength));
+
+                    Debug.Assert(this.IsCharsEmpty);
+                    this.charsStartIndex = 0;
+                    this.charsEndIndex = this.encoding.GetChars(this.bytes.AsSpan(0, validLength), this.chars.AsSpan());
+                    this.bytesLength -= validLength;
+                    if (validLength < this.bytesLength)
+                    {// Move remaining bytes to the front
+                        this.bytes.AsSpan(validLength, this.bytesLength).CopyTo(this.bytes.AsSpan());
                     }
 
                     return this.TryConsumeBufferInternal(out keyInfo);
