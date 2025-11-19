@@ -12,12 +12,30 @@ namespace SimplePrompt;
 
 public partial class SimpleConsole : IConsoleService
 {
-    public static readonly SimpleConsole Instance = new();
-
+    // public static readonly SimpleConsole Instance = new();
     private const int CharBufferSize = 1024;
     private const int WindowBufferSize = 64 * 1024;
 
-    // private static readonly Lazy<SimpleConsole> DefaultInstance = new(() => new SimpleConsole(), isThreadSafe: true);
+    private static SimpleConsole? _instance;
+
+    public static SimpleConsole GetOrCreate()
+    {
+        var instance = Volatile.Read(ref _instance);
+        if (instance is not null)
+        {
+            return instance;
+        }
+
+        instance = new SimpleConsole();
+        var original = Interlocked.CompareExchange(ref _instance, instance, null);
+        if (original is not null)
+        {
+            return original;
+        }
+
+        instance.Initialize();
+        return instance;
+    }
 
     public SimpleConsoleConfiguration Configuration { get; set; }
 
@@ -52,19 +70,16 @@ public partial class SimpleConsole : IConsoleService
     private readonly Lock lockObject = new();
     private List<InputBuffer> buffers = new();
 
-    private SimpleConsole(SimpleConsoleConfiguration? configuration = default)
+    private SimpleConsole()
     {
         this.simpleTextWriter = new(this, Console.Out);
         this.RawConsole = new(this);
         this.bufferPool = new(() => new InputBuffer(this), 32);
-        this.Configuration = configuration ?? new();
+        this.Configuration = new();
 
         this.charBuffer = new char[CharBufferSize];
         this.windowBuffer = new char[WindowBufferSize];
         this.utf8Buffer = new byte[WindowBufferSize * 3];
-
-        Console.SetOut(this.simpleTextWriter);
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
     }
 
     InputResult IConsoleService.ReadLine(string? prompt)
@@ -421,6 +436,12 @@ ProcessKeyInfo:
         }
 
         this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
+    }
+
+    private void Initialize()
+    {
+        Console.SetOut(this.simpleTextWriter);
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
     }
 
     private void ClearLastLine(int dif)

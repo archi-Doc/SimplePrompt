@@ -49,8 +49,8 @@ internal class Program
 
         Console.WriteLine(Environment.OSVersion.ToString());
 
-        var simpleConsole = SimpleConsole.Instance;
-        simpleConsole.Configuration = new SimpleConsoleConfiguration
+        var simpleConsole = SimpleConsole.GetOrCreate();
+        simpleConsole.Configuration = new SimpleConsoleConfiguration()
         {
             InputColor = ConsoleColor.Yellow,
             MultilineIdentifier = "|",
