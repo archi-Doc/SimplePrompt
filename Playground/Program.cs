@@ -54,6 +54,7 @@ internal class Program
         {
             InputColor = ConsoleColor.Yellow,
             MultilineIdentifier = "|",
+            CancelReadLineOnEscape = true,
         };
 
         while (!ThreadCore.Root.IsTerminated)

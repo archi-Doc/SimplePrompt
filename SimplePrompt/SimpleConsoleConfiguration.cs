@@ -20,4 +20,10 @@ public record class SimpleConsoleConfiguration
     /// Default is three double quotes (""").
     /// </summary>
     public string MultilineIdentifier { get; init; } = "\"\"\"";
+
+    /// <summary>
+    /// Gets a value indicating whether to cancel the ReadLine operation when the Escape key is pressed.
+    /// Default is <see langword="false"/>.
+    /// </summary>
+    public bool CancelReadLineOnEscape { get; init; } = false;
 }
