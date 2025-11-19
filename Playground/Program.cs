@@ -81,6 +81,14 @@ internal class Program
                     simpleConsole.WriteLine("AAAAA");
                 });
             }
+            else if (string.Equals(result.Text, "b", StringComparison.InvariantCultureIgnoreCase))
+            {
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(1000);
+                    Console.WriteLine("ABC123ABC123\r\nABC123ABC123\nABC123ABC123");
+                });
+            }
             else
             {
                 var text = BaseHelper.RemoveCrLf(result.Text);

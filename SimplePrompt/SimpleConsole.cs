@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Runtime.CompilerServices;
+using System.Text;
 using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
@@ -13,6 +14,38 @@ public partial class SimpleConsole : IConsoleService
 {
     private const int CharBufferSize = 1024;
     private const int WindowBufferSize = 64 * 1024;
+
+    private class SimpleTextWriter : TextWriter
+    {
+        private readonly SimpleConsole simpleConsole;
+        private readonly TextWriter inner;
+
+        public SimpleTextWriter(SimpleConsole simpleConsole, TextWriter inner)
+        {
+            this.simpleConsole = simpleConsole;
+            this.inner = inner;
+        }
+
+        public override Encoding Encoding => System.Text.Encoding.UTF8;
+
+        public override void WriteLine(string? value)
+            => this.simpleConsole.WriteLine(value);
+
+        public override void Write(string? value)
+            => this.inner.Write(value);
+
+        public override void Write(char value)
+            => this.inner.Write(value);
+
+        public override void Write(char[] buffer, int index, int count)
+            => this.inner.Write(buffer, index, count);
+
+        public override void WriteLine()
+            => this.simpleConsole.WriteLine();
+
+        public override void Flush()
+            => this.inner.Flush();
+    }
 
     public SimpleConsoleConfiguration Configuration { get; set; }
 
@@ -46,6 +79,7 @@ public partial class SimpleConsole : IConsoleService
 
     public SimpleConsole(SimpleConsoleConfiguration? configuration = default)
     {
+        Console.SetOut(new SimpleTextWriter(this, Console.Out));
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         this.RawConsole = new(this);
@@ -222,7 +256,7 @@ ProcessKeyInfo:
 
                 var location = this.GetLocation();
 
-                var messageTop = this.SetCursorAtFirst(CursorOperation.Hide);
+                this.SetCursorAtFirst(CursorOperation.Hide);
                 this.WriteInternal(message);
                 this.RedrawInternal();
 
