@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Arc;
 
-namespace SimplePrompt;
+namespace SimplePrompt.Internal;
 
 internal sealed class RawConsole
 {
@@ -17,7 +17,7 @@ internal sealed class RawConsole
     private const char VtSequenceEndTag = '~';
     private const char ModifierSeparator = ';';
 
-    private readonly SimpleConsole inputConsole;
+    private readonly SimpleConsole simpleConsole;
     private readonly Encoding encoding;
     private readonly TermInfo.Database? db;
     private readonly TerminalFormatStrings terminalFormatStrings;
@@ -40,7 +40,7 @@ internal sealed class RawConsole
 
     public RawConsole(SimpleConsole inputConsole, CancellationToken cancellationToken = default)
     {
-        this.inputConsole = inputConsole;
+        this.simpleConsole = inputConsole;
         this.encoding = Encoding.UTF8;
 
         try
@@ -134,8 +134,8 @@ internal sealed class RawConsole
         {
             if (this.handle is not null)
             {
-                var length = Encoding.UTF8.GetBytes(data, this.inputConsole.Utf8Buffer);
-                fixed (byte* p = this.inputConsole.Utf8Buffer)
+                var length = Encoding.UTF8.GetBytes(data, this.simpleConsole.Utf8Buffer);
+                fixed (byte* p = this.simpleConsole.Utf8Buffer)
                 {
                     _ = Interop.Sys.Write(this.handle, p, length);
                 }

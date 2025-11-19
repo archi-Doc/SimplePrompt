@@ -1,10 +1,10 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Runtime.CompilerServices;
-using System.Text;
 using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
+using SimplePrompt.Internal;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
@@ -14,38 +14,6 @@ public partial class SimpleConsole : IConsoleService
 {
     private const int CharBufferSize = 1024;
     private const int WindowBufferSize = 64 * 1024;
-
-    private class SimpleTextWriter : TextWriter
-    {
-        private readonly SimpleConsole simpleConsole;
-        private readonly TextWriter inner;
-
-        public SimpleTextWriter(SimpleConsole simpleConsole, TextWriter inner)
-        {
-            this.simpleConsole = simpleConsole;
-            this.inner = inner;
-        }
-
-        public override Encoding Encoding => System.Text.Encoding.UTF8;
-
-        public override void WriteLine(string? value)
-            => this.simpleConsole.WriteLine(value);
-
-        public override void Write(string? value)
-            => this.inner.Write(value);
-
-        public override void Write(char value)
-            => this.inner.Write(value);
-
-        public override void Write(char[] buffer, int index, int count)
-            => this.inner.Write(buffer, index, count);
-
-        public override void WriteLine()
-            => this.simpleConsole.WriteLine();
-
-        public override void Flush()
-            => this.inner.Flush();
-    }
 
     public SimpleConsoleConfiguration Configuration { get; set; }
 
@@ -69,6 +37,7 @@ public partial class SimpleConsole : IConsoleService
 
     internal List<InputBuffer> Buffers => this.buffers;
 
+    private readonly SimpleTextWriter simpleTextWriter;
     private readonly char[] charBuffer = new char[CharBufferSize];
     private readonly char[] windowBuffer = [];
     private readonly byte[] utf8Buffer = [];
@@ -79,9 +48,6 @@ public partial class SimpleConsole : IConsoleService
 
     public SimpleConsole(SimpleConsoleConfiguration? configuration = default)
     {
-        Console.SetOut(new SimpleTextWriter(this, Console.Out));
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
-
         this.RawConsole = new(this);
         this.bufferPool = new(() => new InputBuffer(this), 32);
         this.Configuration = configuration ?? new();
@@ -89,6 +55,9 @@ public partial class SimpleConsole : IConsoleService
         this.charBuffer = new char[CharBufferSize];
         this.windowBuffer = new char[WindowBufferSize];
         this.utf8Buffer = new byte[WindowBufferSize * 3];
+
+        this.simpleTextWriter = new(this, Console.Out);
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
     }
 
     InputResult IConsoleService.ReadLine(string? prompt)

@@ -2,7 +2,7 @@
 
 using System.Globalization;
 
-namespace SimplePrompt;
+namespace SimplePrompt.Internal;
 
 internal static class SimplePromptHelper
 {

@@ -1,13 +1,12 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
 using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Unit;
 
 #pragma warning disable SA1202 // Elements should be ordered by access
 
-namespace SimplePrompt;
+namespace SimplePrompt.Internal;
 
 internal class InputBuffer
 {
