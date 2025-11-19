@@ -13,24 +13,10 @@ public partial class SimpleConsole : IConsoleService
 {
     private const int CharBufferSize = 1024;
     private const int WindowBufferSize = 64 * 1024;
-    private static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
-    private static readonly ConsoleKeyInfo SpaceKeyInfo = new(' ', ConsoleKey.Spacebar, false, false, false);
 
-    public static ReadOnlySpan<char> EraseLine => "\u001b[K";
+    public SimpleConsoleConfiguration Configuration { get; set; }
 
-    public static ReadOnlySpan<char> EraseLineAndLineFeed => "\u001b[K\n";
-
-    public static ReadOnlySpan<char> LineFeed => "\n";
-
-    public static ReadOnlySpan<char> ResetCursor => "\u001b[0;0H";
-
-    public ILogger? Logger { get; set; }
-
-    public ConsoleColor InputColor { get; set; } = ConsoleColor.Yellow;
-
-    public string MultilineIdentifier { get; set; } = "\"\"\"";
-
-    public bool IsInsertMode { get; set; } = true;
+    // public bool IsInsertMode { get; set; } = true;
 
     internal RawConsole RawConsole { get; private set; }
 
@@ -58,16 +44,13 @@ public partial class SimpleConsole : IConsoleService
     private readonly Lock lockObject = new();
     private List<InputBuffer> buffers = new();
 
-    public SimpleConsole(ConsoleColor inputColor = (ConsoleColor)(-1))
+    public SimpleConsole(SimpleConsoleConfiguration? configuration = default)
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         this.RawConsole = new(this);
         this.bufferPool = new(() => new InputBuffer(this), 32);
-        if (inputColor >= 0)
-        {
-            this.InputColor = inputColor;
-        }
+        this.Configuration = configuration ?? new();
 
         this.charBuffer = new char[CharBufferSize];
         this.windowBuffer = new char[WindowBufferSize];
@@ -113,12 +96,12 @@ ProcessKeyInfo:
             if (keyInfo.KeyChar == '\n' ||
                 keyInfo.Key == ConsoleKey.Enter)
             {
-                keyInfo = EnterKeyInfo;
+                keyInfo = SimplePromptHelper.EnterKeyInfo;
             }
             else if (keyInfo.KeyChar == '\t' ||
                 keyInfo.Key == ConsoleKey.Tab)
             {// Tab -> Space
-                keyInfo = SpaceKeyInfo;
+                keyInfo = SimplePromptHelper.SpaceKeyInfo;
             }
             else if (keyInfo.KeyChar == '\r')
             {// CrLf -> Lf
@@ -420,7 +403,7 @@ ProcessKeyInfo:
                 break;
             }
 
-            if (!TryCopy(EraseLineAndLineFeed, ref span))
+            if (!TryCopy(SimplePromptHelper.EraseLineAndLineFeed, ref span))
             {
                 break;
             }
@@ -629,7 +612,7 @@ ProcessKeyInfo:
                 }
 
                 if (multilinePrompt is not null &&
-                    (SimpleCommandLine.SimpleParserHelper.CountOccurrences(buffer.TextSpan, this.MultilineIdentifier) % 2) > 0)
+                    (SimpleCommandLine.SimpleParserHelper.CountOccurrences(buffer.TextSpan, this.Configuration.MultilineIdentifier) % 2) > 0)
                 {// Multiple line
                     if (buffer == this.buffers[0])
                     {// Start
@@ -764,7 +747,7 @@ ProcessKeyInfo:
                 }
                 else
                 {
-                    TryCopy(LineFeed, ref span);
+                    TryCopy(SimplePromptHelper.LineFeed, ref span);
                 }
 
                 remainingHeight -= buffer.Height;
@@ -774,10 +757,10 @@ ProcessKeyInfo:
                     TryCopy(buffer.Prompt.AsSpan(), ref span);
                 }
 
-                TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.InputColor).AsSpan(), ref span); // Input color
+                TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Configuration.InputColor).AsSpan(), ref span); // Input color
                 TryCopy(buffer.TextSpan, ref span);
                 TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
-                TryCopy(EraseLine, ref span);
+                TryCopy(SimplePromptHelper.EraseLine, ref span);
             }
 
             buffer.Top = y;

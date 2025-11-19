@@ -50,7 +50,6 @@ internal class Program
         Console.WriteLine(Environment.OSVersion.ToString());
 
         var simpleConsole = new SimpleConsole();
-        simpleConsole.Logger = product.Context.ServiceProvider.GetRequiredService<ILogger<SimpleConsole>>();
 
         while (!ThreadCore.Root.IsTerminated)
         {

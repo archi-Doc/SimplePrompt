@@ -262,9 +262,7 @@ internal class InputBuffer
 
     private void ProcessCharacterInternal(int arrayPosition, Span<char> charBuffer)
     {
-        // var bufferWidth = InputConsoleHelper.GetWidth(charBuffer);
-
-        if (this.InputConsole.IsInsertMode)
+        // if (this.InputConsole.IsInsertMode)
         {// Insert
             this.EnsureCapacity(this.Length + charBuffer.Length);
 
@@ -296,9 +294,10 @@ internal class InputBuffer
             this.Width += width;
             this.Write(arrayPosition, this.Length, width, 0);
         }
-        else
+
+        /*else
         {// Overtype (Not implemented yet)
-            /*this.EnsureCapacity(arrayPosition + charBuffer.Length);
+            this.EnsureCapacity(arrayPosition + charBuffer.Length);
 
             charBuffer.CopyTo(this.charArray.AsSpan(arrayPosition));
             for (var i = 0; i < charBuffer.Length; i++)
@@ -326,8 +325,8 @@ internal class InputBuffer
                 this.Width += dif;
             }
 
-            this.UpdateConsole(arrayPosition, arrayPosition + charBuffer.Length, 0);*/
-        }
+            this.UpdateConsole(arrayPosition, arrayPosition + charBuffer.Length, 0);
+        }*/
     }
 
     private int GetArrayPosition()
@@ -450,7 +449,7 @@ internal class InputBuffer
         }
 
         // Input color
-        span = ConsoleHelper.GetForegroundColorEscapeCode(this.InputConsole.InputColor).AsSpan();
+        span = ConsoleHelper.GetForegroundColorEscapeCode(this.InputConsole.Configuration.InputColor).AsSpan();
         span.CopyTo(buffer);
         written += span.Length;
         buffer = buffer.Slice(span.Length);
