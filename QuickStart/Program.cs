@@ -29,6 +29,7 @@ internal class Program
             InputColor = ConsoleColor.Yellow,
             MultilineIdentifier = "|",
             CancelReadLineOnEscape = true,
+            AllowEmptyLineInput = true,
         };
 
         simpleConsole.WriteLine("Simple prompt example");
@@ -40,36 +41,37 @@ internal class Program
             var result = await simpleConsole.ReadLine($"> ", "# ");
 
             if (result.Kind == InputResultKind.Terminated)
-            {
+            {// Ctrl+C pressed or termination requested
                 break;
             }
             else if (result.Kind == InputResultKind.Canceled)
-            {
+            {// Esc pressed
                 simpleConsole.WriteLine("Canceled");
                 continue;
             }
-            else if (string.Equals(result.Text, "exit", StringComparison.InvariantCultureIgnoreCase))
-            {// exit
+            else if (string.Equals(result.Text, "Exit", StringComparison.InvariantCultureIgnoreCase))
+            {// Exit
                 ThreadCore.Root.Terminate(); // Send a termination signal to the root.
                 break;
             }
             else if (string.IsNullOrEmpty(result.Text))
-            {// continue
+            {// Enter pressed without input
                 continue;
             }
-            else if (string.Equals(result.Text, "test", StringComparison.InvariantCultureIgnoreCase))
-            {
+            else if (string.Equals(result.Text, "Test", StringComparison.InvariantCultureIgnoreCase))
+            {// Test command: Delayed output
                 _ = Task.Run(async () =>
                 {
                     simpleConsole.WriteLine("Test string");
+                    ((IConsoleService)simpleConsole).Write("xxxxx");
                     await Task.Delay(1000);
-                    simpleConsole.WriteLine("abcdefgabcdefgabcdefg");
+                    simpleConsole.WriteLine("abcdefgabcdefgabcdefg"); // Displayed above the prompt
                     await Task.Delay(1000);
-                    simpleConsole.WriteLine("abcdefg0123456789abcdefg0123456789abcdefg0123456789");
+                    Console.Out.WriteLine("abcdefg0123456789abcdefg0123456789abcdefg0123456789"); // Output via Console.Out is also supported.
                 });
             }
             else
-            {
+            {// Echo the input
                 var text = BaseHelper.RemoveCrLf(result.Text);
                 simpleConsole.WriteLine($"Command: {text}");
             }

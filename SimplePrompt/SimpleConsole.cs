@@ -126,12 +126,14 @@ public partial class SimpleConsole : IConsoleService
         ConsoleKeyInfo pendingKeyInfo = default;
         while (!ThreadCore.Root.IsTerminated)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             this.PrepareWindow();
 
             // Polling isn’t an ideal approach, but due to the fact that the normal method causes a significant performance drop and that the function must be able to exit when the application terminates, this implementation was chosen.
             if (!this.RawConsole.TryRead(out var keyInfo))
             {
-                await Task.Delay(10);
+                await Task.Delay(10, cancellationToken);
                 continue;
             }
 
@@ -143,8 +145,8 @@ ProcessKeyInfo:
             }
             else if (keyInfo.KeyChar == '\t' ||
                 keyInfo.Key == ConsoleKey.Tab)
-            {// Tab -> Space
-                keyInfo = SimplePromptHelper.SpaceKeyInfo;
+            {// Tab -> Space; in the future, input completion.
+                // keyInfo = SimplePromptHelper.SpaceKeyInfo;
             }
             else if (keyInfo.KeyChar == '\r')
             {// CrLf -> Lf

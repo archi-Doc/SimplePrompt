@@ -26,4 +26,9 @@ public record class SimpleConsoleConfiguration
     /// Default is <see langword="false"/>.
     /// </summary>
     public bool CancelReadLineOnEscape { get; init; } = false;
+
+    /// <summary>
+    /// Gets a value indicating whether an empty line (pressing Enter with no characters entered) is treated as valid input.
+    /// </summary>
+    public bool AllowEmptyLineInput { get; init; } = false;
 }

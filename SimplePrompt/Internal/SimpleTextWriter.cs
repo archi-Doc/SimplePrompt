@@ -22,13 +22,19 @@ internal class SimpleTextWriter : TextWriter
         => this.SimpleConsole.WriteLine(value);
 
     public override void Write(string? value)
-        => this.UnderlyingTextWriter.Write(value);
+    {
+        // this.UnderlyingTextWriter.Write(value);
+    }
 
     public override void Write(char value)
-        => this.UnderlyingTextWriter.Write(value);
+    {
+        // this.UnderlyingTextWriter.Write(value);
+    }
 
     public override void Write(char[] buffer, int index, int count)
-        => this.UnderlyingTextWriter.Write(buffer, index, count);
+    {
+        // this.UnderlyingTextWriter.Write(buffer, index, count);
+    }
 
     public override void WriteLine()
         => this.SimpleConsole.WriteLine();
