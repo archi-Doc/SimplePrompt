@@ -19,7 +19,7 @@ public partial class SimpleConsole : IConsoleService
 
     // public bool IsInsertMode { get; set; } = true;
 
-    internal RawConsole RawConsole { get; private set; }
+    internal RawConsole RawConsole { get; }
 
     internal int WindowWidth { get; private set; }
 
@@ -37,6 +37,8 @@ public partial class SimpleConsole : IConsoleService
 
     internal List<InputBuffer> Buffers => this.buffers;
 
+    internal TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
+
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly char[] charBuffer = new char[CharBufferSize];
     private readonly char[] windowBuffer = [];
@@ -48,6 +50,7 @@ public partial class SimpleConsole : IConsoleService
 
     public SimpleConsole(SimpleConsoleConfiguration? configuration = default)
     {
+        this.simpleTextWriter = new(this, Console.Out);
         this.RawConsole = new(this);
         this.bufferPool = new(() => new InputBuffer(this), 32);
         this.Configuration = configuration ?? new();
@@ -56,7 +59,7 @@ public partial class SimpleConsole : IConsoleService
         this.windowBuffer = new char[WindowBufferSize];
         this.utf8Buffer = new byte[WindowBufferSize * 3];
 
-        this.simpleTextWriter = new(this, Console.Out);
+        Console.SetOut(this.simpleTextWriter);
         Console.OutputEncoding = System.Text.Encoding.UTF8;
     }
 
@@ -77,7 +80,7 @@ public partial class SimpleConsole : IConsoleService
 
         if (!string.IsNullOrEmpty(prompt))
         {
-            Console.Out.Write(prompt);
+            this.UnderlyingTextWriter.Write(prompt);
         }
 
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
@@ -112,16 +115,17 @@ ProcessKeyInfo:
             }
             else if (keyInfo.Key == ConsoleKey.Escape)
             {
-                Console.Out.WriteLine();
+                this.UnderlyingTextWriter.WriteLine();
                 this.Clear();
                 return new(InputResultKind.Canceled);
             }
-            else if (keyInfo.Key == ConsoleKey.C &&
+
+            /*else if (keyInfo.Key == ConsoleKey.C &&
                 keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control))
             { // Ctrl+C
-                // ThreadCore.Root.Terminate(); // Send a termination signal to the root.
-                // return null;
-            }
+                ThreadCore.Root.Terminate(); // Send a termination signal to the root.
+                return null;
+            }*/
 
             if (keyInfo.Key == ConsoleKey.F1)
             {
@@ -170,7 +174,7 @@ ProcessKeyInfo:
                 position = 0;
                 if (result is not null)
                 {
-                    Console.Out.WriteLine();
+                    this.UnderlyingTextWriter.WriteLine();
                     this.Clear();
                     return new(result);
                 }
@@ -185,7 +189,7 @@ ProcessKeyInfo:
 
         // Terminated
         // this.SetCursorPosition(this.WindowWidth - 1, this.CursorTop, true);
-        Console.Out.WriteLine();
+        this.UnderlyingTextWriter.WriteLine();
         this.Clear();
         return new(InputResultKind.Terminated);
     }
@@ -199,7 +203,7 @@ ProcessKeyInfo:
 
         try
         {
-            Console.Out.Write(message);
+            this.UnderlyingTextWriter.Write(message);
         }
         catch
         {
@@ -639,8 +643,8 @@ ProcessKeyInfo:
                         buffer = this.RentBuffer(this.buffers.Count, multilinePrompt);
                         this.buffers.Add(buffer);
                         var previousTop = this.CursorTop;
-                        Console.Out.WriteLine();
-                        Console.Out.Write(multilinePrompt);
+                        this.UnderlyingTextWriter.WriteLine();
+                        this.UnderlyingTextWriter.Write(multilinePrompt);
                         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
                         if (this.CursorTop == previousTop)
                         {

@@ -3,7 +3,7 @@
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.Win32.SafeHandles;
 
-namespace SimplePrompt;
+namespace SimplePrompt.Internal;
 
 internal static partial class TermInfo
 {

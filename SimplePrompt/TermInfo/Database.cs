@@ -3,7 +3,7 @@
 using System.Diagnostics;
 using System.Text;
 
-namespace SimplePrompt;
+namespace SimplePrompt.Internal;
 
 #pragma warning disable SA1203 // Constants should appear before fields
 

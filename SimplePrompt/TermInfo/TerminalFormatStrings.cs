@@ -2,7 +2,7 @@
 
 using Arc.Collections;
 
-namespace SimplePrompt;
+namespace SimplePrompt.Internal;
 
 #pragma warning disable SA1203 // Constants should appear before fields
 #pragma warning disable SA1401 // Fields should be private

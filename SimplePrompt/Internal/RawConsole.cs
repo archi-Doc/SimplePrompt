@@ -142,7 +142,7 @@ internal sealed class RawConsole
             }
             else
             {
-                Console.Out.Write(data);
+                this.simpleConsole.UnderlyingTextWriter.Write(data);
             }
         }
         catch
