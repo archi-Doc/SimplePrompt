@@ -525,7 +525,7 @@ internal class InputBuffer
 
         if (scroll > 0)
         {
-            this.InputConsole.Scroll(scroll);
+            this.InputConsole.Scroll(scroll, true);
         }
 
         try

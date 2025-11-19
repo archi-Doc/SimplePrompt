@@ -18,7 +18,11 @@ public partial class SimpleConsole : IConsoleService
 
     public static ReadOnlySpan<char> EraseLine => "\u001b[K";
 
-    public static ReadOnlySpan<char> EraseLineAndReturn => "\u001b[K\n";
+    public static ReadOnlySpan<char> EraseLineAndLineFeed => "\u001b[K\n";
+
+    public static ReadOnlySpan<char> LineFeed => "\n";
+
+    public static ReadOnlySpan<char> ResetCursor => "\u001b[0;0H";
 
     public ILogger? Logger { get; set; }
 
@@ -225,17 +229,17 @@ ProcessKeyInfo:
 
         try
         {
-            if (this.buffers.Count == 0)
-            {
-                Console.Out.WriteLine(message);
-                return;
-            }
-
             using (this.lockObject.EnterScope())
             {
+                if (this.buffers.Count == 0)
+                {
+                    this.WriteInternal(message);
+                    return;
+                }
+
                 var location = this.GetLocation();
 
-                this.SetCursorAtFirst(CursorOperation.Hide);
+                var messageTop = this.SetCursorAtFirst(CursorOperation.Hide);
                 this.WriteInternal(message);
                 this.RedrawInternal();
 
@@ -329,15 +333,16 @@ ProcessKeyInfo:
         this.CursorTop = cursorTop;
     }
 
-    internal void Scroll(int scroll)
+    internal void Scroll(int scroll, bool moveCursor)
     {
-        if (scroll > 0)
+        if (moveCursor)
         {
             this.CursorTop -= scroll;
-            foreach (var x in this.buffers)
-            {
-                x.Top -= scroll;
-            }
+        }
+
+        foreach (var x in this.buffers)
+        {
+            x.Top -= scroll;
         }
     }
 
@@ -415,7 +420,7 @@ ProcessKeyInfo:
                 break;
             }
 
-            if (!TryCopy(EraseLineAndReturn, ref span))
+            if (!TryCopy(EraseLineAndLineFeed, ref span))
             {
                 break;
             }
@@ -441,15 +446,17 @@ ProcessKeyInfo:
         this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.None);
     }
 
-    private void SetCursorAtFirst(CursorOperation cursorOperation)
+    private int SetCursorAtFirst(CursorOperation cursorOperation)
     {
         if (this.buffers.Count == 0)
         {
-            return;
+            return 0;
         }
 
         var buffer = this.buffers[0];
-        this.SetCursorPosition(0, buffer.Top, cursorOperation);
+        var top = Math.Max(0, buffer.Top);
+        this.SetCursorPosition(0, top, cursorOperation);
+        return top;
     }
 
     private void SetCursorAtEnd(CursorOperation cursorOperation)
@@ -645,9 +652,15 @@ ProcessKeyInfo:
 
                         buffer = this.RentBuffer(this.buffers.Count, multilinePrompt);
                         this.buffers.Add(buffer);
+                        var previousTop = this.CursorTop;
                         Console.Out.WriteLine();
                         Console.Out.Write(multilinePrompt);
                         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+                        if (this.CursorTop == previousTop)
+                        {
+                            this.Scroll(1, false);
+                        }
+
                         return null;
                     }
                     else
@@ -722,63 +735,62 @@ ProcessKeyInfo:
 
     private void RedrawInternal()
     {
-        var firstBuffer = 0;//
+        if (this.buffers.Count == 0)
+        {
+            return;
+        }
+
         var span = this.WindowBuffer.AsSpan();
+
+        /*if (resetCursor)
+        {
+            TryCopy(ResetCursor, ref span);
+            this.CursorLeft = 0;
+            this.CursorTop = 0;
+        }*/
 
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
         var y = this.CursorTop;
+        var isFirst = true;
+        var remainingHeight = this.WindowHeight;
         for (var i = 0; i < this.buffers.Count; i++)
         {
             var buffer = this.buffers[i];
+            if (buffer.Top >= 0 && buffer.Height <= remainingHeight)
+            {
+                if (isFirst)
+                {
+                    isFirst = false;
+                }
+                else
+                {
+                    TryCopy(LineFeed, ref span);
+                }
+
+                remainingHeight -= buffer.Height;
+
+                if (buffer.Prompt is not null)
+                {
+                    TryCopy(buffer.Prompt.AsSpan(), ref span);
+                }
+
+                TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.InputColor).AsSpan(), ref span); // Input color
+                TryCopy(buffer.TextSpan, ref span);
+                TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
+                TryCopy(EraseLine, ref span);
+            }
+
             buffer.Top = y;
             y += buffer.Height;
         }
 
-        for (var i = firstBuffer; i < this.buffers.Count; i++)
+        remainingHeight = this.WindowHeight - remainingHeight;
+        var scroll = this.CursorTop + remainingHeight - this.WindowHeight;
+        if (scroll > 0)
         {
-            var buffer = this.buffers[i];
-
-            if (buffer.Prompt is not null &&
-                !TryCopy(buffer.Prompt.AsSpan(), ref span))
-            {
-                goto Exit;
-            }
-
-            // Input color
-            var colorString = ConsoleHelper.GetForegroundColorEscapeCode(this.InputColor);
-            if (!TryCopy(colorString.AsSpan(), ref span))
-            {
-                goto Exit;
-            }
-
-            if (!TryCopy(buffer.TextSpan, ref span))
-            {
-                goto Exit;
-            }
-
-            // Reset color
-            if (!TryCopy(ConsoleHelper.ResetSpan, ref span))
-            {
-                goto Exit;
-            }
-
-            if (i == (this.buffers.Count - 1))
-            {
-                if (!TryCopy(EraseLine, ref span))
-                {
-                    goto Exit;
-                }
-            }
-            else
-            {
-                if (!TryCopy(EraseLineAndReturn, ref span))
-                {
-                    goto Exit;
-                }
-            }
+            this.Scroll(scroll, true);
         }
 
-Exit:
         this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
     }
 
