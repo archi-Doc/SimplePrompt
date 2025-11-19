@@ -396,6 +396,10 @@ internal class InputBuffer
 
         var startCursorLeft = startCursor % this.WindowWidth;
         var startCursorTop = startCursor / this.WindowWidth;
+        if (startCursorTop < 0)
+        {
+            return;
+        }
 
         var scroll = startCursorTop + 1 + ((startCursorLeft + totalWidth) / this.WindowWidth) - this.WindowHeight;
 

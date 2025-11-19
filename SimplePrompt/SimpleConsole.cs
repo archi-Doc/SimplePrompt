@@ -337,7 +337,6 @@ ProcessKeyInfo:
             foreach (var x in this.buffers)
             {
                 x.Top -= scroll;
-                // x.CursorTop += scroll;
             }
         }
     }
