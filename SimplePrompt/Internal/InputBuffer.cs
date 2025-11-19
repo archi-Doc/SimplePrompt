@@ -400,10 +400,6 @@ internal class InputBuffer
         var startCursorTop = startCursor / this.WindowWidth;
 
         var scroll = startCursorTop + 1 + ((startCursorLeft + totalWidth) / this.WindowWidth) - this.WindowHeight;
-        if (scroll > 0)
-        {
-            this.InputConsole.Scroll(scroll);
-        }
 
         startCursor += cursorDif;
         var newCursorLeft = startCursor % this.WindowWidth;
@@ -524,6 +520,11 @@ internal class InputBuffer
         span.CopyTo(buffer);
         buffer = buffer.Slice(span.Length);
         written += span.Length;
+
+        if (scroll > 0)
+        {
+            this.InputConsole.Scroll(scroll);
+        }
 
         try
         {
