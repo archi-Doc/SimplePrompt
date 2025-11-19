@@ -12,8 +12,12 @@ namespace SimplePrompt;
 
 public partial class SimpleConsole : IConsoleService
 {
+    public static readonly SimpleConsole Instance = new();
+
     private const int CharBufferSize = 1024;
     private const int WindowBufferSize = 64 * 1024;
+
+    // private static readonly Lazy<SimpleConsole> DefaultInstance = new(() => new SimpleConsole(), isThreadSafe: true);
 
     public SimpleConsoleConfiguration Configuration { get; set; }
 
@@ -48,7 +52,7 @@ public partial class SimpleConsole : IConsoleService
     private readonly Lock lockObject = new();
     private List<InputBuffer> buffers = new();
 
-    public SimpleConsole(SimpleConsoleConfiguration? configuration = default)
+    private SimpleConsole(SimpleConsoleConfiguration? configuration = default)
     {
         this.simpleTextWriter = new(this, Console.Out);
         this.RawConsole = new(this);

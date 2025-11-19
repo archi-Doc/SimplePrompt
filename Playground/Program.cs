@@ -49,12 +49,12 @@ internal class Program
 
         Console.WriteLine(Environment.OSVersion.ToString());
 
-        var simpleConsole = new SimpleConsole(
-            new SimpleConsoleConfiguration() with
-            {
-                InputColor = ConsoleColor.Blue,
-                MultilineIdentifier = "|",
-            });
+        var simpleConsole = SimpleConsole.Instance;
+        simpleConsole.Configuration = new SimpleConsoleConfiguration
+        {
+            InputColor = ConsoleColor.Yellow,
+            MultilineIdentifier = "|",
+        };
 
         while (!ThreadCore.Root.IsTerminated)
         {
