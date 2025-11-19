@@ -244,7 +244,7 @@ ProcessKeyInfo:
 
                 var buffer = this.buffers[location.BufferIndex];
                 var cursor = buffer.ToCursor(location.CursorIndex);
-                this.SetCursorPosition(buffer.Left + cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
+                this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
             }
         }
         catch
@@ -441,7 +441,7 @@ ProcessKeyInfo:
 
     private void SetCursor(InputBuffer buffer)
     {
-        var cursorLeft = buffer.Left + buffer.PromtWidth;
+        var cursorLeft = buffer.PromtWidth;
         var cursorTop = buffer.Top;
         this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.None);
     }
@@ -454,7 +454,7 @@ ProcessKeyInfo:
         }
 
         var buffer = this.buffers[0];
-        this.SetCursorPosition(buffer.Left, buffer.Top, cursorOperation);
+        this.SetCursorPosition(0, buffer.Top, cursorOperation);
     }
 
     private void SetCursorAtEnd(CursorOperation cursorOperation)
@@ -466,7 +466,6 @@ ProcessKeyInfo:
 
         var buffer = this.buffers[this.buffers.Count - 1];
         var newCursor = buffer.ToCursor(buffer.Width);
-        newCursor.Left += buffer.Left;
         newCursor.Top += buffer.Top;
         this.SetCursorPosition(newCursor.Left, newCursor.Top, cursorOperation);
     }
@@ -734,7 +733,6 @@ ProcessKeyInfo:
         for (var i = 0; i < this.buffers.Count; i++)
         {
             var buffer = this.buffers[i];
-            buffer.Left = 0;
             buffer.Top = y;
             y += buffer.Height;
         }
@@ -824,7 +822,6 @@ Exit:
         InputBuffer? buffer = null;
         foreach (var x in this.buffers)
         {
-            x.Left = 0;
             x.Top = y;
             x.UpdateHeight(false);
             y += x.Height;

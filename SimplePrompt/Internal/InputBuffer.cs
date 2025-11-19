@@ -19,14 +19,12 @@ internal class InputBuffer
 
     public int Index { get; set; }
 
-    public int Left { get; set; }
-
     public int Top { get; set; }
 
     /// <summary>
     /// Gets the cursor's horizontal position relative to the buffer's left edge.
     /// </summary>
-    public int CursorLeft => this.InputConsole.CursorLeft - this.Left;
+    public int CursorLeft => this.InputConsole.CursorLeft;
 
     /// <summary>
     /// Gets the cursor's vertical position relative to the buffer's top edge.
@@ -390,7 +388,7 @@ internal class InputBuffer
         var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
         var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
 
-        var startCursor = this.Left + (this.Top * this.WindowWidth) + startPosition;
+        var startCursor = (this.Top * this.WindowWidth) + startPosition;
         var windowRemaining = (this.WindowWidth * this.WindowHeight) - startCursor;
         if (totalWidth > windowRemaining)
         {
@@ -416,7 +414,7 @@ internal class InputBuffer
         written += span.Length;
         buffer = buffer.Slice(span.Length);
 
-        if (startCursorLeft != (this.Left + this.CursorLeft) || startCursorTop != (this.Top + this.CursorTop))
+        if (startCursorLeft != this.CursorLeft || startCursorTop != (this.Top + this.CursorTop))
         {// Move cursor
             span = ConsoleHelper.SetCursorSpan;
             span.CopyTo(buffer);
@@ -713,7 +711,7 @@ internal class InputBuffer
                 cursorLeft != this.CursorLeft ||
                 cursorTop != this.CursorTop)
             {
-                this.InputConsole.SetCursorPosition(this.Left + cursorLeft, this.Top + cursorTop, cursorOperation);
+                this.InputConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
             }
         }
         catch
