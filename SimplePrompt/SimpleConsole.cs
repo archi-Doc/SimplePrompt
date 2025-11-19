@@ -38,8 +38,6 @@ public partial class SimpleConsole : IConsoleService
 
     internal int CursorTop { get; set; }
 
-    internal int StartingCursorTop { get; set; }
-
     internal bool MultilineMode { get; set; }
 
     internal char[] WindowBuffer => this.windowBuffer;
@@ -84,8 +82,7 @@ public partial class SimpleConsole : IConsoleService
         {
             buffer = this.RentBuffer(0, prompt);
             this.buffers.Add(buffer);
-            this.StartingCursorTop = Console.CursorTop;
-            buffer.Top = this.StartingCursorTop;
+            buffer.Top = Console.CursorTop;
         }
 
         if (!string.IsNullOrEmpty(prompt))
@@ -336,7 +333,6 @@ ProcessKeyInfo:
     {
         if (scroll > 0)
         {
-            this.StartingCursorTop -= scroll;
             this.CursorTop -= scroll;
             foreach (var x in this.buffers)
             {
@@ -575,7 +571,6 @@ ProcessKeyInfo:
         var newCursor = Console.GetCursorPosition();
         var dif = newCursor.Top - this.CursorTop;
         (this.CursorLeft, this.CursorTop) = newCursor;
-        this.StartingCursorTop += dif;
         foreach (var x in this.buffers)
         {
             x.Top += dif;
@@ -654,7 +649,6 @@ ProcessKeyInfo:
                         Console.Out.WriteLine();
                         Console.Out.Write(multilinePrompt);
                         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
-                        this.StartingCursorTop = this.CursorTop - this.GetBuffersHeightInternal();
                         return null;
                     }
                     else
@@ -696,7 +690,12 @@ ProcessKeyInfo:
 
     private (int BufferIndex, int CursorIndex) GetLocation()
     {
-        var y = this.StartingCursorTop;
+        if (this.buffers.Count == 0)
+        {
+            return default;
+        }
+
+        var y = this.buffers[0].Top;
         InputBuffer? buffer = null;
         foreach (var x in this.buffers)
         {
@@ -728,8 +727,7 @@ ProcessKeyInfo:
         var span = this.WindowBuffer.AsSpan();
 
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
-        this.StartingCursorTop = this.CursorTop;
-        var y = this.StartingCursorTop;
+        var y = this.CursorTop;
         for (var i = 0; i < this.buffers.Count; i++)
         {
             var buffer = this.buffers[i];
@@ -818,7 +816,7 @@ Exit:
         }
 
         // Calculate buffer heights.
-        var y = this.StartingCursorTop;
+        var y = this.buffers[0].Top;
         InputBuffer? buffer = null;
         foreach (var x in this.buffers)
         {
