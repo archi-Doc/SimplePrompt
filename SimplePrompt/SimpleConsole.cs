@@ -94,18 +94,16 @@ public partial class SimpleConsole : IConsoleService
         this.utf8Buffer = new byte[WindowBufferSize * 3];
     }
 
-    InputResult IConsoleService.ReadLine(string? prompt)
-        => this.ReadLine(prompt, default).Result;
-
     /// <summary>
     /// Asynchronously reads a line of input from the console with support for multiline editing.
     /// </summary>
     /// <param name="prompt">The optional prompt text to display before user input. If null or empty, no prompt is displayed.</param>
     /// <param name="multilinePrompt">The optional prompt text to display for continuation lines in multiline mode. Used when the multiline identifier is detected.</param>
+    /// <param name="cancellationToken">A cancellation token to cancel the read operation.</param>
     /// <returns>
     /// A task that represents the asynchronous operation. The task result contains an <see cref="InputResult"/>.
     /// </returns>
-    public async Task<InputResult> ReadLine(string? prompt = default, string? multilinePrompt = default)
+    public async Task<InputResult> ReadLine(string? prompt = default, string? multilinePrompt = default, CancellationToken cancellationToken = default)
     {
         InputBuffer? buffer;
         var position = 0;
@@ -166,7 +164,7 @@ ProcessKeyInfo:
                 return null;
             }*/
 
-            if (keyInfo.Key == ConsoleKey.F1)
+            /*if (keyInfo.Key == ConsoleKey.F1)
             {
                 this.WriteLine("Inserted text");
                 continue;
@@ -175,7 +173,7 @@ ProcessKeyInfo:
             {
                 this.WriteLine("Text1\nText2");
                 continue;
-            }
+            }*/
 
             bool flush = true;
             if (IsControl(keyInfo))
@@ -232,6 +230,9 @@ ProcessKeyInfo:
         this.Clear();
         return new(InputResultKind.Terminated);
     }
+
+    Task<InputResult> IConsoleService.ReadLine(string? prompt, CancellationToken cancellationToken)
+        => this.ReadLine(prompt, default, cancellationToken);
 
     void IConsoleService.Write(string? message)
     {
