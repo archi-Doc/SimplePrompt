@@ -239,7 +239,9 @@ ProcessKeyInfo:
 
     void IConsoleService.Write(string? message)
     {
-        if (Environment.NewLine == "\r\n" && message is not null)
+        this.simpleTextWriter.Write(message);
+
+        /*if (Environment.NewLine == "\r\n" && message is not null)
         {
             message = Arc.BaseHelper.ConvertLfToCrLf(message);
         }
@@ -250,7 +252,7 @@ ProcessKeyInfo:
         }
         catch
         {
-        }
+        }*/
     }
 
     public void WriteLine(string? message = null)
