@@ -79,6 +79,8 @@ public partial class SimpleConsole : IConsoleService
 
     internal TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
+    internal SimpleConsoleOptions CurrentOptions { get; private set; }
+
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly char[] charBuffer = new char[CharBufferSize];
     private readonly char[] windowBuffer = [];
@@ -87,7 +89,6 @@ public partial class SimpleConsole : IConsoleService
 
     private readonly Lock lockObject = new();
     private List<InputBuffer> buffers = new();
-    private SimpleConsoleOptions currentOptions;
 
     private SimpleConsole()
     {
@@ -95,7 +96,7 @@ public partial class SimpleConsole : IConsoleService
         this.RawConsole = new(this);
         this.bufferPool = new(() => new InputBuffer(this), 32);
         this.DefaultOptions = new();
-        this.currentOptions = this.DefaultOptions;
+        this.CurrentOptions = this.DefaultOptions;
 
         this.charBuffer = new char[CharBufferSize];
         this.windowBuffer = new char[WindowBufferSize];
@@ -116,18 +117,18 @@ public partial class SimpleConsole : IConsoleService
     {
         InputBuffer? buffer;
         var position = 0;
-        this.currentOptions = options ?? this.DefaultOptions;
+        this.CurrentOptions = options ?? this.DefaultOptions;
 
         using (this.lockObject.EnterScope())
         {
-            buffer = this.RentBuffer(0, this.currentOptions.Prompt);
+            buffer = this.RentBuffer(0, this.CurrentOptions.Prompt);
             this.buffers.Add(buffer);
             buffer.Top = Console.CursorTop;
         }
 
-        if (!string.IsNullOrEmpty(this.currentOptions.Prompt))
+        if (!string.IsNullOrEmpty(this.CurrentOptions.Prompt))
         {
-            this.UnderlyingTextWriter.Write(this.currentOptions.Prompt);
+            this.UnderlyingTextWriter.Write(this.CurrentOptions.Prompt);
         }
 
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
@@ -162,7 +163,7 @@ ProcessKeyInfo:
             {// CrLf -> Lf
                 continue;
             }
-            else if (this.DefaultOptions.CancelOnEscape &&
+            else if (this.CurrentOptions.CancelOnEscape &&
                 keyInfo.Key == ConsoleKey.Escape)
             {
                 this.UnderlyingTextWriter.WriteLine();
@@ -679,8 +680,8 @@ ProcessKeyInfo:
                     return string.Empty;
                 }
 
-                if (this.currentOptions.MultilinePrompt is not null &&
-                    (SimpleCommandLine.SimpleParserHelper.CountOccurrences(buffer.TextSpan, this.DefaultOptions.MultilineIdentifier) % 2) > 0)
+                if (this.CurrentOptions.MultilinePrompt is not null &&
+                    (SimpleCommandLine.SimpleParserHelper.CountOccurrences(buffer.TextSpan, this.CurrentOptions.MultilineIdentifier) % 2) > 0)
                 {// Multiple line
                     if (buffer == this.buffers[0])
                     {// Start
@@ -701,11 +702,11 @@ ProcessKeyInfo:
                             return null;
                         }
 
-                        buffer = this.RentBuffer(this.buffers.Count, this.currentOptions.MultilinePrompt);
+                        buffer = this.RentBuffer(this.buffers.Count, this.CurrentOptions.MultilinePrompt);
                         this.buffers.Add(buffer);
                         var previousTop = this.CursorTop;
                         this.UnderlyingTextWriter.WriteLine();
-                        this.UnderlyingTextWriter.Write(this.currentOptions.MultilinePrompt);
+                        this.UnderlyingTextWriter.Write(this.CurrentOptions.MultilinePrompt);
                         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
                         if (this.CursorTop == previousTop)
                         {
@@ -825,7 +826,7 @@ ProcessKeyInfo:
                     TryCopy(buffer.Prompt.AsSpan(), ref span);
                 }
 
-                TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.DefaultOptions.InputColor).AsSpan(), ref span); // Input color
+                TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.CurrentOptions.InputColor).AsSpan(), ref span); // Input color
                 TryCopy(buffer.TextSpan, ref span);
                 TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
                 TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);

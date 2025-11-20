@@ -61,7 +61,17 @@ internal class Program
 
         while (!ThreadCore.Root.IsTerminated)
         {
-            var result = await simpleConsole.ReadLine();
+            var options = simpleConsole.DefaultOptions with
+            {
+                Prompt = "Input> ",
+                MultilinePrompt = ">> ",
+                MultilineIdentifier = "...",
+                InputColor = ConsoleColor.Cyan,
+                CancelOnEscape = false,
+                AllowEmptyLineInput = true,
+            };
+
+            var result = await simpleConsole.ReadLine(options);
 
             if (result.Kind == InputResultKind.Terminated)
             {
