@@ -498,7 +498,7 @@ internal class InputBuffer
 
         if (eraseLine)
         {// Erase line
-            span = ConsoleHelper.EraseLineSpan;
+            span = ConsoleHelper.EraseToEndOfLineSpan;
             span.CopyTo(buffer);
             written += span.Length;
             buffer = buffer.Slice(span.Length);

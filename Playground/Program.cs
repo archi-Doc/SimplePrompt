@@ -55,8 +55,8 @@ internal class Program
             CancelReadLineOnEscape = true,
         };
 
-        Interop.SetConsoleMode();
-        Console.WriteLine(Environment.OSVersion.ToString());
+        // Interop.SetConsoleMode();
+        // Console.WriteLine(Environment.OSVersion.ToString());
         Console.WriteLine(Environment.OSVersion.ToString());
 
         while (!ThreadCore.Root.IsTerminated)
