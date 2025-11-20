@@ -9,14 +9,8 @@ namespace SimplePrompt;
 /// <summary>
 /// Configuration settings for the simple console prompt.
 /// </summary>
-public record class SimpleConsoleConfiguration
+public record class SimpleConsoleOptions
 {
-    /// <summary>
-    /// Gets the <see cref="ThreadCoreBase"/> used for thread coordination and cancellation.<br/>
-    /// Default is <see cref="ThreadCore.Root"/>.
-    /// </summary>
-    public ThreadCoreBase Core { get; init; } = ThreadCore.Root;
-
     /// <summary>
     /// Gets the color used for user input in the console.
     /// Default is <see cref="ConsoleColor.Yellow"/>.

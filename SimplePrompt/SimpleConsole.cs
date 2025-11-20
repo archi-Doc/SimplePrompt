@@ -47,9 +47,15 @@ public partial class SimpleConsole : IConsoleService
     }
 
     /// <summary>
-    /// Gets or sets the configuration settings for the console, including input colors and multiline identifiers.
+    /// Gets or sets the <see cref="ThreadCoreBase"/> used for thread coordination and cancellation.<br/>
+    /// Default is <see cref="ThreadCore.Root"/>.
     /// </summary>
-    public SimpleConsoleConfiguration Configuration { get; set; }
+    public ThreadCoreBase Core { get; set; } = ThreadCore.Root;
+
+    /// <summary>
+    /// Gets or sets the default options for <see cref="ReadLine(SimpleConsoleOptions?, CancellationToken)"/>.
+    /// </summary>
+    public SimpleConsoleOptions DefaultOptions { get; set; }
 
     // public bool IsInsertMode { get; set; } = true;
 
@@ -81,13 +87,15 @@ public partial class SimpleConsole : IConsoleService
 
     private readonly Lock lockObject = new();
     private List<InputBuffer> buffers = new();
+    private SimpleConsoleOptions currentOptions;
 
     private SimpleConsole()
     {
         this.simpleTextWriter = new(this, Console.Out);
         this.RawConsole = new(this);
         this.bufferPool = new(() => new InputBuffer(this), 32);
-        this.Configuration = new();
+        this.DefaultOptions = new();
+        this.currentOptions = this.DefaultOptions;
 
         this.charBuffer = new char[CharBufferSize];
         this.windowBuffer = new char[WindowBufferSize];
@@ -97,34 +105,36 @@ public partial class SimpleConsole : IConsoleService
     /// <summary>
     /// Asynchronously reads a line of input from the console with support for multiline editing.
     /// </summary>
-    /// <param name="prompt">The optional prompt text to display before user input. If null or empty, no prompt is displayed.</param>
-    /// <param name="multilinePrompt">The optional prompt text to display for continuation lines in multiline mode. Used when the multiline identifier is detected.</param>
+    /// <param name="options">The options for the console input, including prompts and behavior settings.<br/>
+    /// If not specified, <see cref="DefaultOptions" /> will be used.
+    /// </param>
     /// <param name="cancellationToken">A cancellation token to cancel the read operation.</param>
     /// <returns>
     /// A task that represents the asynchronous operation. The task result contains an <see cref="InputResult"/>.
     /// </returns>
-    public async Task<InputResult> ReadLine(string? prompt = default, string? multilinePrompt = default, CancellationToken cancellationToken = default)
+    public async Task<InputResult> ReadLine(SimpleConsoleOptions? options = default, CancellationToken cancellationToken = default)
     {
         InputBuffer? buffer;
         var position = 0;
+        this.currentOptions = options ?? this.DefaultOptions;
 
         using (this.lockObject.EnterScope())
         {
-            buffer = this.RentBuffer(0, prompt);
+            buffer = this.RentBuffer(0, this.currentOptions.Prompt);
             this.buffers.Add(buffer);
             buffer.Top = Console.CursorTop;
         }
 
-        if (!string.IsNullOrEmpty(prompt))
+        if (!string.IsNullOrEmpty(this.currentOptions.Prompt))
         {
-            this.UnderlyingTextWriter.Write(prompt);
+            this.UnderlyingTextWriter.Write(this.currentOptions.Prompt);
         }
 
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
 
         // Console.TreatControlCAsInput = true;
         ConsoleKeyInfo pendingKeyInfo = default;
-        while (!this.Configuration.Core.IsTerminated)
+        while (!this.Core.IsTerminated)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -152,7 +162,7 @@ ProcessKeyInfo:
             {// CrLf -> Lf
                 continue;
             }
-            else if (this.Configuration.CancelOnEscape &&
+            else if (this.DefaultOptions.CancelOnEscape &&
                 keyInfo.Key == ConsoleKey.Escape)
             {
                 this.UnderlyingTextWriter.WriteLine();
@@ -210,7 +220,7 @@ ProcessKeyInfo:
 
             if (flush)
             {// Flush
-                var result = this.Flush(keyInfo, this.charBuffer.AsSpan(0, position), multilinePrompt);
+                var result = this.Flush(keyInfo, this.charBuffer.AsSpan(0, position));
                 position = 0;
                 if (result is not null)
                 {
@@ -234,8 +244,8 @@ ProcessKeyInfo:
         return new(InputResultKind.Terminated);
     }
 
-    Task<InputResult> IConsoleService.ReadLine(string? prompt, CancellationToken cancellationToken)
-        => this.ReadLine(prompt, default, cancellationToken);
+    Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
+        => this.ReadLine(default, cancellationToken);
 
     void IConsoleService.Write(string? message)
     {
@@ -651,7 +661,7 @@ ProcessKeyInfo:
         }
     }
 
-    private string? Flush(ConsoleKeyInfo keyInfo, Span<char> charBuffer, string? multilinePrompt)
+    private string? Flush(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
         this.Prepare();
         using (this.lockObject.EnterScope())
@@ -669,8 +679,8 @@ ProcessKeyInfo:
                     return string.Empty;
                 }
 
-                if (multilinePrompt is not null &&
-                    (SimpleCommandLine.SimpleParserHelper.CountOccurrences(buffer.TextSpan, this.Configuration.MultilineIdentifier) % 2) > 0)
+                if (this.currentOptions.MultilinePrompt is not null &&
+                    (SimpleCommandLine.SimpleParserHelper.CountOccurrences(buffer.TextSpan, this.DefaultOptions.MultilineIdentifier) % 2) > 0)
                 {// Multiple line
                     if (buffer == this.buffers[0])
                     {// Start
@@ -691,11 +701,11 @@ ProcessKeyInfo:
                             return null;
                         }
 
-                        buffer = this.RentBuffer(this.buffers.Count, multilinePrompt);
+                        buffer = this.RentBuffer(this.buffers.Count, this.currentOptions.MultilinePrompt);
                         this.buffers.Add(buffer);
                         var previousTop = this.CursorTop;
                         this.UnderlyingTextWriter.WriteLine();
-                        this.UnderlyingTextWriter.Write(multilinePrompt);
+                        this.UnderlyingTextWriter.Write(this.currentOptions.MultilinePrompt);
                         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
                         if (this.CursorTop == previousTop)
                         {
@@ -815,7 +825,7 @@ ProcessKeyInfo:
                     TryCopy(buffer.Prompt.AsSpan(), ref span);
                 }
 
-                TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Configuration.InputColor).AsSpan(), ref span); // Input color
+                TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.DefaultOptions.InputColor).AsSpan(), ref span); // Input color
                 TryCopy(buffer.TextSpan, ref span);
                 TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
                 TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);

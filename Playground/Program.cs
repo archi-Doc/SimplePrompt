@@ -48,7 +48,7 @@ internal class Program
         logger.TryGet()?.Log("Start");
 
         var simpleConsole = SimpleConsole.GetOrCreate();
-        simpleConsole.Configuration = new SimpleConsoleConfiguration()
+        simpleConsole.DefaultOptions = new SimpleConsoleOptions()
         {
             InputColor = ConsoleColor.Yellow,
             MultilineIdentifier = "|",
@@ -61,7 +61,7 @@ internal class Program
 
         while (!ThreadCore.Root.IsTerminated)
         {
-            var result = await simpleConsole.ReadLine($"{Console.CursorTop}> ", "# "); // Success, Canceled, Terminated
+            var result = await simpleConsole.ReadLine();
 
             if (result.Kind == InputResultKind.Terminated)
             {
