@@ -9,14 +9,6 @@ internal static class SimplePromptHelper
     public static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
     public static readonly ConsoleKeyInfo SpaceKeyInfo = new(' ', ConsoleKey.Spacebar, false, false, false);
 
-    public static ReadOnlySpan<char> EraseLine => "\u001b[K";
-
-    public static ReadOnlySpan<char> EraseLineAndLineFeed => "\u001b[K\n";
-
-    public static ReadOnlySpan<char> LineFeed => "\n";
-
-    public static ReadOnlySpan<char> ResetCursor => "\u001b[0;0H";
-
     public static byte GetCharWidth(int codePoint)
     {
         // Control characters

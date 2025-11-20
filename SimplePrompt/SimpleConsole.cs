@@ -455,7 +455,7 @@ ProcessKeyInfo:
                 break;
             }
 
-            if (!TryCopy(SimplePromptHelper.EraseLineAndLineFeed, ref span))
+            if (!TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span))
             {
                 break;
             }
@@ -544,7 +544,7 @@ ProcessKeyInfo:
         buffer = buffer.Slice(1);
         written += 1;
 
-        span = ConsoleHelper.EraseLine2Span;
+        span = ConsoleHelper.EraseEntireLineSpan;
         span.CopyTo(buffer);
         buffer = buffer.Slice(span.Length);
         written += span.Length;
@@ -805,7 +805,7 @@ ProcessKeyInfo:
                 }
                 else
                 {
-                    TryCopy(SimplePromptHelper.LineFeed, ref span);
+                    TryCopy(ConsoleHelper.NewLineSpan, ref span);
                 }
 
                 remainingHeight -= buffer.Height;
@@ -818,7 +818,7 @@ ProcessKeyInfo:
                 TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Configuration.InputColor).AsSpan(), ref span); // Input color
                 TryCopy(buffer.TextSpan, ref span);
                 TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
-                TryCopy(SimplePromptHelper.EraseLine, ref span);
+                TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
             }
 
             buffer.Top = y;
