@@ -24,7 +24,20 @@ public record class SimpleConsoleConfiguration
     public ConsoleColor InputColor { get; init; } = ConsoleColor.Yellow;
 
     /// <summary>
-    /// Gets the string identifier used to denote multiline input.
+    /// Gets the string displayed as the prompt for single-line input.<br/>
+    /// Default is "> ".
+    /// </summary>
+    public string Prompt { get; init; } = "> ";
+
+    /// <summary>
+    /// Gets the string displayed as the prompt for continuation lines in multiline input mode.<br/>
+    /// Set this to <see langword="null"/> to disable multi-line input.<br/>
+    /// Default is "# ".
+    /// </summary>
+    public string? MultilinePrompt { get; init; } = "# ";
+
+    /// <summary>
+    /// Gets the string identifier used to denote multiline input.<br/>
     /// Default is three double quotes (""").
     /// </summary>
     public string MultilineIdentifier { get; init; } = "\"\"\"";
@@ -33,7 +46,7 @@ public record class SimpleConsoleConfiguration
     /// Gets a value indicating whether to cancel the ReadLine operation when the Escape key is pressed.
     /// Default is <see langword="false"/>.
     /// </summary>
-    public bool CancelReadLineOnEscape { get; init; } = false;
+    public bool CancelOnEscape { get; init; } = false;
 
     /// <summary>
     /// Gets a value indicating whether an empty line (pressing Enter with no characters entered) is treated as valid input.

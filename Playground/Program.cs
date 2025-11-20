@@ -52,7 +52,7 @@ internal class Program
         {
             InputColor = ConsoleColor.Yellow,
             MultilineIdentifier = "|",
-            CancelReadLineOnEscape = true,
+            CancelOnEscape = true,
         };
 
         // Interop.SetConsoleMode();

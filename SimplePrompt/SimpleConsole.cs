@@ -152,7 +152,7 @@ ProcessKeyInfo:
             {// CrLf -> Lf
                 continue;
             }
-            else if (this.Configuration.CancelReadLineOnEscape &&
+            else if (this.Configuration.CancelOnEscape &&
                 keyInfo.Key == ConsoleKey.Escape)
             {
                 this.UnderlyingTextWriter.WriteLine();

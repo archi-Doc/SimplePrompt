@@ -15,7 +15,7 @@ internal class Program
         {// Set configuration options.
             InputColor = ConsoleColor.Yellow,
             MultilineIdentifier = "|",
-            CancelReadLineOnEscape = true,
+            CancelOnEscape = true,
             AllowEmptyLineInput = true,
         };
 
