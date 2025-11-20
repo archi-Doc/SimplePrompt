@@ -80,7 +80,7 @@ internal class InputBuffer
             var key = keyInfo.Key;
             if (key == ConsoleKey.Enter)
             {// Exit or Multiline """
-                if (!this.InputConsole.Configuration.AllowEmptyLineInput)
+                if (!this.InputConsole.CurrentOptions.AllowEmptyLineInput)
                 {
                     if (this.InputConsole.Buffers.Count == 0 ||
                     (this.InputConsole.Buffers.Count == 1 &&
@@ -458,7 +458,7 @@ internal class InputBuffer
         }
 
         // Input color
-        span = ConsoleHelper.GetForegroundColorEscapeCode(this.InputConsole.Configuration.InputColor).AsSpan();
+        span = ConsoleHelper.GetForegroundColorEscapeCode(this.InputConsole.CurrentOptions.InputColor).AsSpan();
         span.CopyTo(buffer);
         written += span.Length;
         buffer = buffer.Slice(span.Length);

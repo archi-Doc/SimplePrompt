@@ -11,11 +11,13 @@ internal class Program
     public static async Task Main(string[] args)
     {
         var simpleConsole = SimpleConsole.GetOrCreate(); // Get or create the singleton SimplePrompt instance.
-        simpleConsole.Configuration = new SimpleConsoleConfiguration()
+        simpleConsole.DefaultOptions = new SimpleConsoleOptions()
         {// Set configuration options.
             InputColor = ConsoleColor.Yellow,
+            Prompt = "> ",
+            MultilinePrompt = "# ",
             MultilineIdentifier = "|",
-            CancelReadLineOnEscape = true,
+            CancelOnEscape = true,
             AllowEmptyLineInput = true,
         };
 
@@ -25,7 +27,7 @@ internal class Program
 
         while (true)
         {
-            var result = await simpleConsole.ReadLine($"> ", "# ");
+            var result = await simpleConsole.ReadLine();
 
             if (result.Kind == InputResultKind.Canceled)
             {// Esc pressed
