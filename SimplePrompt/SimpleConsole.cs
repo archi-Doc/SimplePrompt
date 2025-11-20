@@ -57,6 +57,8 @@ public partial class SimpleConsole : IConsoleService
     /// </summary>
     public SimpleConsoleOptions DefaultOptions { get; set; }
 
+    public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
+
     // public bool IsInsertMode { get; set; } = true;
 
     internal RawConsole RawConsole { get; }
@@ -76,8 +78,6 @@ public partial class SimpleConsole : IConsoleService
     internal byte[] Utf8Buffer => this.utf8Buffer;
 
     internal List<InputBuffer> Buffers => this.buffers;
-
-    internal TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
     internal SimpleConsoleOptions CurrentOptions { get; private set; }
 
