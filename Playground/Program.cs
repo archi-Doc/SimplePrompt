@@ -47,8 +47,6 @@ internal class Program
         var logger = product.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
         logger.TryGet()?.Log("Start");
 
-        Console.WriteLine(Environment.OSVersion.ToString());
-
         var simpleConsole = SimpleConsole.GetOrCreate();
         simpleConsole.Configuration = new SimpleConsoleConfiguration()
         {
@@ -56,6 +54,10 @@ internal class Program
             MultilineIdentifier = "|",
             CancelReadLineOnEscape = true,
         };
+
+        Interop.SetConsoleMode();
+        Console.WriteLine(Environment.OSVersion.ToString());
+        Console.WriteLine(Environment.OSVersion.ToString());
 
         while (!ThreadCore.Root.IsTerminated)
         {
