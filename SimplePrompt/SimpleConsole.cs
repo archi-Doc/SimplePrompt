@@ -124,7 +124,7 @@ public partial class SimpleConsole : IConsoleService
 
         // Console.TreatControlCAsInput = true;
         ConsoleKeyInfo pendingKeyInfo = default;
-        while (!ThreadCore.Root.IsTerminated)
+        while (!this.Configuration.Core.IsTerminated)
         {
             cancellationToken.ThrowIfCancellationRequested();
 

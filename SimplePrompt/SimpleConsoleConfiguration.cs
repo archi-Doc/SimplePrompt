@@ -1,5 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using Arc.Threading;
+
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
 namespace SimplePrompt;
@@ -9,6 +11,12 @@ namespace SimplePrompt;
 /// </summary>
 public record class SimpleConsoleConfiguration
 {
+    /// <summary>
+    /// Gets the <see cref="ThreadCoreBase"/> used for thread coordination and cancellation.<br/>
+    /// Default is <see cref="ThreadCore.Root"/>.
+    /// </summary>
+    public ThreadCoreBase Core { get; init; } = ThreadCore.Root;
+
     /// <summary>
     /// Gets the color used for user input in the console.
     /// Default is <see cref="ConsoleColor.Yellow"/>.
