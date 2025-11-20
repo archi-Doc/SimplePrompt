@@ -45,7 +45,7 @@ simpleConsole.WriteLine("Test:Delayed output, '|':Multi-line mode switch, Exit: 
 
 while (true)
 {
-    var result = await simpleConsole.ReadLine($"> ", "# ");
+    var result = await simpleConsole.ReadLine();
 
     if (result.Kind == InputResultKind.Canceled)
     {// Esc pressed
