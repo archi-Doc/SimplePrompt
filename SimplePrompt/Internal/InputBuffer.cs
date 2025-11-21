@@ -210,6 +210,20 @@ internal class InputBuffer
         return false;
     }
 
+    internal ReadOnlySpan<char> GetVisualSpan(int start, int length)
+    {
+        var maskingCharacter = this.InputConsole.CurrentOptions.MaskingCharacter;
+        if (maskingCharacter == default)
+        {
+            return this.charArray.AsSpan(start, length);
+        }
+        else
+        {
+            var width = BaseHelper.Sum(this.widthArray.AsSpan(start, length));
+            return new string(maskingCharacter, (int)width).AsSpan(); // I'm worried about allocations, but maybe I don't need to care that much…
+        }
+    }
+
     internal void UpdateHeight(bool refresh)
     {
         var previousHeight = this.Height;
@@ -391,7 +405,7 @@ internal class InputBuffer
     {
         int x, y, w;
         var length = endIndex < 0 ? this.Length : endIndex - startIndex;
-        var charSpan = this.charArray.AsSpan(startIndex, length);
+        var charSpan = this.GetVisualSpan(startIndex, length);
         var widthSpan = this.widthArray.AsSpan(startIndex, length);
         var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
         var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));

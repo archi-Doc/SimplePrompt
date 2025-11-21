@@ -827,7 +827,7 @@ ProcessKeyInfo:
                 }
 
                 TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.CurrentOptions.InputColor).AsSpan(), ref span); // Input color
-                TryCopy(buffer.TextSpan, ref span);
+                TryCopy(buffer.GetVisualSpan(0, buffer.Length), ref span);
                 TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
                 TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
             }

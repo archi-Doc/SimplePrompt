@@ -47,5 +47,9 @@ public record class ReadLineOptions
     /// </summary>
     public bool AllowEmptyLineInput { get; init; } = false;
 
-    public char MaskingCharacter { get; init; } = '*';
+    /// <summary>
+    /// Gets the character used to mask user input in the console (e.g., for password entry).
+    /// Default is 0 (no masking).
+    /// </summary>
+    public char MaskingCharacter { get; init; } = default;
 }
