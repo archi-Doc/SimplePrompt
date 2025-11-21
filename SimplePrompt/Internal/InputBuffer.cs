@@ -46,7 +46,7 @@ internal class InputBuffer
 
     public int WindowHeight => this.InputConsole.WindowHeight;
 
-    public Span<char> TextSpan => this.charArray.AsSpan(0, this.Length);
+    public ReadOnlySpan<char> TextSpan => this.charArray.AsSpan(0, this.Length);
 
     private char[] charArray = new char[BufferSize];
     private byte[] widthArray = new byte[BufferSize];

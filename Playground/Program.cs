@@ -51,7 +51,7 @@ internal class Program
         logger.TryGet()?.Log("Start");
 
         var simpleConsole = SimpleConsole.GetOrCreate();
-        simpleConsole.DefaultOptions = new SimpleConsoleOptions()
+        simpleConsole.DefaultOptions = new ReadLineOptions()
         {
             InputColor = ConsoleColor.Yellow,
             MultilineIdentifier = "|",

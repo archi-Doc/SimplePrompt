@@ -53,9 +53,9 @@ public partial class SimpleConsole : IConsoleService
     public ThreadCoreBase Core { get; set; } = ThreadCore.Root;
 
     /// <summary>
-    /// Gets or sets the default options for <see cref="ReadLine(SimpleConsoleOptions?, CancellationToken)"/>.
+    /// Gets or sets the default options for <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/>.
     /// </summary>
-    public SimpleConsoleOptions DefaultOptions { get; set; }
+    public ReadLineOptions DefaultOptions { get; set; }
 
     public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
@@ -79,7 +79,7 @@ public partial class SimpleConsole : IConsoleService
 
     internal List<InputBuffer> Buffers => this.buffers;
 
-    internal SimpleConsoleOptions CurrentOptions { get; private set; }
+    internal ReadLineOptions CurrentOptions { get; private set; }
 
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly char[] charBuffer = new char[CharBufferSize];
@@ -113,7 +113,7 @@ public partial class SimpleConsole : IConsoleService
     /// <returns>
     /// A task that represents the asynchronous operation. The task result contains an <see cref="InputResult"/>.
     /// </returns>
-    public async Task<InputResult> ReadLine(SimpleConsoleOptions? options = default, CancellationToken cancellationToken = default)
+    public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
         InputBuffer? buffer;
         var position = 0;
@@ -478,7 +478,7 @@ ProcessKeyInfo:
     private void Initialize()
     {
         Console.SetOut(this.simpleTextWriter);
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        // Console.OutputEncoding = System.Text.Encoding.UTF8; // Causes character corruption.
     }
 
     private void ClearLastLine(int dif)

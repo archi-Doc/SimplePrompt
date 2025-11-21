@@ -7,9 +7,9 @@ using Arc.Threading;
 namespace SimplePrompt;
 
 /// <summary>
-/// Configuration settings for the simple console prompt.
+/// Represents configuration options for reading input from the console.
 /// </summary>
-public record class SimpleConsoleOptions
+public record class ReadLineOptions
 {
     /// <summary>
     /// Gets the color used for user input in the console.
@@ -19,7 +19,7 @@ public record class SimpleConsoleOptions
 
     /// <summary>
     /// Gets the string displayed as the prompt for single-line input.<br/>
-    /// Default is "> ".
+    /// Default is "&gt; ".
     /// </summary>
     public string Prompt { get; init; } = "> ";
 
@@ -46,4 +46,6 @@ public record class SimpleConsoleOptions
     /// Gets a value indicating whether an empty line (pressing Enter with no characters entered) is treated as valid input.
     /// </summary>
     public bool AllowEmptyLineInput { get; init; } = false;
+
+    public char MaskingCharacter { get; init; } = '*';
 }

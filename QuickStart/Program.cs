@@ -11,7 +11,7 @@ internal class Program
     public static async Task Main(string[] args)
     {
         var simpleConsole = SimpleConsole.GetOrCreate(); // Get or create the singleton SimplePrompt instance.
-        simpleConsole.DefaultOptions = new SimpleConsoleOptions()
+        simpleConsole.DefaultOptions = new ReadLineOptions()
         {// Set configuration options.
             InputColor = ConsoleColor.Yellow,
             Prompt = "> ",
