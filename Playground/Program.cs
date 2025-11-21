@@ -77,6 +77,7 @@ internal class Program
                 CancelOnEscape = false,
                 AllowEmptyLineInput = true,
                 MaxInputLength = 10,
+                MaskingCharacter = '$',
             };
 
             var result = await simpleConsole.ReadLine(options);

@@ -19,9 +19,9 @@ public record class ReadLineOptions
 
     /// <summary>
     /// Gets the maximum number of characters allowed for user input.<br/>
-    /// Default is <see cref="int.MaxValue"/> (no limit).
+    /// Default is 64KB.
     /// </summary>
-    public int MaxInputLength { get; init; } = int.MaxValue;
+    public int MaxInputLength { get; init; } = 1024 * 64;
 
     /// <summary>
     /// Gets the string displayed as the prompt for single-line input.<br/>

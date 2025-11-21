@@ -422,6 +422,22 @@ ProcessKeyInfo:
         this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.Show);
     }
 
+    internal bool IsLengthWithinLimit(int dif)
+    {
+        var length = 0;
+        for (var i = 0; i < this.buffers.Count; i++)
+        {
+            if (i > 0)
+            {
+                length += 1; // New line
+            }
+
+            length += this.buffers[i].Length;
+        }
+
+        return length + dif <= this.CurrentOptions.MaxInputLength;
+    }
+
     internal void TryDeleteBuffer(int index)
     {
         if (index < 0 ||
@@ -707,6 +723,10 @@ ProcessKeyInfo:
                     {// New InputBuffer
                         if (buffer.Length == 0)
                         {// Empty
+                            return null;
+                        }
+                        else if (!this.IsLengthWithinLimit(1))
+                        {// Exceeding max length
                             return null;
                         }
 
