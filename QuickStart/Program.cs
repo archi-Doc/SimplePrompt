@@ -10,9 +10,9 @@ internal class Program
 {
     public static async Task Main(string[] args)
     {
-        var simpleConsole = SimpleConsole.GetOrCreate(); // Get or create the singleton SimplePrompt instance.
-        simpleConsole.DefaultOptions = new SimpleConsoleOptions()
-        {// Set configuration options.
+        var simpleConsole = SimpleConsole.GetOrCreate(); // Create the singleton SimplePrompt instance. Note that all Console calls (such as Console.Out) will go through SimpleConsole.
+        simpleConsole.DefaultOptions = new ReadLineOptions()
+        {// Set ReadLine() options.
             InputColor = ConsoleColor.Yellow,
             Prompt = "> ",
             MultilinePrompt = "# ",
@@ -21,7 +21,7 @@ internal class Program
             AllowEmptyLineInput = true,
         };
 
-        simpleConsole.WriteLine("SimplePrompt example");
+        Console.Out.Write("SimplePrompt example\r\n");
         simpleConsole.WriteLine("Esc:Cancel input, Ctrl+U:Clear input, Home:Move to start, End:Move to end");
         simpleConsole.WriteLine("Test:Delayed output, '|':Multi-line mode switch, Exit: Exit app");
 
@@ -51,7 +51,7 @@ internal class Program
                     simpleConsole.WriteLine("abcdefgabcdefgabcdefg"); // Displayed above the prompt
                     await Task.Delay(1000);
                     Console.Out.WriteLine("abcdefg0123456789abcdefg0123456789abcdefg0123456789"); // Output via Console.Out is also supported.
-                    Console.Out.Write("xxxxx"); // Only supports line-by-line output.
+                    Console.Out.Write("Write:Not displayed"); // Not displayed while ReadLine is waiting for input.
                 });
             }
             else

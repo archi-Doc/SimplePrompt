@@ -46,7 +46,7 @@ internal class InputBuffer
 
     public int WindowHeight => this.InputConsole.WindowHeight;
 
-    public Span<char> TextSpan => this.charArray.AsSpan(0, this.Length);
+    public ReadOnlySpan<char> TextSpan => this.charArray.AsSpan(0, this.Length);
 
     private char[] charArray = new char[BufferSize];
     private byte[] widthArray = new byte[BufferSize];
@@ -210,6 +210,20 @@ internal class InputBuffer
         return false;
     }
 
+    internal ReadOnlySpan<char> GetVisualSpan(int start, int length)
+    {
+        var maskingCharacter = this.InputConsole.CurrentOptions.MaskingCharacter;
+        if (maskingCharacter == default)
+        {
+            return this.charArray.AsSpan(start, length);
+        }
+        else
+        {
+            var width = BaseHelper.Sum(this.widthArray.AsSpan(start, length));
+            return new string(maskingCharacter, (int)width).AsSpan(); // I'm worried about allocations, but maybe I don't need to care that much…
+        }
+    }
+
     internal void UpdateHeight(bool refresh)
     {
         var previousHeight = this.Height;
@@ -273,6 +287,11 @@ internal class InputBuffer
     {
         // if (this.InputConsole.IsInsertMode)
         {// Insert
+            if (!this.InputConsole.IsLengthWithinLimit(charBuffer.Length))
+            {
+                return;
+            }
+
             this.EnsureCapacity(this.Length + charBuffer.Length);
 
             this.charArray.AsSpan(arrayPosition, this.Length - arrayPosition).CopyTo(this.charArray.AsSpan(arrayPosition + charBuffer.Length));
@@ -391,7 +410,7 @@ internal class InputBuffer
     {
         int x, y, w;
         var length = endIndex < 0 ? this.Length : endIndex - startIndex;
-        var charSpan = this.charArray.AsSpan(startIndex, length);
+        var charSpan = this.GetVisualSpan(startIndex, length);
         var widthSpan = this.widthArray.AsSpan(startIndex, length);
         var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
         var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));

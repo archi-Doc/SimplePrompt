@@ -46,32 +46,38 @@ internal class Program
                 });
             });
 
+
         var product = builder.Build();
         var logger = product.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
         logger.TryGet()?.Log("Start");
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         var simpleConsole = SimpleConsole.GetOrCreate();
-        simpleConsole.DefaultOptions = new SimpleConsoleOptions()
+        simpleConsole.DefaultOptions = new ReadLineOptions()
         {
             InputColor = ConsoleColor.Yellow,
             MultilineIdentifier = "|",
             CancelOnEscape = true,
+            // MaskingCharacter = '?',
         };
 
         // Interop.SetConsoleMode();
         // Console.WriteLine(Environment.OSVersion.ToString());
+
         Console.WriteLine(Environment.OSVersion.ToString());
 
         while (!ThreadCore.Root.IsTerminated)
         {
             var options = simpleConsole.DefaultOptions with
             {
-                Prompt = "Input> ",
+                // Prompt = "Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input> ",
                 MultilinePrompt = ">> ",
                 MultilineIdentifier = "...",
                 InputColor = ConsoleColor.Cyan,
                 CancelOnEscape = false,
                 AllowEmptyLineInput = true,
+                MaxInputLength = 10,
+                MaskingCharacter = '$',
             };
 
             var result = await simpleConsole.ReadLine(options);
