@@ -56,8 +56,8 @@ internal class Program
             InputColor = ConsoleColor.Yellow,
             MultilineIdentifier = "|",
             CancelOnEscape = true,
-            MaskingCharacter = '?',
-            };
+            // MaskingCharacter = '?',
+        };
 
         // Interop.SetConsoleMode();
         // Console.WriteLine(Environment.OSVersion.ToString());

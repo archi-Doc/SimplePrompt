@@ -287,7 +287,13 @@ internal class InputBuffer
     {
         // if (this.InputConsole.IsInsertMode)
         {// Insert
-            this.EnsureCapacity(this.Length + charBuffer.Length);
+            var newLength = this.Length + charBuffer.Length;
+            if (newLength > this.InputConsole.CurrentOptions.MaxInputLength)
+            {
+                return;
+            }
+
+            this.EnsureCapacity(newLength);
 
             this.charArray.AsSpan(arrayPosition, this.Length - arrayPosition).CopyTo(this.charArray.AsSpan(arrayPosition + charBuffer.Length));
             charBuffer.CopyTo(this.charArray.AsSpan(arrayPosition));

@@ -18,6 +18,12 @@ public record class ReadLineOptions
     public ConsoleColor InputColor { get; init; } = ConsoleColor.Yellow;
 
     /// <summary>
+    /// Gets the maximum number of characters allowed for user input.<br/>
+    /// Default is <see cref="int.MaxValue"/> (no limit).
+    /// </summary>
+    public int MaxInputLength { get; init; } = int.MaxValue;
+
+    /// <summary>
     /// Gets the string displayed as the prompt for single-line input.<br/>
     /// Default is "&gt; ".
     /// </summary>
