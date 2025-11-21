@@ -46,11 +46,11 @@ internal class Program
                 });
             });
 
-        Console.WriteLine("ab日本語Ａ𩸽サロゲートﾍﾟｱ");
 
         var product = builder.Build();
         var logger = product.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
         logger.TryGet()?.Log("Start");
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         var simpleConsole = SimpleConsole.GetOrCreate();
         simpleConsole.DefaultOptions = new ReadLineOptions()
@@ -63,6 +63,7 @@ internal class Program
 
         // Interop.SetConsoleMode();
         // Console.WriteLine(Environment.OSVersion.ToString());
+
         Console.WriteLine(Environment.OSVersion.ToString());
 
         while (!ThreadCore.Root.IsTerminated)
@@ -75,6 +76,7 @@ internal class Program
                 InputColor = ConsoleColor.Cyan,
                 CancelOnEscape = false,
                 AllowEmptyLineInput = true,
+                MaxInputLength = 10,
             };
 
             var result = await simpleConsole.ReadLine(options);

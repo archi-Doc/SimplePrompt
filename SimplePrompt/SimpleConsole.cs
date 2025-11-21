@@ -485,8 +485,8 @@ ProcessKeyInfo:
 
     private void Initialize()
     {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
         Console.SetOut(this.simpleTextWriter);
-        // Console.OutputEncoding = System.Text.Encoding.UTF8; // Causes character corruption.
     }
 
     private void ClearLastLine(int dif)
