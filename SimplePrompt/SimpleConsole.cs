@@ -250,7 +250,14 @@ ProcessKeyInfo:
 
     void IConsoleService.Write(string? message)
     {
-        this.simpleTextWriter.Write(message);
+        using (this.lockObject.EnterScope())
+        {
+            if (this.buffers.Count == 0)
+            {
+                this.UnderlyingTextWriter.Write(message);
+                return;
+            }
+        }
 
         /*if (Environment.NewLine == "\r\n" && message is not null)
         {
