@@ -46,6 +46,8 @@ internal class Program
                 });
             });
 
+        Console.WriteLine("ab日本語Ａ𩸽サロゲートﾍﾟｱ");
+
         var product = builder.Build();
         var logger = product.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
         logger.TryGet()?.Log("Start");
