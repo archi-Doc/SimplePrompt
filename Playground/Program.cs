@@ -70,7 +70,7 @@ internal class Program
         {
             var options = simpleConsole.DefaultOptions with
             {
-                Prompt = "Input> ",
+                // Prompt = "Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input> ",
                 MultilinePrompt = ">> ",
                 MultilineIdentifier = "...",
                 InputColor = ConsoleColor.Cyan,

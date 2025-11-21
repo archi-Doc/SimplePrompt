@@ -60,6 +60,8 @@ public partial class SimpleConsole : IConsoleService
 
     public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
+    public bool IsReadLineInProgress => this.buffers.Count > 0;
+
     // public bool IsInsertMode { get; set; } = true;
 
     internal RawConsole RawConsole { get; }
@@ -120,19 +122,30 @@ public partial class SimpleConsole : IConsoleService
         var position = 0;
         this.CurrentOptions = options ?? this.DefaultOptions;
 
+        this.PrepareWindow(false);
+        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+        if (this.CursorLeft > 0)
+        {
+            this.UnderlyingTextWriter.WriteLine();
+            this.CursorLeft = 0;
+            if (this.CursorTop < this.WindowHeight - 1)
+            {
+                this.CursorTop++;
+            }
+        }
+
         using (this.lockObject.EnterScope())
         {
             buffer = this.RentBuffer(0, this.CurrentOptions.Prompt);
             this.buffers.Add(buffer);
-            buffer.Top = Console.CursorTop;
+            buffer.Top = this.CursorTop;
         }
 
-        if (!string.IsNullOrEmpty(this.CurrentOptions.Prompt))
+        if (!string.IsNullOrEmpty(buffer.Prompt))
         {
-            this.UnderlyingTextWriter.Write(this.CurrentOptions.Prompt);
+            this.UnderlyingTextWriter.Write(buffer.Prompt);
+            this.MoveCursor(buffer.PromtWidth);
         }
-
-        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
 
         // Console.TreatControlCAsInput = true;
         ConsoleKeyInfo pendingKeyInfo = default;
@@ -140,7 +153,7 @@ public partial class SimpleConsole : IConsoleService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            this.PrepareWindow();
+            this.PrepareWindow(true);
 
             // Polling isn’t an ideal approach, but due to the fact that the normal method causes a significant performance drop and that the function must be able to exit when the application terminates, this implementation was chosen.
             if (!this.RawConsole.TryRead(out var keyInfo))
@@ -288,6 +301,7 @@ ProcessKeyInfo:
                 if (this.buffers.Count == 0)
                 {
                     this.WriteInternal(message);
+                    (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
                     return;
                 }
 
@@ -617,7 +631,7 @@ ProcessKeyInfo:
         return false;
     }
 
-    private void PrepareWindow()
+    private void PrepareWindow(bool arrange)
     {
         var windowWidth = 120;
         var windowHeight = 30;
@@ -650,19 +664,16 @@ ProcessKeyInfo:
         this.WindowWidth = windowWidth;
         this.WindowHeight = windowHeight;
 
-        var newCursor = Console.GetCursorPosition();
-        var dif = newCursor.Top - this.CursorTop;
-        (this.CursorLeft, this.CursorTop) = newCursor;
-        foreach (var x in this.buffers)
+        if (arrange)
         {
-            x.Top += dif;
+            var newCursor = Console.GetCursorPosition();
+            var dif = newCursor.Top - this.CursorTop;
+            (this.CursorLeft, this.CursorTop) = newCursor;
+            foreach (var x in this.buffers)
+            {
+                x.Top += dif;
+            }
         }
-
-        /*this.Prepare();
-        using (this.lockObject.EnterScope())
-        {
-            this.PrepareAndFindBuffer();
-        }*/
     }
 
     private void Prepare()
@@ -704,7 +715,7 @@ ProcessKeyInfo:
                     return string.Empty;
                 }
 
-                if (this.CurrentOptions.MultilinePrompt is not null &&
+                if (!string.IsNullOrEmpty(this.CurrentOptions.MultilineIdentifier) &&
                     (SimpleCommandLine.SimpleParserHelper.CountOccurrences(buffer.TextSpan, this.CurrentOptions.MultilineIdentifier) % 2) > 0)
                 {// Multiple line
                     if (buffer == this.buffers[0])
@@ -944,6 +955,25 @@ ProcessKeyInfo:
             }
 
             this.buffers.Clear();
+        }
+    }
+
+    private void MoveCursor(int index)
+    {
+        this.CursorLeft += index;
+        var h = this.CursorLeft >= 0 ?
+            (this.CursorLeft / this.WindowWidth) :
+            (((this.CursorLeft - 1) / this.WindowWidth) - 1);
+        this.CursorLeft -= h * this.WindowWidth;
+        this.CursorTop += h;
+
+        if (this.CursorTop < 0)
+        {
+            this.CursorTop = 0;
+        }
+        else if (this.CursorTop >= this.WindowHeight)
+        {
+            this.CursorTop = this.WindowHeight - 1;
         }
     }
 }

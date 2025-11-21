@@ -31,16 +31,16 @@ public record class ReadLineOptions
 
     /// <summary>
     /// Gets the string displayed as the prompt for continuation lines in multiline input mode.<br/>
-    /// Set this to <see langword="null"/> to disable multi-line input.<br/>
     /// Default is "# ".
     /// </summary>
-    public string? MultilinePrompt { get; init; } = "# ";
+    public string MultilinePrompt { get; init; } = "# ";
 
     /// <summary>
     /// Gets the string identifier used to denote multiline input.<br/>
-    /// Default is three double quotes (""").
+    /// Default is three double quotes (""").<br/>
+    /// Set this to <see langword="null"/> to disable multi-line input.<br/>
     /// </summary>
-    public string MultilineIdentifier { get; init; } = "\"\"\"";
+    public string? MultilineIdentifier { get; init; } = "\"\"\"";
 
     /// <summary>
     /// Gets a value indicating whether to cancel the ReadLine operation when the Escape key is pressed.
