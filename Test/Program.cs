@@ -74,7 +74,7 @@ internal class Program
         {
             var options = simpleConsole.DefaultOptions with
             {// Multiline prompt example
-                Prompt = "Description\r\nDescription2\nInput> ",
+                Prompt = "Description\r\n\n<---\nInput> ",
                 // Prompt = "Input> ",
             };
 

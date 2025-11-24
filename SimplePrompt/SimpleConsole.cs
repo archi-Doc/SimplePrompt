@@ -135,7 +135,6 @@ public partial class SimpleConsole : IConsoleService
         }
 
         var prompt = this.CurrentOptions.Prompt.AsSpan();
-        var cursorTop = this.CursorTop;
         var bufferIndex = 0;
         using (this.lockObject.EnterScope())
         {
@@ -155,27 +154,29 @@ public partial class SimpleConsole : IConsoleService
                 }
 
                 this.buffers.Add(buffer);
-                buffer.Top = cursorTop;
+                buffer.Top = this.CursorTop;
                 buffer.UpdateHeight(false);
-                cursorTop += buffer.Height;
 
-                if (bufferIndex > 0)
+                var span = this.WindowBuffer.AsSpan();
+                TryCopy(buffer.Prompt.AsSpan(), ref span);
+                if (prompt.Length == 0)
                 {
-                    this.SetCursorPosition(0, buffer.Top, CursorOperation.None);
-                }
-
-                if (!string.IsNullOrEmpty(buffer.Prompt))
-                {
-                    var span = this.WindowBuffer.AsSpan();
-                    TryCopy(buffer.Prompt.AsSpan(), ref span);
                     TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
-                    this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
-
-                    this.MoveCursor(buffer.PromtWidth);
+                    this.CursorTop += buffer.Height - 1;
                 }
+                else
+                {
+                    TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
+                    this.CursorTop += buffer.Height;
+                }
+
+                this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
 
                 if (prompt.Length == 0)
                 {
+                    this.MoveCursor2(buffer.PromtWidth);
+                    this.TrimCursor();
+                    this.SetCursorPosition(this.CursorLeft, this.CursorTop, CursorOperation.None);
                     break;
                 }
             }
@@ -870,6 +871,15 @@ ProcessKeyInfo:
         }
     }
 
+    private void TrimCursor()
+    {
+        var scroll = this.CursorTop - this.WindowHeight + 1;
+        if (scroll > 0)
+        {
+            this.Scroll(scroll, true);
+        }
+    }
+
     private void RedrawInternal()
     {
         if (this.buffers.Count == 0)
@@ -1021,5 +1031,15 @@ ProcessKeyInfo:
         {
             this.CursorTop = this.WindowHeight - 1;
         }
+    }
+
+    private void MoveCursor2(int index)
+    {
+        this.CursorLeft += index;
+        var h = this.CursorLeft >= 0 ?
+            (this.CursorLeft / this.WindowWidth) :
+            (((this.CursorLeft - 1) / this.WindowWidth) - 1);
+        this.CursorLeft -= h * this.WindowWidth;
+        this.CursorTop += h;
     }
 }
