@@ -2,6 +2,7 @@
 
 using System.Runtime.CompilerServices;
 using System.Text;
+using Arc;
 using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
@@ -118,9 +119,8 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
-        InputBuffer? buffer;
         var position = 0;
-        this.CurrentOptions = options ?? this.DefaultOptions;
+        this.CurrentOptions = (options ?? this.DefaultOptions) with { }; // Clone
 
         this.PrepareWindow(false);
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
@@ -134,17 +134,47 @@ public partial class SimpleConsole : IConsoleService
             }
         }
 
+        var prompt = this.CurrentOptions.Prompt.AsSpan();
+        var cursorTop = this.CursorTop;
+        var bufferIndex = 0;
         using (this.lockObject.EnterScope())
         {
-            buffer = this.RentBuffer(0, this.CurrentOptions.Prompt);
-            this.buffers.Add(buffer);
-            buffer.Top = this.CursorTop;
-        }
+            InputBuffer buffer;
+            while (prompt.Length >= 0)
+            {
+                var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
+                if (index < 0)
+                {
+                    buffer = this.RentBuffer(bufferIndex++, prompt.ToString());
+                    prompt = default;
+                }
+                else
+                {
+                    buffer = this.RentBuffer(bufferIndex++, prompt.Slice(0, index).ToString());
+                    prompt = prompt.Slice(index + newLineLength);
+                }
 
-        if (!string.IsNullOrEmpty(buffer.Prompt))
-        {
-            this.UnderlyingTextWriter.Write(buffer.Prompt);
-            this.MoveCursor(buffer.PromtWidth);
+                this.buffers.Add(buffer);
+                buffer.Top = cursorTop;
+                buffer.UpdateHeight(false);
+                cursorTop += buffer.Height;
+
+                if (bufferIndex > 0)
+                {
+                    this.SetCursorPosition(0, buffer.Top, CursorOperation.None);
+                }
+
+                if (!string.IsNullOrEmpty(buffer.Prompt))
+                {
+                    this.UnderlyingTextWriter.Write(buffer.Prompt);
+                    this.MoveCursor(buffer.PromtWidth);
+                }
+
+                if (prompt.Length == 0)
+                {
+                    break;
+                }
+            }
         }
 
         // Console.TreatControlCAsInput = true;
