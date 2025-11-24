@@ -74,7 +74,7 @@ internal class Program
         {
             var options = simpleConsole.DefaultOptions with
             {// Multiline prompt example
-                Prompt = "Description\r\n\n<---\nInput> ",
+                Prompt = "Description (n:nested)\r\n\n<---\nInput> ",
                 // Prompt = "Input> ",
             };
 
@@ -82,6 +82,14 @@ internal class Program
             if (!await ProcessInputResult(simpleConsole, result))
             {
                 break;
+            }
+            else if (string.Equals(result.Text, "n", StringComparison.InvariantCultureIgnoreCase))
+            {
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(1000);
+                    Console.WriteLine("nested");
+                });
             }
         }
     }

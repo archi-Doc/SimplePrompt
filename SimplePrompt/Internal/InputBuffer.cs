@@ -697,6 +697,11 @@ internal class InputBuffer
                 }
 
                 buffer = this.InputConsole.Buffers[this.Index - 1];
+                if (buffer.IsImmutable)
+                {
+                    return;
+                }
+
                 cursorTop = buffer.Height - 1;
             }
             else
@@ -714,6 +719,11 @@ internal class InputBuffer
                 }
 
                 buffer = this.InputConsole.Buffers[this.Index + 1];
+                if (buffer.IsImmutable)
+                {
+                    return;
+                }
+
                 cursorTop = 0;
             }
             else
