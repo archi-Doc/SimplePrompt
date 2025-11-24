@@ -76,6 +76,7 @@ internal class Program
             {// Multiline prompt example
                 Prompt = "Description (n:nested)\r\n\n<---\nInput> ",
                 // Prompt = "Input> ",
+                MaxInputLength = 10,
             };
 
             var result = await simpleConsole.ReadLine(options);

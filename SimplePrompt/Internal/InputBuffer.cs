@@ -18,8 +18,6 @@ internal class InputBuffer
 
     public int Index { get; set; }
 
-    public bool IsImmutable { get; private set; }
-
     public int Top { get; set; }
 
     /// <summary>
@@ -254,7 +252,7 @@ internal class InputBuffer
         return (int)BaseHelper.Sum(this.widthArray.AsSpan(0, this.Length));
     }*/
 
-    public void Initialize(int index, bool isImmutable, string? prompt)
+    public void Initialize(int index, string? prompt)
     {
         this.Index = index;
         if (prompt?.Length > MaxPromptWidth)
@@ -262,7 +260,6 @@ internal class InputBuffer
             prompt = prompt.Substring(0, MaxPromptWidth);
         }
 
-        this.IsImmutable = isImmutable;
         this.Prompt = prompt;
         this.PromtWidth = SimplePromptHelper.GetWidth(this.Prompt);
         this.Length = 0;
@@ -691,17 +688,12 @@ internal class InputBuffer
         {// Up arrow
             if (cursorTop <= 0)
             {// Previous buffer
-                if (this.Index <= 0)
+                if (this.Index <= this.InputConsole.EditableBufferIndex)
                 {
                     return;
                 }
 
                 buffer = this.InputConsole.Buffers[this.Index - 1];
-                if (buffer.IsImmutable)
-                {
-                    return;
-                }
-
                 cursorTop = buffer.Height - 1;
             }
             else
@@ -713,17 +705,13 @@ internal class InputBuffer
         {// Down arrow
             if (cursorTop + 1 >= this.Height)
             {// Next buffer
-                if (this.Index + 1 >= this.InputConsole.Buffers.Count)
+                var idx = this.Index + 1;
+                if (idx >= this.InputConsole.Buffers.Count)
                 {
                     return;
                 }
 
                 buffer = this.InputConsole.Buffers[this.Index + 1];
-                if (buffer.IsImmutable)
-                {
-                    return;
-                }
-
                 cursorTop = 0;
             }
             else

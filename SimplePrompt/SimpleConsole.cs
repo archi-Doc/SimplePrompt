@@ -85,6 +85,8 @@ public partial class SimpleConsole : IConsoleService
 
     internal ReadLineOptions CurrentOptions { get; private set; }
 
+    internal int EditableBufferIndex => this.editableBufferIndex;
+
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly char[] charBuffer = new char[CharBufferSize];
     private readonly char[] windowBuffer = [];
@@ -93,6 +95,7 @@ public partial class SimpleConsole : IConsoleService
 
     private readonly Lock lockObject = new();
     private List<InputBuffer> buffers = new();
+    private int editableBufferIndex = 0;
 
     private SimpleConsole()
     {
@@ -144,12 +147,12 @@ public partial class SimpleConsole : IConsoleService
                 var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
                 if (index < 0)
                 {
-                    buffer = this.RentBuffer(bufferIndex++, false, prompt.ToString());
+                    buffer = this.RentBuffer(bufferIndex++, prompt.ToString());
                     prompt = default;
                 }
                 else
                 {
-                    buffer = this.RentBuffer(bufferIndex++, true, prompt.Slice(0, index).ToString());
+                    buffer = this.RentBuffer(bufferIndex++, prompt.Slice(0, index).ToString());
                     prompt = prompt.Slice(index + newLineLength);
                 }
 
@@ -174,6 +177,7 @@ public partial class SimpleConsole : IConsoleService
 
                 if (prompt.Length == 0)
                 {
+                    this.editableBufferIndex = bufferIndex - 1;
                     this.MoveCursor2(buffer.PromtWidth);
                     this.TrimCursor();
                     this.SetCursorPosition(this.CursorLeft, this.CursorTop, CursorOperation.None);
@@ -474,9 +478,14 @@ ProcessKeyInfo:
     internal bool IsLengthWithinLimit(int dif)
     {
         var length = 0;
-        for (var i = 0; i < this.buffers.Count; i++)
+        var isFirst = true;
+        for (var i = this.editableBufferIndex; i < this.buffers.Count; i++)
         {
-            if (i > 0)
+            if (isFirst)
+            {
+                isFirst = false;
+            }
+            else
             {
                 length += 1; // New line
             }
@@ -753,7 +762,7 @@ ProcessKeyInfo:
                 if (!string.IsNullOrEmpty(this.CurrentOptions.MultilineIdentifier) &&
                     (SimpleCommandLine.SimpleParserHelper.CountOccurrences(buffer.TextSpan, this.CurrentOptions.MultilineIdentifier) % 2) > 0)
                 {// Multiple line
-                    if (buffer == this.buffers[0])
+                    if (buffer.Index == this.editableBufferIndex)
                     {// Start
                         this.MultilineMode = true;
                     }
@@ -776,7 +785,7 @@ ProcessKeyInfo:
                             return null;
                         }
 
-                        buffer = this.RentBuffer(this.buffers.Count, false, this.CurrentOptions.MultilinePrompt);
+                        buffer = this.RentBuffer(this.buffers.Count, this.CurrentOptions.MultilinePrompt);
                         this.buffers.Add(buffer);
                         var previousTop = this.CursorTop;
                         this.UnderlyingTextWriter.WriteLine();
@@ -796,35 +805,29 @@ ProcessKeyInfo:
                     }
                 }
 
-                var length = this.buffers[0].Length;
-                for (var i = 1; i < this.buffers.Count; i++)
+                var length = this.buffers[this.editableBufferIndex].Length;
+                for (var i = this.editableBufferIndex + 1; i < this.buffers.Count; i++)
                 {
-                    if (!this.buffers[i].IsImmutable)
-                    {
-                        length += 1 + this.buffers[i].Length;
-                    }
+                    length += 1 + this.buffers[i].Length;
                 }
 
-                var result = string.Create(length, this.buffers, static (span, buffers) =>
+                var result = string.Create(length, this.buffers, (span, buffers) =>
                 {
                     var isFirst = true;
-                    for (var i = 0; i < buffers.Count; i++)
+                    for (var i = this.editableBufferIndex; i < buffers.Count; i++)
                     {
-                        if (!buffers[i].IsImmutable)
+                        if (!isFirst)
                         {
-                            if (!isFirst)
-                            {
-                                span[0] = '\n';
-                                span = span.Slice(1);
-                            }
-                            else
-                            {
-                                isFirst = false;
-                            }
-
-                            buffers[i].TextSpan.CopyTo(span);
-                            span = span.Slice(buffers[i].Length);
+                            span[0] = '\n';
+                            span = span.Slice(1);
                         }
+                        else
+                        {
+                            isFirst = false;
+                        }
+
+                        buffers[i].TextSpan.CopyTo(span);
+                        span = span.Slice(buffers[i].Length);
                     }
                 });
 
@@ -993,10 +996,10 @@ ProcessKeyInfo:
         return buffer;
     }
 
-    private InputBuffer RentBuffer(int index, bool isImmutable, string? prompt)
+    private InputBuffer RentBuffer(int index, string? prompt)
     {
         var buffer = this.bufferPool.Rent();
-        buffer.Initialize(index, isImmutable, prompt);
+        buffer.Initialize(index, prompt);
         return buffer;
     }
 
