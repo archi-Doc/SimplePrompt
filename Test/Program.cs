@@ -8,7 +8,6 @@ using Arc.Threading;
 using Arc.Unit;
 using Microsoft.Extensions.DependencyInjection;
 using SimplePrompt;
-using static FastExpressionCompiler.ExpressionCompiler;
 
 namespace Playground;
 
@@ -76,6 +75,7 @@ internal class Program
             var options = simpleConsole.DefaultOptions with
             {// Multiline prompt example
                 Prompt = "Description\r\nDescription2\nInput> ",
+                // Prompt = "Input> ",
             };
 
             var result = await simpleConsole.ReadLine(options);
@@ -103,11 +103,6 @@ internal class Program
                 MaxInputLength = 10,
                 MaskingCharacter = '$',
             };
-
-            /*var options = simpleConsole.DefaultOptions with
-            {// Multiline prompt example
-                // Prompt = "Description\r\nInput> ",
-            };*/
 
             var result = await simpleConsole.ReadLine(options);
             if (!await ProcessInputResult(simpleConsole, result))

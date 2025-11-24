@@ -145,12 +145,12 @@ public partial class SimpleConsole : IConsoleService
                 var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
                 if (index < 0)
                 {
-                    buffer = this.RentBuffer(bufferIndex++, prompt.ToString());
+                    buffer = this.RentBuffer(bufferIndex++, false, prompt.ToString());
                     prompt = default;
                 }
                 else
                 {
-                    buffer = this.RentBuffer(bufferIndex++, prompt.Slice(0, index).ToString());
+                    buffer = this.RentBuffer(bufferIndex++, true, prompt.Slice(0, index).ToString());
                     prompt = prompt.Slice(index + newLineLength);
                 }
 
@@ -166,7 +166,11 @@ public partial class SimpleConsole : IConsoleService
 
                 if (!string.IsNullOrEmpty(buffer.Prompt))
                 {
-                    this.UnderlyingTextWriter.Write(buffer.Prompt);
+                    var span = this.WindowBuffer.AsSpan();
+                    TryCopy(buffer.Prompt.AsSpan(), ref span);
+                    TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
+                    this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
+
                     this.MoveCursor(buffer.PromtWidth);
                 }
 
@@ -771,7 +775,7 @@ ProcessKeyInfo:
                             return null;
                         }
 
-                        buffer = this.RentBuffer(this.buffers.Count, this.CurrentOptions.MultilinePrompt);
+                        buffer = this.RentBuffer(this.buffers.Count, false, this.CurrentOptions.MultilinePrompt);
                         this.buffers.Add(buffer);
                         var previousTop = this.CursorTop;
                         this.UnderlyingTextWriter.WriteLine();
@@ -794,20 +798,32 @@ ProcessKeyInfo:
                 var length = this.buffers[0].Length;
                 for (var i = 1; i < this.buffers.Count; i++)
                 {
-                    length += 1 + this.buffers[i].Length;
+                    if (!this.buffers[i].IsImmutable)
+                    {
+                        length += 1 + this.buffers[i].Length;
+                    }
                 }
 
                 var result = string.Create(length, this.buffers, static (span, buffers) =>
                 {
-                    buffers[0].TextSpan.CopyTo(span);
-                    span = span.Slice(buffers[0].Length);
-                    for (var i = 1; i < buffers.Count; i++)
+                    var isFirst = true;
+                    for (var i = 0; i < buffers.Count; i++)
                     {
-                        span[0] = '\n';
-                        span = span.Slice(1);
+                        if (!buffers[i].IsImmutable)
+                        {
+                            if (!isFirst)
+                            {
+                                span[0] = '\n';
+                                span = span.Slice(1);
+                            }
+                            else
+                            {
+                                isFirst = false;
+                            }
 
-                        buffers[i].TextSpan.CopyTo(span);
-                        span = span.Slice(buffers[i].Length);
+                            buffers[i].TextSpan.CopyTo(span);
+                            span = span.Slice(buffers[i].Length);
+                        }
                     }
                 });
 
@@ -967,10 +983,10 @@ ProcessKeyInfo:
         return buffer;
     }
 
-    private InputBuffer RentBuffer(int index, string? prompt)
+    private InputBuffer RentBuffer(int index, bool isImmutable, string? prompt)
     {
         var buffer = this.bufferPool.Rent();
-        buffer.Initialize(index, prompt);
+        buffer.Initialize(index, isImmutable, prompt);
         return buffer;
     }
 

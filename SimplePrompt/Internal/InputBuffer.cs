@@ -18,6 +18,8 @@ internal class InputBuffer
 
     public int Index { get; set; }
 
+    public bool IsImmutable { get; private set; }
+
     public int Top { get; set; }
 
     /// <summary>
@@ -252,7 +254,7 @@ internal class InputBuffer
         return (int)BaseHelper.Sum(this.widthArray.AsSpan(0, this.Length));
     }*/
 
-    public void Initialize(int index, string? prompt)
+    public void Initialize(int index, bool isImmutable, string? prompt)
     {
         this.Index = index;
         if (prompt?.Length > MaxPromptWidth)
@@ -260,6 +262,7 @@ internal class InputBuffer
             prompt = prompt.Substring(0, MaxPromptWidth);
         }
 
+        this.IsImmutable = isImmutable;
         this.Prompt = prompt;
         this.PromtWidth = SimplePromptHelper.GetWidth(this.Prompt);
         this.Length = 0;
