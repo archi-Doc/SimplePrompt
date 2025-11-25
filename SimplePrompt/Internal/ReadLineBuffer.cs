@@ -234,150 +234,6 @@ internal class ReadLineBuffer
         }
     }
 
-    private void ClearLine()
-    {
-        Array.Fill<char>(this.charArray, ' ', 0, this.Width);
-        Array.Fill<byte>(this.widthArray, 1, 0, this.Width);
-        this.Length = this.Width;
-        this.Write(0, this.Width, 0, 0);
-
-        this.Length = 0;
-        this.Width = 0;
-        this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
-        // this.UpdateConsole(0, this.Length, 0, true);
-    }
-
-    private void EnsureCapacity(int capacity)
-    {
-        capacity += BufferMargin;
-        if (this.charArray.Length < capacity)
-        {
-            var newSize = this.charArray.Length;
-            while (newSize < capacity)
-            {
-                newSize *= 2;
-            }
-
-            Array.Resize(ref this.charArray, newSize);
-            Array.Resize(ref this.widthArray, newSize);
-        }
-    }
-
-    private void ProcessCharacterInternal(int arrayPosition, Span<char> charBuffer)
-    {
-        // if (this.InputConsole.IsInsertMode)
-        {// Insert
-            if (!this.simpleConsole.IsLengthWithinLimit(charBuffer.Length))
-            {
-                return;
-            }
-
-            this.EnsureCapacity(this.Length + charBuffer.Length);
-
-            this.charArray.AsSpan(arrayPosition, this.Length - arrayPosition).CopyTo(this.charArray.AsSpan(arrayPosition + charBuffer.Length));
-            charBuffer.CopyTo(this.charArray.AsSpan(arrayPosition));
-            this.widthArray.AsSpan(arrayPosition, this.Length - arrayPosition).CopyTo(this.widthArray.AsSpan(arrayPosition + charBuffer.Length));
-            var width = 0;
-            for (var i = 0; i < charBuffer.Length; i++)
-            {
-                int w;
-                var c = charBuffer[i];
-                if (char.IsHighSurrogate(c) && (i + 1) < charBuffer.Length && char.IsLowSurrogate(charBuffer[i + 1]))
-                {
-                    var codePoint = char.ConvertToUtf32(c, charBuffer[i + 1]);
-                    w = SimplePromptHelper.GetCharWidth(codePoint);
-                    this.widthArray[arrayPosition + i++] = 0;
-                    this.widthArray[arrayPosition + i] = (byte)w;
-                }
-                else
-                {
-                    w = SimplePromptHelper.GetCharWidth(c);
-                    this.widthArray[arrayPosition + i] = (byte)w;
-                }
-
-                width += w;
-            }
-
-            this.Length += charBuffer.Length;
-            this.Width += width;
-            this.Write(arrayPosition, this.Length, width, 0);
-        }
-
-        /*else
-        {// Overtype (Not implemented yet)
-            this.EnsureCapacity(arrayPosition + charBuffer.Length);
-
-            charBuffer.CopyTo(this.charArray.AsSpan(arrayPosition));
-            for (var i = 0; i < charBuffer.Length; i++)
-            {
-                var c = charBuffer[i];
-                int width, dif;
-                if (char.IsHighSurrogate(c) && (i + 1) < charBuffer.Length && char.IsLowSurrogate(charBuffer[i + 1]))
-                {
-                    var codePoint = char.ConvertToUtf32(c, charBuffer[i + 1]);
-                    dif = InputConsoleHelper.GetCharWidth(codePoint);
-                    width = dif;
-                    dif -= this.widthArray[arrayPosition + i];
-                    this.widthArray[arrayPosition + i++] = 0;
-                    dif -= this.widthArray[arrayPosition + i];
-                    this.widthArray[arrayPosition + i] = (byte)width;
-                }
-                else
-                {
-                    dif = InputConsoleHelper.GetCharWidth(c);
-                    width = dif;
-                    dif -= this.widthArray[arrayPosition + i];
-                    this.widthArray[arrayPosition + i] = (byte)width;
-                }
-
-                this.Width += dif;
-            }
-
-            this.UpdateConsole(arrayPosition, arrayPosition + charBuffer.Length, 0);
-        }*/
-    }
-
-    private int GetArrayPosition()
-    {
-        var index = this.GetCursorIndex();
-
-        int arrayPosition;
-        for (arrayPosition = 0; arrayPosition < this.Length; arrayPosition++)
-        {
-            if (index <= 0)
-            {
-                break;
-            }
-
-            index -= this.widthArray[arrayPosition];
-        }
-
-        return arrayPosition;
-    }
-
-    private void TrimCursorIndex(ref int cursorIndex)
-    {
-        if (cursorIndex <= 0)
-        {
-            cursorIndex = 0;
-            return;
-        }
-
-        var newIndex = 0;
-        for (var arrayPosition = 0; arrayPosition < this.Length; arrayPosition++)
-        {
-            var width = this.widthArray[arrayPosition];
-            cursorIndex -= width;
-            newIndex += width;
-            if (cursorIndex <= 0)
-            {
-                break;
-            }
-        }
-
-        cursorIndex = newIndex;
-    }
-
     internal (int Left, int Top) ToCursor(int cursorIndex)
     {
         cursorIndex += this.PromtWidth;
@@ -385,6 +241,10 @@ internal class ReadLineBuffer
         var left = cursorIndex - (top * this.simpleConsole.WindowWidth);
         return (left, top);
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal int GetCursorIndex()
+        => this.GetCursorIndex(this.CursorLeft, this.CursorTop);
 
     internal void Write(int startIndex, int endIndex, int cursorDif, int removedWidth, bool eraseLine = false)
     {
@@ -543,13 +403,157 @@ internal class ReadLineBuffer
 
         if (scroll > 0)
         {
-            this.readLineInstance.Scroll(scroll, true);
+            this.simpleConsole.Scroll(scroll, true);
         }
 
         this.simpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
         this.simpleConsole.CursorLeft = newCursorLeft;
         this.simpleConsole.CursorTop = newCursorTop;
+    }
+
+    private void ClearLine()
+    {
+        Array.Fill<char>(this.charArray, ' ', 0, this.Width);
+        Array.Fill<byte>(this.widthArray, 1, 0, this.Width);
+        this.Length = this.Width;
+        this.Write(0, this.Width, 0, 0);
+
+        this.Length = 0;
+        this.Width = 0;
+        this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
+        // this.UpdateConsole(0, this.Length, 0, true);
+    }
+
+    private void EnsureCapacity(int capacity)
+    {
+        capacity += BufferMargin;
+        if (this.charArray.Length < capacity)
+        {
+            var newSize = this.charArray.Length;
+            while (newSize < capacity)
+            {
+                newSize *= 2;
+            }
+
+            Array.Resize(ref this.charArray, newSize);
+            Array.Resize(ref this.widthArray, newSize);
+        }
+    }
+
+    private void ProcessCharacterInternal(int arrayPosition, Span<char> charBuffer)
+    {
+        // if (this.InputConsole.IsInsertMode)
+        {// Insert
+            if (!this.simpleConsole.IsLengthWithinLimit(charBuffer.Length))
+            {
+                return;
+            }
+
+            this.EnsureCapacity(this.Length + charBuffer.Length);
+
+            this.charArray.AsSpan(arrayPosition, this.Length - arrayPosition).CopyTo(this.charArray.AsSpan(arrayPosition + charBuffer.Length));
+            charBuffer.CopyTo(this.charArray.AsSpan(arrayPosition));
+            this.widthArray.AsSpan(arrayPosition, this.Length - arrayPosition).CopyTo(this.widthArray.AsSpan(arrayPosition + charBuffer.Length));
+            var width = 0;
+            for (var i = 0; i < charBuffer.Length; i++)
+            {
+                int w;
+                var c = charBuffer[i];
+                if (char.IsHighSurrogate(c) && (i + 1) < charBuffer.Length && char.IsLowSurrogate(charBuffer[i + 1]))
+                {
+                    var codePoint = char.ConvertToUtf32(c, charBuffer[i + 1]);
+                    w = SimplePromptHelper.GetCharWidth(codePoint);
+                    this.widthArray[arrayPosition + i++] = 0;
+                    this.widthArray[arrayPosition + i] = (byte)w;
+                }
+                else
+                {
+                    w = SimplePromptHelper.GetCharWidth(c);
+                    this.widthArray[arrayPosition + i] = (byte)w;
+                }
+
+                width += w;
+            }
+
+            this.Length += charBuffer.Length;
+            this.Width += width;
+            this.Write(arrayPosition, this.Length, width, 0);
+        }
+
+        /*else
+        {// Overtype (Not implemented yet)
+            this.EnsureCapacity(arrayPosition + charBuffer.Length);
+
+            charBuffer.CopyTo(this.charArray.AsSpan(arrayPosition));
+            for (var i = 0; i < charBuffer.Length; i++)
+            {
+                var c = charBuffer[i];
+                int width, dif;
+                if (char.IsHighSurrogate(c) && (i + 1) < charBuffer.Length && char.IsLowSurrogate(charBuffer[i + 1]))
+                {
+                    var codePoint = char.ConvertToUtf32(c, charBuffer[i + 1]);
+                    dif = InputConsoleHelper.GetCharWidth(codePoint);
+                    width = dif;
+                    dif -= this.widthArray[arrayPosition + i];
+                    this.widthArray[arrayPosition + i++] = 0;
+                    dif -= this.widthArray[arrayPosition + i];
+                    this.widthArray[arrayPosition + i] = (byte)width;
+                }
+                else
+                {
+                    dif = InputConsoleHelper.GetCharWidth(c);
+                    width = dif;
+                    dif -= this.widthArray[arrayPosition + i];
+                    this.widthArray[arrayPosition + i] = (byte)width;
+                }
+
+                this.Width += dif;
+            }
+
+            this.UpdateConsole(arrayPosition, arrayPosition + charBuffer.Length, 0);
+        }*/
+    }
+
+    private int GetArrayPosition()
+    {
+        var index = this.GetCursorIndex();
+
+        int arrayPosition;
+        for (arrayPosition = 0; arrayPosition < this.Length; arrayPosition++)
+        {
+            if (index <= 0)
+            {
+                break;
+            }
+
+            index -= this.widthArray[arrayPosition];
+        }
+
+        return arrayPosition;
+    }
+
+    private void TrimCursorIndex(ref int cursorIndex)
+    {
+        if (cursorIndex <= 0)
+        {
+            cursorIndex = 0;
+            return;
+        }
+
+        var newIndex = 0;
+        for (var arrayPosition = 0; arrayPosition < this.Length; arrayPosition++)
+        {
+            var width = this.widthArray[arrayPosition];
+            cursorIndex -= width;
+            newIndex += width;
+            if (cursorIndex <= 0)
+            {
+                break;
+            }
+        }
+
+        cursorIndex = newIndex;
     }
 
     private int RemoveAt(int index)
@@ -616,10 +620,6 @@ internal class ReadLineBuffer
         var index = cursorLeft - this.PromtWidth + (cursorTop * this.simpleConsole.WindowWidth);
         return index;
     }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal int GetCursorIndex()
-        => this.GetCursorIndex(this.CursorLeft, this.CursorTop);
 
     private void MoveLeft(int arrayPosition)
     {

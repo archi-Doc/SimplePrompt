@@ -2,6 +2,7 @@
 
 using System;
 using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Arc.Collections;
 using Arc.Threading;
@@ -381,6 +382,74 @@ ProcessKeyInfo:
     internal void ReturnBuffer(ReadLineBuffer obj)
         => this.bufferPool.Return(obj);
 
+    internal void MoveCursor2(int index)
+    {
+        this.CursorLeft += index;
+        var h = this.CursorLeft >= 0 ?
+            (this.CursorLeft / this.WindowWidth) :
+            (((this.CursorLeft - 1) / this.WindowWidth) - 1);
+        this.CursorLeft -= h * this.WindowWidth;
+        this.CursorTop += h;
+    }
+
+    internal void Scroll(int scroll, bool moveCursor)
+    {
+        if (moveCursor)
+        {
+            this.CursorTop -= scroll;
+        }
+
+        if (this.instanceArray.Length > 0)
+        {
+            foreach (var y in this.instanceArray[this.instanceArray.Length - 1].BufferList)
+            {
+                y.Top -= scroll;
+            }
+        }
+    }
+
+    internal void SetCursor(ReadLineBuffer buffer)
+    {
+        var cursorLeft = buffer.PromtWidth;
+        var cursorTop = buffer.Top;
+        this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.None);
+    }
+
+    internal int SetCursorAtFirst(CursorOperation cursorOperation)
+    {
+        if (this.buffers.Count == 0)
+        {
+            return 0;
+        }
+
+        var buffer = this.buffers[0];
+        var top = Math.Max(0, buffer.Top);
+        this.SetCursorPosition(0, top, cursorOperation);
+        return top;
+    }
+
+    internal void SetCursorAtEnd(CursorOperation cursorOperation)
+    {
+        if (this.buffers.Count == 0)
+        {
+            return;
+        }
+
+        var buffer = this.buffers[this.buffers.Count - 1];
+        var newCursor = buffer.ToCursor(buffer.Width);
+        newCursor.Top += buffer.Top;
+        this.SetCursorPosition(newCursor.Left, newCursor.Top, cursorOperation);
+    }
+
+    internal void TrimCursor()
+    {
+        var scroll = this.CursorTop - this.WindowHeight + 1;
+        if (scroll > 0)
+        {
+            this.Scroll(scroll, true);
+        }
+    }
+
     internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
     {// Move and show cursor.
         /*if (this.CursorLeft == cursorLeft &&
@@ -434,6 +503,19 @@ ProcessKeyInfo:
 
         this.CursorLeft = cursorLeft;
         this.CursorTop = cursorTop;
+    }
+
+    private bool TryGetActiveInstance([MaybeNullWhen(false)] out ReadLineInstance instance)
+    {
+        var array = this.instanceArray;
+        if (array.Length == 0)
+        {
+            instance = null;
+            return false;
+        }
+
+        instance = array[array.Length - 1];
+        return true;
     }
 
     private void RemoveInstance(ReadLineInstance target)
@@ -514,39 +596,6 @@ ProcessKeyInfo:
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         Console.SetOut(this.simpleTextWriter);
-    }
-
-    private void SetCursor(ReadLineBuffer buffer)
-    {
-        var cursorLeft = buffer.PromtWidth;
-        var cursorTop = buffer.Top;
-        this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.None);
-    }
-
-    private int SetCursorAtFirst(CursorOperation cursorOperation)
-    {
-        if (this.buffers.Count == 0)
-        {
-            return 0;
-        }
-
-        var buffer = this.buffers[0];
-        var top = Math.Max(0, buffer.Top);
-        this.SetCursorPosition(0, top, cursorOperation);
-        return top;
-    }
-
-    private void SetCursorAtEnd(CursorOperation cursorOperation)
-    {
-        if (this.buffers.Count == 0)
-        {
-            return;
-        }
-
-        var buffer = this.buffers[this.buffers.Count - 1];
-        var newCursor = buffer.ToCursor(buffer.Width);
-        newCursor.Top += buffer.Top;
-        this.SetCursorPosition(newCursor.Left, newCursor.Top, cursorOperation);
     }
 
     private static bool IsControl(ConsoleKeyInfo keyInfo)
@@ -742,14 +791,19 @@ ProcessKeyInfo:
 
     private (int BufferIndex, int CursorIndex) GetLocation()
     {
-        if (this.buffers.Count == 0)
+        if (!this.TryGetActiveInstance(out var instance))
         {
             return default;
         }
 
-        var y = this.buffers[0].Top;
+        if (instance.BufferList.Count == 0)
+        {
+            return default;
+        }
+
+        var y = instance.BufferList[0].Top;
         ReadLineBuffer? buffer = null;
-        foreach (var x in this.buffers)
+        foreach (var x in instance.BufferList)
         {
             x.Top = y;
             x.UpdateHeight(false);
@@ -845,18 +899,6 @@ ProcessKeyInfo:
         source.CopyTo(destination);
         destination = destination.Slice(source.Length);
         return true;
-    }
-
-    private int GetBuffersHeightInternal()
-    {
-        var height = 0;
-        for (var i = 0; i < (this.buffers.Count - 1); i++)
-        {
-            this.buffers[i].UpdateHeight(false);
-            height += this.buffers[i].Height;
-        }
-
-        return height;
     }
 
     private ReadLineBuffer? PrepareAndFindBuffer()
