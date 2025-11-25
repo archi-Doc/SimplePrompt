@@ -1,0 +1,300 @@
+﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
+
+using System.Runtime.CompilerServices;
+using Arc;
+using Arc.Unit;
+using CrossChannel;
+using SimplePrompt.Internal;
+
+namespace SimplePrompt.Internal;
+
+internal record class ReadLineInstance
+{
+    private const int CharBufferSize = 1024;
+
+    public ReadLineOptions Options => this.options;
+
+    internal char[] WindowBuffer => this.simpleConsole.WindowBuffer;
+
+    internal RawConsole RawConsole => this.simpleConsole.RawConsole;
+
+    private readonly SimpleConsole simpleConsole;
+    private readonly char[] charBuffer = new char[CharBufferSize];
+    private ReadLineOptions options = new();
+    private List<ReadLineBuffer> buffers = new();
+    private int editableBufferIndex;
+    private bool multilineMode;
+
+    public ReadLineInstance(SimpleConsole simpleConsole)
+    {
+        this.simpleConsole = simpleConsole;
+    }
+
+    public void Initialize(ReadLineOptions options)
+    {
+        GhostCopy.Copy(ref options, ref this.options);
+    }
+
+    public void PrepareInputBuffer()
+    {
+        var prompt = this.Options.Prompt.AsSpan();
+        var bufferIndex = 0;
+        while (prompt.Length >= 0)
+        {
+            var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
+            ReadLineBuffer buffer;
+            if (index < 0)
+            {
+                buffer = this.simpleConsole.RentBuffer(bufferIndex++, prompt.ToString());
+                prompt = default;
+            }
+            else
+            {
+                buffer = this.simpleConsole.RentBuffer(bufferIndex++, prompt.Slice(0, index).ToString());
+                prompt = prompt.Slice(index + newLineLength);
+            }
+
+            this.buffers.Add(buffer);
+            buffer.Top = this.simpleConsole.CursorTop;
+            buffer.UpdateHeight(false);
+
+            var span = this.simpleConsole.WindowBuffer.AsSpan();
+            TryCopy(buffer.Prompt.AsSpan(), ref span);
+            if (prompt.Length == 0)
+            {
+                TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
+                this.simpleConsole.CursorTop += buffer.Height - 1;
+            }
+            else
+            {
+                TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
+                this.simpleConsole.CursorTop += buffer.Height;
+            }
+
+            this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
+
+            if (prompt.Length == 0)
+            {
+                this.editableBufferIndex = bufferIndex - 1;
+                this.simpleConsole.MoveCursor2(buffer.PromtWidth);
+                this.simpleConsole.TrimCursor();
+                this.simpleConsole.SetCursorPosition(this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop, CursorOperation.None);
+                break;
+            }
+        }
+    }
+
+    public void HeightChanged(int index, int dif)
+    {
+        var cursorTop = this.simpleConsole.CursorTop;
+        var cursorLeft = this.simpleConsole.CursorLeft;
+
+        for (var i = index + 1; i < this.buffers.Count; i++)
+        {
+            var buffer = this.buffers[i];
+            buffer.Top += dif;
+            buffer.Write(0, -1, 0, 0, true);
+        }
+
+        if (dif < 0)
+        {
+            var buffer = this.buffers[this.buffers.Count - 1];
+            var top = buffer.Top + buffer.Height;
+            this.ClearLine(top);
+        }
+
+        this.simpleConsole.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.Show);
+    }
+
+    public void TryDeleteBuffer(int index)
+    {
+        if (index < 0 ||
+            index >= (this.buffers.Count - 1))
+        {
+            return;
+        }
+
+        var dif = -this.buffers[index].Height;
+        this.buffers.RemoveAt(index);
+        for (var i = index; i < this.buffers.Count; i++)
+        {
+            var buffer = this.buffers[i];
+            buffer.Index = i;
+            buffer.Top += dif;
+            buffer.Write(0, -1, 0, 0, true);
+        }
+
+        this.ClearLastLine(dif);
+        this.SetCursor(this.buffers[index]);
+    }
+
+    public void ProcessKeyInfo(ConsoleKeyInfo keyInfo)
+    {
+ProcessKeyInfo:
+        if (keyInfo.KeyChar == '\n' ||
+            keyInfo.Key == ConsoleKey.Enter)
+        {
+            keyInfo = SimplePromptHelper.EnterKeyInfo;
+        }
+        else if (keyInfo.KeyChar == '\t' ||
+            keyInfo.Key == ConsoleKey.Tab)
+        {// Tab -> Space; in the future, input completion.
+         // keyInfo = SimplePromptHelper.SpaceKeyInfo;
+        }
+        else if (keyInfo.KeyChar == '\r')
+        {// CrLf -> Lf
+            continue;
+        }
+        else if (this.CurrentOptions.CancelOnEscape &&
+            keyInfo.Key == ConsoleKey.Escape)
+        {
+            this.UnderlyingTextWriter.WriteLine();
+            this.Clear();
+            return new(InputResultKind.Canceled);
+        }
+
+        /*else if (keyInfo.Key == ConsoleKey.C &&
+            keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control))
+        { // Ctrl+C
+            ThreadCore.Root.Terminate(); // Send a termination signal to the root.
+            return null;
+        }*/
+
+        /*if (keyInfo.Key == ConsoleKey.F1)
+        {
+            this.WriteLine("Inserted text");
+            continue;
+        }
+        else if (keyInfo.Key == ConsoleKey.F2)
+        {
+            this.WriteLine("Text1\nText2");
+            continue;
+        }*/
+
+        bool flush = true;
+        if (IsControl(keyInfo))
+        {// Control
+        }
+        else
+        {// Not control
+            this.charBuffer[position++] = keyInfo.KeyChar;
+            if (this.RawConsole.TryRead(out keyInfo))
+            {
+                flush = false;
+                if (position >= (CharBufferSize - 2))
+                {
+                    if (position >= CharBufferSize ||
+                        char.IsLowSurrogate(keyInfo.KeyChar))
+                    {
+                        flush = true;
+                    }
+                }
+
+                if (flush)
+                {
+                    pendingKeyInfo = keyInfo;
+                }
+                else
+                {
+                    goto ProcessKeyInfo;
+                }
+            }
+        }
+
+        if (flush)
+        {// Flush
+            var result = this.Flush(keyInfo, this.charBuffer.AsSpan(0, position));
+            position = 0;
+            if (result is not null)
+            {
+                this.UnderlyingTextWriter.WriteLine();
+                this.Clear();
+                return new(result);
+            }
+
+            if (pendingKeyInfo.Key != ConsoleKey.None)
+            {// Process pending key input.
+                keyInfo = pendingKeyInfo;
+                goto ProcessKeyInfo;
+            }
+        }
+    }
+
+    public void Clear()
+    {
+        this.multilineMode = false;
+        foreach (var buffer in this.buffers)
+        {
+            this.simpleConsole.ReturnBuffer(buffer);
+        }
+
+        this.buffers.Clear();
+    }
+
+    private void ClearLastLine(int dif)
+    {
+        var buffer = this.buffers[this.buffers.Count - 1];
+        var top = buffer.Top + buffer.Height;
+        for (var i = 0; i < -dif; i++)
+        {
+            this.ClearLine(top + i);
+        }
+    }
+
+    private void ClearLine(int top)
+    {
+        var buffer = this.WindowBuffer.AsSpan();
+        var written = 0;
+        ReadOnlySpan<char> span;
+
+        /*span = ConsoleHelper.SaveCursorSpan;
+        span.CopyTo(buffer);
+        buffer = buffer.Slice(span.Length);
+        written += span.Length;*/
+
+        span = ConsoleHelper.SetCursorSpan;
+        span.CopyTo(buffer);
+        buffer = buffer.Slice(span.Length);
+        written += span.Length;
+
+        var x = top + 1;
+        var y = 0 + 1;
+        x.TryFormat(buffer, out var w);
+        buffer = buffer.Slice(w);
+        written += w;
+        buffer[0] = ';';
+        buffer = buffer.Slice(1);
+        written += 1;
+        y.TryFormat(buffer, out w);
+        buffer = buffer.Slice(w);
+        written += w;
+        buffer[0] = 'H';
+        buffer = buffer.Slice(1);
+        written += 1;
+
+        span = ConsoleHelper.EraseEntireLineSpan;
+        span.CopyTo(buffer);
+        buffer = buffer.Slice(span.Length);
+        written += span.Length;
+
+        /*span = ConsoleHelper.RestoreCursorSpan;
+        span.CopyTo(buffer);
+        buffer = buffer.Slice(span.Length);
+        written += span.Length;*/
+
+        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, written));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
+    {
+        if (source.Length > destination.Length)
+        {
+            return false;
+        }
+
+        source.CopyTo(destination);
+        destination = destination.Slice(source.Length);
+        return true;
+    }
+}

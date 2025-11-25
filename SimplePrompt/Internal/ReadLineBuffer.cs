@@ -8,13 +8,11 @@ using Arc.Unit;
 
 namespace SimplePrompt.Internal;
 
-internal class InputBuffer
+internal class ReadLineBuffer
 {
     private const int BufferSize = 1_024;
     private const int BufferMargin = 32;
     private const int MaxPromptWidth = 256;
-
-    public SimpleConsole InputConsole { get; }
 
     public int Index { get; set; }
 
@@ -23,12 +21,12 @@ internal class InputBuffer
     /// <summary>
     /// Gets the cursor's horizontal position relative to the buffer's left edge.
     /// </summary>
-    public int CursorLeft => this.InputConsole.CursorLeft;
+    public int CursorLeft => this.simpleConsole.CursorLeft;
 
     /// <summary>
     /// Gets the cursor's vertical position relative to the buffer's top edge.
     /// </summary>
-    public int CursorTop => this.InputConsole.CursorTop - this.Top;
+    public int CursorTop => this.simpleConsole.CursorTop - this.Top;
 
     public string? Prompt { get; private set; }
 
@@ -42,18 +40,19 @@ internal class InputBuffer
 
     public int TotalWidth => this.PromtWidth + this.Width;
 
-    public int WindowWidth => this.InputConsole.WindowWidth;
+    public int WindowWidth => this.simpleConsole.WindowWidth;
 
-    public int WindowHeight => this.InputConsole.WindowHeight;
+    public int WindowHeight => this.simpleConsole.WindowHeight;
 
     public ReadOnlySpan<char> TextSpan => this.charArray.AsSpan(0, this.Length);
 
+    private readonly SimpleConsole simpleConsole;
     private char[] charArray = new char[BufferSize];
     private byte[] widthArray = new byte[BufferSize];
 
-    public InputBuffer(SimpleConsole inputConsole)
+    public ReadLineBuffer(SimpleConsole inputConsole)
     {
-        this.InputConsole = inputConsole;
+        this.simpleConsole = inputConsole;
     }
 
     public override string ToString()
@@ -80,11 +79,11 @@ internal class InputBuffer
             var key = keyInfo.Key;
             if (key == ConsoleKey.Enter)
             {// Exit or Multiline """
-                if (!this.InputConsole.CurrentOptions.AllowEmptyLineInput)
+                if (!this.simpleConsole.CurrentOptions.AllowEmptyLineInput)
                 {
-                    if (this.InputConsole.Buffers.Count == 0 ||
-                    (this.InputConsole.Buffers.Count == 1 &&
-                    this.InputConsole.Buffers[0].Length == 0))
+                    if (this.simpleConsole.Buffers.Count == 0 ||
+                    (this.simpleConsole.Buffers.Count == 1 &&
+                    this.simpleConsole.Buffers[0].Length == 0))
                     {// Empty input
                         return false;
                     }
@@ -96,7 +95,7 @@ internal class InputBuffer
             {
                 if (this.Length == 0)
                 {// Delete empty buffer
-                    this.InputConsole.TryDeleteBuffer(this.Index);
+                    this.simpleConsole.TryDeleteBuffer(this.Index);
                     return false;
                 }
 
@@ -126,7 +125,7 @@ internal class InputBuffer
             {
                 if (this.Length == 0)
                 {// Delete empty buffer
-                    this.InputConsole.TryDeleteBuffer(this.Index);
+                    this.simpleConsole.TryDeleteBuffer(this.Index);
                     return false;
                 }
 
@@ -178,7 +177,7 @@ internal class InputBuffer
             }
             else if (key == ConsoleKey.UpArrow)
             {// History or move line
-                if (this.InputConsole.MultilineMode)
+                if (this.simpleConsole.MultilineMode)
                 {// Up
                     this.MoveUpOrDown(true);
                 }
@@ -190,7 +189,7 @@ internal class InputBuffer
             }
             else if (key == ConsoleKey.DownArrow)
             {// History or move line
-                if (this.InputConsole.MultilineMode)
+                if (this.simpleConsole.MultilineMode)
                 {// Down
                     this.MoveUpOrDown(false);
                 }
@@ -212,7 +211,7 @@ internal class InputBuffer
 
     internal ReadOnlySpan<char> GetVisualSpan(int start, int length)
     {
-        var maskingCharacter = this.InputConsole.CurrentOptions.MaskingCharacter;
+        var maskingCharacter = this.simpleConsole.CurrentOptions.MaskingCharacter;
         if (maskingCharacter == default)
         {
             return this.charArray.AsSpan(start, length);
@@ -230,7 +229,7 @@ internal class InputBuffer
         this.Height = (this.TotalWidth + this.WindowWidth) / this.WindowWidth;
         if (refresh && previousHeight != this.Height)
         {
-            this.InputConsole.HeightChanged(this.Index, this.Height - previousHeight);
+            this.HeightChanged(this.Index, this.Height - previousHeight);
         }
     }
 
@@ -287,7 +286,7 @@ internal class InputBuffer
     {
         // if (this.InputConsole.IsInsertMode)
         {// Insert
-            if (!this.InputConsole.IsLengthWithinLimit(charBuffer.Length))
+            if (!this.simpleConsole.IsLengthWithinLimit(charBuffer.Length))
             {
                 return;
             }
@@ -401,8 +400,8 @@ internal class InputBuffer
     internal (int Left, int Top) ToCursor(int cursorIndex)
     {
         cursorIndex += this.PromtWidth;
-        var top = cursorIndex / this.InputConsole.WindowWidth;
-        var left = cursorIndex - (top * this.InputConsole.WindowWidth);
+        var top = cursorIndex / this.simpleConsole.WindowWidth;
+        var left = cursorIndex - (top * this.simpleConsole.WindowWidth);
         return (left, top);
     }
 
@@ -436,7 +435,7 @@ internal class InputBuffer
         var appendLineFeed = startCursor == (this.WindowWidth * this.WindowHeight);
 
         ReadOnlySpan<char> span;
-        var buffer = this.InputConsole.WindowBuffer.AsSpan();
+        var buffer = this.simpleConsole.WindowBuffer.AsSpan();
         var written = 0;
 
         // Hide cursor
@@ -477,7 +476,7 @@ internal class InputBuffer
         }
 
         // Input color
-        span = ConsoleHelper.GetForegroundColorEscapeCode(this.InputConsole.CurrentOptions.InputColor).AsSpan();
+        span = ConsoleHelper.GetForegroundColorEscapeCode(this.simpleConsole.CurrentOptions.InputColor).AsSpan();
         span.CopyTo(buffer);
         written += span.Length;
         buffer = buffer.Slice(span.Length);
@@ -552,17 +551,17 @@ internal class InputBuffer
 
         if (scroll > 0)
         {
-            this.InputConsole.Scroll(scroll, true);
+            this.simpleConsole.Scroll(scroll, true);
         }
 
         try
         {
-            this.InputConsole.RawConsole.WriteInternal(this.InputConsole.WindowBuffer.AsSpan(0, written));
+            this.simpleConsole.RawConsole.WriteInternal(this.simpleConsole.WindowBuffer.AsSpan(0, written));
             // Console.Out.Write(this.InputConsole.WindowBuffer.AsSpan(0, written));
 
             // this.SetCursorPosition(newCursorLeft - this.Left, newCursorTop - this.Top, true);
-            this.InputConsole.CursorLeft = newCursorLeft;
-            this.InputConsole.CursorTop = newCursorTop;
+            this.simpleConsole.CursorLeft = newCursorLeft;
+            this.simpleConsole.CursorTop = newCursorTop;
         }
         catch
         {
@@ -630,7 +629,7 @@ internal class InputBuffer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int GetCursorIndex(int cursorLeft, int cursorTop)
     {
-        var index = cursorLeft - this.PromtWidth + (cursorTop * this.InputConsole.WindowWidth);
+        var index = cursorLeft - this.PromtWidth + (cursorTop * this.simpleConsole.WindowWidth);
         return index;
     }
 
@@ -688,12 +687,12 @@ internal class InputBuffer
         {// Up arrow
             if (cursorTop <= 0)
             {// Previous buffer
-                if (this.Index <= this.InputConsole.EditableBufferIndex)
+                if (this.Index <= this.simpleConsole.EditableBufferIndex)
                 {
                     return;
                 }
 
-                buffer = this.InputConsole.Buffers[this.Index - 1];
+                buffer = this.simpleConsole.Buffers[this.Index - 1];
                 cursorTop = buffer.Height - 1;
             }
             else
@@ -706,12 +705,12 @@ internal class InputBuffer
             if (cursorTop + 1 >= this.Height)
             {// Next buffer
                 var idx = this.Index + 1;
-                if (idx >= this.InputConsole.Buffers.Count)
+                if (idx >= this.simpleConsole.Buffers.Count)
                 {
                     return;
                 }
 
-                buffer = this.InputConsole.Buffers[this.Index + 1];
+                buffer = this.simpleConsole.Buffers[this.Index + 1];
                 cursorTop = 0;
             }
             else
@@ -743,7 +742,7 @@ internal class InputBuffer
                 cursorLeft != this.CursorLeft ||
                 cursorTop != this.CursorTop)
             {
-                this.InputConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
+                this.simpleConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
             }
         }
         catch

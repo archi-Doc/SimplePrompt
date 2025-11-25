@@ -1,8 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Runtime.CompilerServices;
-using System.Text;
-using Arc;
 using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
@@ -18,10 +16,9 @@ namespace SimplePrompt;
 /// </summary>
 public partial class SimpleConsole : IConsoleService
 {
-    // public static readonly SimpleConsole Instance = new();
-
-    private const int CharBufferSize = 1024;
+    private const int DelayInMilliseconds = 10;
     private const int WindowBufferSize = 64 * 1024;
+
     private static SimpleConsole? _instance;
 
     /// <summary>
@@ -81,32 +78,30 @@ public partial class SimpleConsole : IConsoleService
 
     internal byte[] Utf8Buffer => this.utf8Buffer;
 
-    internal List<InputBuffer> Buffers => this.buffers;
-
-    internal ReadLineOptions CurrentOptions { get; private set; }
+    internal List<ReadLineBuffer> Buffers => this.buffers;
 
     internal int EditableBufferIndex => this.editableBufferIndex;
 
     private readonly SimpleTextWriter simpleTextWriter;
-    private readonly char[] charBuffer = new char[CharBufferSize];
+    private readonly ObjectPool<ReadLineInstance> instancePool;
+    private readonly ObjectPool<ReadLineBuffer> bufferPool;
+
     private readonly char[] windowBuffer = [];
     private readonly byte[] utf8Buffer = [];
-    private readonly ObjectPool<InputBuffer> bufferPool;
 
     private readonly Lock lockObject = new();
     private ReadLineInstance[] instances = [];
-    private List<InputBuffer> buffers = new();
+    private List<ReadLineBuffer> buffers = new();
     private int editableBufferIndex = 0;
 
     private SimpleConsole()
     {
         this.simpleTextWriter = new(this, Console.Out);
         this.RawConsole = new(this);
-        this.bufferPool = new(() => new InputBuffer(this), 32);
+        this.instancePool = new(() => new ReadLineInstance(this), 4);
+        this.bufferPool = new(() => new ReadLineBuffer(this), 32);
         this.DefaultOptions = new();
-        this.CurrentOptions = this.DefaultOptions;
 
-        this.charBuffer = new char[CharBufferSize];
         this.windowBuffer = new char[WindowBufferSize];
         this.utf8Buffer = new byte[WindowBufferSize * 3];
     }
@@ -123,9 +118,6 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
-        var position = 0;
-        this.CurrentOptions = (options ?? this.DefaultOptions) with { }; // Clone
-
         // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
         this.PrepareWindow(false);
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
@@ -139,76 +131,41 @@ public partial class SimpleConsole : IConsoleService
             }
         }
 
-        var readLineInstance = new ReadLineInstance(this, options ?? this.DefaultOptions);
+        var currentInstance = this.RentInstance(options ?? this.DefaultOptions);
         using (this.lockObject.EnterScope())
         {
-            readLineInstance.PrepareInputBuffer();
-            this.instances = [..this.instances, readLineInstance];
+            currentInstance.PrepareInputBuffer();
+            this.instances = [.. this.instances, currentInstance];
         }
 
-        using (this.lockObject.EnterScope())
-        {
-            var prompt = this.CurrentOptions.Prompt.AsSpan();
-            var bufferIndex = 0;
-            InputBuffer buffer;
-            while (prompt.Length >= 0)
-            {
-                var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
-                if (index < 0)
-                {
-                    buffer = this.RentBuffer(bufferIndex++, prompt.ToString());
-                    prompt = default;
-                }
-                else
-                {
-                    buffer = this.RentBuffer(bufferIndex++, prompt.Slice(0, index).ToString());
-                    prompt = prompt.Slice(index + newLineLength);
-                }
-
-                this.buffers.Add(buffer);
-                buffer.Top = this.CursorTop;
-                buffer.UpdateHeight(false);
-
-                var span = this.WindowBuffer.AsSpan();
-                TryCopy(buffer.Prompt.AsSpan(), ref span);
-                if (prompt.Length == 0)
-                {
-                    TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
-                    this.CursorTop += buffer.Height - 1;
-                }
-                else
-                {
-                    TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
-                    this.CursorTop += buffer.Height;
-                }
-
-                this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
-
-                if (prompt.Length == 0)
-                {
-                    this.editableBufferIndex = bufferIndex - 1;
-                    this.MoveCursor2(buffer.PromtWidth);
-                    this.TrimCursor();
-                    this.SetCursorPosition(this.CursorLeft, this.CursorTop, CursorOperation.None);
-                    break;
-                }
-            }
-        }
-
-        // Console.TreatControlCAsInput = true;
+        var position = 0;
         ConsoleKeyInfo pendingKeyInfo = default;
         while (!this.Core.IsTerminated)
         {
             cancellationToken.ThrowIfCancellationRequested();
+
+            var array = this.instances;
+            var idx = array.IndexOf(currentInstance);
+            if (idx < 0)
+            {// Not found
+                return new(InputResultKind.Terminated);
+            }
+            else if (idx != (array.Length - 1))
+            {// Not active instance
+                await Task.Delay(DelayInMilliseconds, cancellationToken);
+                continue;
+            }
 
             this.PrepareWindow(true);
 
             // Polling isn’t an ideal approach, but due to the fact that the normal method causes a significant performance drop and that the function must be able to exit when the application terminates, this implementation was chosen.
             if (!this.RawConsole.TryRead(out var keyInfo))
             {
-                await Task.Delay(10, cancellationToken);
+                await Task.Delay(DelayInMilliseconds, cancellationToken);
                 continue;
             }
+
+            currentInstance.ProcessKeyInfo(keyInfo);
 
 ProcessKeyInfo:
             if (keyInfo.KeyChar == '\n' ||
@@ -225,11 +182,11 @@ ProcessKeyInfo:
             {// CrLf -> Lf
                 continue;
             }
-            else if (this.CurrentOptions.CancelOnEscape &&
+            else if (currentInstance.Options.CancelOnEscape &&
                 keyInfo.Key == ConsoleKey.Escape)
             {
                 this.UnderlyingTextWriter.WriteLine();
-                this.Clear();
+                currentInstance.Clear();
                 return new(InputResultKind.Canceled);
             }
 
@@ -462,28 +419,6 @@ ProcessKeyInfo:
         }
     }
 
-    internal void HeightChanged(int index, int dif)
-    {
-        var cursorTop = this.CursorTop;
-        var cursorLeft = this.CursorLeft;
-
-        for (var i = index + 1; i < this.buffers.Count; i++)
-        {
-            var buffer = this.buffers[i];
-            buffer.Top += dif;
-            buffer.Write(0, -1, 0, 0, true);
-        }
-
-        if (dif < 0)
-        {
-            var buffer = this.buffers[this.buffers.Count - 1];
-            var top = buffer.Top + buffer.Height;
-            this.ClearLine(top);
-        }
-
-        this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.Show);
-    }
-
     internal bool IsLengthWithinLimit(int dif)
     {
         var length = 0;
@@ -505,39 +440,25 @@ ProcessKeyInfo:
         return length + dif <= this.CurrentOptions.MaxInputLength;
     }
 
-    internal InputBuffer RentBuffer(int index, string? prompt)
+    internal ReadLineInstance RentInstance(ReadLineOptions options)
     {
-        var buffer = this.bufferPool.Rent();
-        buffer.Initialize(index, prompt);
-        return buffer;
+        var obj = this.instancePool.Rent();
+        obj.Initialize(options);
+        return obj;
     }
 
-    internal void ReturnBuffer(InputBuffer buffer)
+    internal void ReturnInstance(ReadLineInstance obj)
+        => this.instancePool.Return(obj);
+
+    internal ReadLineBuffer RentBuffer(int index, string? prompt)
     {
-        this.bufferPool.Return(buffer);
+        var obj = this.bufferPool.Rent();
+        obj.Initialize(index, prompt);
+        return obj;
     }
 
-    internal void TryDeleteBuffer(int index)
-    {
-        if (index < 0 ||
-            index >= (this.buffers.Count - 1))
-        {
-            return;
-        }
-
-        var dif = -this.buffers[index].Height;
-        this.buffers.RemoveAt(index);
-        for (var i = index; i < this.buffers.Count; i++)
-        {
-            var buffer = this.buffers[i];
-            buffer.Index = i;
-            buffer.Top += dif;
-            buffer.Write(0, -1, 0, 0, true);
-        }
-
-        this.ClearLastLine(dif);
-        this.SetCursor(this.buffers[index]);
-    }
+    internal void ReturnBuffer(ReadLineBuffer obj)
+        => this.bufferPool.Return(obj);
 
     private void WriteInternal(ReadOnlySpan<char> message)
     {
@@ -584,17 +505,7 @@ ProcessKeyInfo:
         Console.SetOut(this.simpleTextWriter);
     }
 
-    private void ClearLastLine(int dif)
-    {
-        var buffer = this.buffers[this.buffers.Count - 1];
-        var top = buffer.Top + buffer.Height;
-        for (var i = 0; i < -dif; i++)
-        {
-            this.ClearLine(top + i);
-        }
-    }
-
-    private void SetCursor(InputBuffer buffer)
+    private void SetCursor(ReadLineBuffer buffer)
     {
         var cursorLeft = buffer.PromtWidth;
         var cursorTop = buffer.Top;
@@ -625,50 +536,6 @@ ProcessKeyInfo:
         var newCursor = buffer.ToCursor(buffer.Width);
         newCursor.Top += buffer.Top;
         this.SetCursorPosition(newCursor.Left, newCursor.Top, cursorOperation);
-    }
-
-    private void ClearLine(int top)
-    {
-        var buffer = this.WindowBuffer.AsSpan();
-        var written = 0;
-        ReadOnlySpan<char> span;
-
-        /*span = ConsoleHelper.SaveCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;*/
-
-        span = ConsoleHelper.SetCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;
-
-        var x = top + 1;
-        var y = 0 + 1;
-        x.TryFormat(buffer, out var w);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = ';';
-        buffer = buffer.Slice(1);
-        written += 1;
-        y.TryFormat(buffer, out w);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = 'H';
-        buffer = buffer.Slice(1);
-        written += 1;
-
-        span = ConsoleHelper.EraseEntireLineSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;
-
-        /*span = ConsoleHelper.RestoreCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;*/
-
-        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, written));
     }
 
     private static bool IsControl(ConsoleKeyInfo keyInfo)
@@ -870,7 +737,7 @@ ProcessKeyInfo:
         }
 
         var y = this.buffers[0].Top;
-        InputBuffer? buffer = null;
+        ReadLineBuffer? buffer = null;
         foreach (var x in this.buffers)
         {
             x.Top = y;
@@ -990,7 +857,7 @@ ProcessKeyInfo:
         return height;
     }
 
-    private InputBuffer? PrepareAndFindBuffer()
+    private ReadLineBuffer? PrepareAndFindBuffer()
     {
         if (this.buffers.Count == 0)
         {
@@ -999,7 +866,7 @@ ProcessKeyInfo:
 
         // Calculate buffer heights.
         var y = this.buffers[0].Top;
-        InputBuffer? buffer = null;
+        ReadLineBuffer? buffer = null;
         foreach (var x in this.buffers)
         {
             x.Top = y;
