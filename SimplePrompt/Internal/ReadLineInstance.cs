@@ -21,7 +21,9 @@ internal record class ReadLineInstance
     private readonly SimpleConsole simpleConsole;
     private readonly char[] charBuffer = new char[CharBufferSize];
     private ReadLineOptions options = new();
-    private List<ReadLineBuffer> buffers = new();
+
+    private readonly Lock syncObject = new();
+    private List<ReadLineBuffer> bufferList = new();
     private int editableBufferIndex;
     private bool multilineMode;
 
@@ -45,16 +47,16 @@ internal record class ReadLineInstance
             ReadLineBuffer buffer;
             if (index < 0)
             {
-                buffer = this.simpleConsole.RentBuffer(bufferIndex++, prompt.ToString());
+                buffer = this.simpleConsole.RentBuffer(this, bufferIndex++, prompt.ToString());
                 prompt = default;
             }
             else
             {
-                buffer = this.simpleConsole.RentBuffer(bufferIndex++, prompt.Slice(0, index).ToString());
+                buffer = this.simpleConsole.RentBuffer(this, bufferIndex++, prompt.Slice(0, index).ToString());
                 prompt = prompt.Slice(index + newLineLength);
             }
 
-            this.buffers.Add(buffer);
+            this.bufferList.Add(buffer);
             buffer.Top = this.simpleConsole.CursorTop;
             buffer.UpdateHeight(false);
 
@@ -89,16 +91,16 @@ internal record class ReadLineInstance
         var cursorTop = this.simpleConsole.CursorTop;
         var cursorLeft = this.simpleConsole.CursorLeft;
 
-        for (var i = index + 1; i < this.buffers.Count; i++)
+        for (var i = index + 1; i < this.bufferList.Count; i++)
         {
-            var buffer = this.buffers[i];
+            var buffer = this.bufferList[i];
             buffer.Top += dif;
             buffer.Write(0, -1, 0, 0, true);
         }
 
         if (dif < 0)
         {
-            var buffer = this.buffers[this.buffers.Count - 1];
+            var buffer = this.bufferList[this.bufferList.Count - 1];
             var top = buffer.Top + buffer.Height;
             this.ClearLine(top);
         }
@@ -109,23 +111,23 @@ internal record class ReadLineInstance
     public void TryDeleteBuffer(int index)
     {
         if (index < 0 ||
-            index >= (this.buffers.Count - 1))
+            index >= (this.bufferList.Count - 1))
         {
             return;
         }
 
-        var dif = -this.buffers[index].Height;
-        this.buffers.RemoveAt(index);
-        for (var i = index; i < this.buffers.Count; i++)
+        var dif = -this.bufferList[index].Height;
+        this.bufferList.RemoveAt(index);
+        for (var i = index; i < this.bufferList.Count; i++)
         {
-            var buffer = this.buffers[i];
+            var buffer = this.bufferList[i];
             buffer.Index = i;
             buffer.Top += dif;
             buffer.Write(0, -1, 0, 0, true);
         }
 
         this.ClearLastLine(dif);
-        this.SetCursor(this.buffers[index]);
+        this.SetCursor(this.bufferList[index]);
     }
 
     public void ProcessKeyInfo(ConsoleKeyInfo keyInfo)
@@ -223,17 +225,17 @@ ProcessKeyInfo:
     public void Clear()
     {
         this.multilineMode = false;
-        foreach (var buffer in this.buffers)
+        foreach (var buffer in this.bufferList)
         {
             this.simpleConsole.ReturnBuffer(buffer);
         }
 
-        this.buffers.Clear();
+        this.bufferList.Clear();
     }
 
     private void ClearLastLine(int dif)
     {
-        var buffer = this.buffers[this.buffers.Count - 1];
+        var buffer = this.bufferList[this.bufferList.Count - 1];
         var top = buffer.Top + buffer.Height;
         for (var i = 0; i < -dif; i++)
         {
@@ -296,5 +298,16 @@ ProcessKeyInfo:
         source.CopyTo(destination);
         destination = destination.Slice(source.Length);
         return true;
+    }
+
+    internal void PrepareWindow()
+    {
+        var newCursor = Console.GetCursorPosition();
+        var dif = newCursor.Top - this.simCursorTop;
+        (this.CursorLeft, this.CursorTop) = newCursor;
+        foreach (var x in this.bufferList)
+        {
+            x.Top += dif;
+        }
     }
 }

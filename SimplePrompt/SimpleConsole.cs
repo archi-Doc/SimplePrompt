@@ -89,8 +89,8 @@ public partial class SimpleConsole : IConsoleService
     private readonly char[] windowBuffer = [];
     private readonly byte[] utf8Buffer = [];
 
-    private readonly Lock lockObject = new();
-    private ReadLineInstance[] instances = [];
+    private readonly Lock syncInstanceArray = new();
+    private ReadLineInstance[] instanceArray = [];
     private List<ReadLineBuffer> buffers = new();
     private int editableBufferIndex = 0;
 
@@ -119,7 +119,7 @@ public partial class SimpleConsole : IConsoleService
     public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
         // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
-        this.PrepareWindow(false);
+        this.PrepareWindow();
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
         if (this.CursorLeft > 0)
         {
@@ -131,11 +131,12 @@ public partial class SimpleConsole : IConsoleService
             }
         }
 
+        // Create and prepare a ReadLineInstance.
         var currentInstance = this.RentInstance(options ?? this.DefaultOptions);
-        using (this.lockObject.EnterScope())
+        currentInstance.PrepareInputBuffer();
+        using (this.syncInstanceArray.EnterScope())
         {
-            currentInstance.PrepareInputBuffer();
-            this.instances = [.. this.instances, currentInstance];
+            this.instanceArray = [.. this.instanceArray, currentInstance];
         }
 
         var position = 0;
@@ -144,7 +145,7 @@ public partial class SimpleConsole : IConsoleService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var array = this.instances;
+            var array = this.instanceArray;
             var idx = array.IndexOf(currentInstance);
             if (idx < 0)
             {// Not found
@@ -156,7 +157,10 @@ public partial class SimpleConsole : IConsoleService
                 continue;
             }
 
-            this.PrepareWindow(true);
+            if (this.PrepareWindow())
+            {
+                currentInstance.PrepareWindow();
+            }
 
             // Polling isn’t an ideal approach, but due to the fact that the normal method causes a significant performance drop and that the function must be able to exit when the application terminates, this implementation was chosen.
             if (!this.RawConsole.TryRead(out var keyInfo))
@@ -450,10 +454,10 @@ ProcessKeyInfo:
     internal void ReturnInstance(ReadLineInstance obj)
         => this.instancePool.Return(obj);
 
-    internal ReadLineBuffer RentBuffer(int index, string? prompt)
+    internal ReadLineBuffer RentBuffer(ReadLineInstance @instance, int index, string? prompt)
     {
         var obj = this.bufferPool.Rent();
-        obj.Initialize(index, prompt);
+        obj.Initialize(@instance, index, prompt);
         return obj;
     }
 
@@ -563,7 +567,7 @@ ProcessKeyInfo:
         return false;
     }
 
-    private void PrepareWindow(bool arrange)
+    private bool PrepareWindow()
     {
         var windowWidth = 120;
         var windowHeight = 30;
@@ -590,22 +594,12 @@ ProcessKeyInfo:
         if (windowWidth == this.WindowWidth &&
             windowHeight == this.WindowHeight)
         {
-            return;
+            return false;
         }
 
         this.WindowWidth = windowWidth;
         this.WindowHeight = windowHeight;
-
-        if (arrange)
-        {
-            var newCursor = Console.GetCursorPosition();
-            var dif = newCursor.Top - this.CursorTop;
-            (this.CursorLeft, this.CursorTop) = newCursor;
-            foreach (var x in this.buffers)
-            {
-                x.Top += dif;
-            }
-        }
+        return true;
     }
 
     private void Prepare()
@@ -673,7 +667,7 @@ ProcessKeyInfo:
                             return null;
                         }
 
-                        buffer = this.RentBuffer(this.buffers.Count, this.CurrentOptions.MultilinePrompt);
+                        buffer = this.RentBuffer(this, this.buffers.Count, this.CurrentOptions.MultilinePrompt);
                         this.buffers.Add(buffer);
                         var previousTop = this.CursorTop;
                         this.UnderlyingTextWriter.WriteLine();

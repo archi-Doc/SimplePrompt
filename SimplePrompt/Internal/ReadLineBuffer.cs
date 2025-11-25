@@ -47,6 +47,7 @@ internal class ReadLineBuffer
     public ReadOnlySpan<char> TextSpan => this.charArray.AsSpan(0, this.Length);
 
     private readonly SimpleConsole simpleConsole;
+    private ReadLineInstance readLineInstance = default!;
     private char[] charArray = new char[BufferSize];
     private byte[] widthArray = new byte[BufferSize];
 
@@ -251,8 +252,9 @@ internal class ReadLineBuffer
         return (int)BaseHelper.Sum(this.widthArray.AsSpan(0, this.Length));
     }*/
 
-    public void Initialize(int index, string? prompt)
+    public void Initialize(ReadLineInstance @instance, int index, string? prompt)
     {
+        this.readLineInstance = instance;
         this.Index = index;
         if (prompt?.Length > MaxPromptWidth)
         {
