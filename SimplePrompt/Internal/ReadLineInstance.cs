@@ -17,16 +17,20 @@ internal record class ReadLineInstance
 
     public RawConsole RawConsole => this.simpleConsole.RawConsole;
 
+    public int CursorLeft { get; set; }
+
+    public int CursorTop { get; set; }
+
+    public bool MultilineMode { get; private set; }
+
     private readonly SimpleConsole simpleConsole;
     private ReadLineOptions options = new();
 
     private readonly Lock syncObject = new();
     private readonly char[] charBuffer;
     private readonly char[] windowBuffer;
-    private readonly byte[] utf8Buffer;
     private List<ReadLineBuffer> bufferList = new();
     private int editableBufferIndex;
-    private bool multilineMode;
 
     public ReadLineInstance(SimpleConsole simpleConsole)
     {
@@ -34,7 +38,6 @@ internal record class ReadLineInstance
 
         this.charBuffer = new char[CharBufferSize]; ;
         this.windowBuffer = new char[WindowBufferSize];
-        this.utf8Buffer = new byte[WindowBufferSize * 3];
     }
 
     public void Initialize(ReadLineOptions options)
@@ -44,6 +47,19 @@ internal record class ReadLineInstance
 
     public void Prepare()
     {
+        // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
+        this.simpleConsole.PrepareWindow();
+        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+        if (this.CursorLeft > 0)
+        {
+            this.simpleConsole.UnderlyingTextWriter.WriteLine();
+            this.CursorLeft = 0;
+            if (this.CursorTop < this.simpleConsole.WindowHeight - 1)
+            {
+                this.CursorTop++;
+            }
+        }
+
         var prompt = this.Options.Prompt.AsSpan();
         var bufferIndex = 0;
         while (prompt.Length >= 0)
@@ -83,9 +99,9 @@ internal record class ReadLineInstance
             if (prompt.Length == 0)
             {// Last buffer
                 this.editableBufferIndex = bufferIndex - 1;
-                this.simpleConsole.MoveCursor2(buffer.PromtWidth);
-                this.simpleConsole.TrimCursor();
-                this.simpleConsole.SetCursorPosition(this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop, CursorOperation.None);
+                this.MoveCursor2(buffer.PromtWidth);
+                this.TrimCursor();
+                this.SetCursorPosition(this.CursorLeft, this.CursorTop, CursorOperation.None);
                 break;
             }
         }
@@ -110,7 +126,7 @@ internal record class ReadLineInstance
             this.ClearLine(top);
         }
 
-        this.simpleConsole.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.Show);
+        this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.Show);
     }
 
     public void TryDeleteBuffer(int index)
@@ -229,13 +245,98 @@ ProcessKeyInfo:
 
     public void Clear()
     {
-        this.multilineMode = false;
+        this.MultilineMode = false;
         foreach (var buffer in this.bufferList)
         {
             this.simpleConsole.ReturnBuffer(buffer);
         }
 
         this.bufferList.Clear();
+    }
+
+    internal void MoveCursor2(int index)
+    {
+        this.CursorLeft += index;
+        var h = this.CursorLeft >= 0 ?
+            (this.CursorLeft / this.simpleConsole.WindowWidth) :
+            (((this.CursorLeft - 1) / this.simpleConsole.WindowWidth) - 1);
+        this.CursorLeft -= h * this.simpleConsole.WindowWidth;
+        this.CursorTop += h;
+    }
+
+    internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
+    {// Move and show cursor.
+        /*if (this.CursorLeft == cursorLeft &&
+            this.CursorTop == cursorTop)
+        {
+            return;
+        }*/
+
+        var buffer = this.windowBuffer.AsSpan();
+        var written = 0;
+        ReadOnlySpan<char> span;
+
+        span = ConsoleHelper.SetCursorSpan;
+        span.CopyTo(buffer);
+        buffer = buffer.Slice(span.Length);
+        written += span.Length;
+
+        var x = cursorTop + 1;
+        var y = cursorLeft + 1;
+        x.TryFormat(buffer, out var w);
+        buffer = buffer.Slice(w);
+        written += w;
+        buffer[0] = ';';
+        buffer = buffer.Slice(1);
+        written += 1;
+        y.TryFormat(buffer, out w);
+        buffer = buffer.Slice(w);
+        written += w;
+        buffer[0] = 'H';
+        buffer = buffer.Slice(1);
+        written += 1;
+
+        if (cursorOperation == CursorOperation.Show)
+        {
+            span = ConsoleHelper.ShowCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
+        }
+        else if (cursorOperation == CursorOperation.Hide)
+        {
+            span = ConsoleHelper.HideCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
+        }
+
+        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, written));
+
+        this.CursorLeft = cursorLeft;
+        this.CursorTop = cursorTop;
+    }
+
+    internal void Scroll(int scroll, bool moveCursor)
+    {
+        if (moveCursor)
+        {
+            this.CursorTop -= scroll;
+        }
+
+        foreach (var x in this.bufferList)
+        {
+            x.Top -= scroll;
+        }
+    }
+
+    internal void TrimCursor()
+    {
+        var scroll = this.CursorTop - this.simpleConsole.WindowHeight + 1;
+        if (scroll > 0)
+        {
+            this.Scroll(scroll, true);
+        }
     }
 
     private void ClearLastLine(int dif)

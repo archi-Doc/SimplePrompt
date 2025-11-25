@@ -69,22 +69,12 @@ public partial class SimpleConsole : IConsoleService
 
     internal int CursorTop { get; set; }
 
-    internal bool MultilineMode { get; set; }
-
-    internal char[] WindowBuffer => this.windowBuffer;
-
-    internal List<ReadLineBuffer> Buffers => this.buffers;
-
-    internal int EditableBufferIndex => this.editableBufferIndex;
-
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly ObjectPool<ReadLineInstance> instancePool;
     private readonly ObjectPool<ReadLineBuffer> bufferPool;
 
     private readonly Lock syncInstanceArray = new();
     private ReadLineInstance[] instanceArray = [];
-    private List<ReadLineBuffer> buffers = new();
-    private int editableBufferIndex = 0;
 
     private SimpleConsole()
     {
@@ -93,9 +83,6 @@ public partial class SimpleConsole : IConsoleService
         this.instancePool = new(() => new ReadLineInstance(this), 4);
         this.bufferPool = new(() => new ReadLineBuffer(this), 32);
         this.DefaultOptions = new();
-
-        this.windowBuffer = new char[WindowBufferSize];
-        this.utf8Buffer = new byte[WindowBufferSize * 3];
     }
 
     /// <summary>
@@ -110,19 +97,6 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
-        // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
-        this.PrepareWindow();
-        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
-        if (this.CursorLeft > 0)
-        {
-            this.UnderlyingTextWriter.WriteLine();
-            this.CursorLeft = 0;
-            if (this.CursorTop < this.WindowHeight - 1)
-            {
-                this.CursorTop++;
-            }
-        }
-
         // Create and prepare a ReadLineInstance.
         var currentInstance = this.RentInstance(options ?? this.DefaultOptions);
         currentInstance.Prepare();
@@ -349,72 +323,6 @@ ProcessKeyInfo:
         }
     }
 
-    internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
-    {// Move and show cursor.
-        /*if (this.CursorLeft == cursorLeft &&
-            this.CursorTop == cursorTop)
-        {
-            return;
-        }*/
-
-        var buffer = this.WindowBuffer.AsSpan();
-        var written = 0;
-        ReadOnlySpan<char> span;
-
-        span = ConsoleHelper.SetCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;
-
-        var x = cursorTop + 1;
-        var y = cursorLeft + 1;
-        x.TryFormat(buffer, out var w);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = ';';
-        buffer = buffer.Slice(1);
-        written += 1;
-        y.TryFormat(buffer, out w);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = 'H';
-        buffer = buffer.Slice(1);
-        written += 1;
-
-        if (cursorOperation == CursorOperation.Show)
-        {
-            span = ConsoleHelper.ShowCursorSpan;
-            span.CopyTo(buffer);
-            buffer = buffer.Slice(span.Length);
-            written += span.Length;
-        }
-        else if (cursorOperation == CursorOperation.Hide)
-        {
-            span = ConsoleHelper.HideCursorSpan;
-            span.CopyTo(buffer);
-            buffer = buffer.Slice(span.Length);
-            written += span.Length;
-        }
-
-        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, written));
-
-        this.CursorLeft = cursorLeft;
-        this.CursorTop = cursorTop;
-    }
-
-    internal void Scroll(int scroll, bool moveCursor)
-    {
-        if (moveCursor)
-        {
-            this.CursorTop -= scroll;
-        }
-
-        foreach (var x in this.buffers)
-        {
-            x.Top -= scroll;
-        }
-    }
-
     internal bool IsLengthWithinLimit(int dif)
     {
         var length = 0;
@@ -559,7 +467,7 @@ ProcessKeyInfo:
         return false;
     }
 
-    private bool PrepareWindow()
+    internal bool PrepareWindow()
     {
         var windowWidth = 120;
         var windowHeight = 30;
@@ -748,15 +656,6 @@ ProcessKeyInfo:
         }
     }
 
-    internal void TrimCursor()
-    {
-        var scroll = this.CursorTop - this.WindowHeight + 1;
-        if (scroll > 0)
-        {
-            this.Scroll(scroll, true);
-        }
-    }
-
     private void RedrawInternal()
     {
         if (this.buffers.Count == 0)
@@ -882,34 +781,5 @@ ProcessKeyInfo:
 
             this.buffers.Clear();
         }
-    }
-
-    private void MoveCursor(int index)
-    {
-        this.CursorLeft += index;
-        var h = this.CursorLeft >= 0 ?
-            (this.CursorLeft / this.WindowWidth) :
-            (((this.CursorLeft - 1) / this.WindowWidth) - 1);
-        this.CursorLeft -= h * this.WindowWidth;
-        this.CursorTop += h;
-
-        if (this.CursorTop < 0)
-        {
-            this.CursorTop = 0;
-        }
-        else if (this.CursorTop >= this.WindowHeight)
-        {
-            this.CursorTop = this.WindowHeight - 1;
-        }
-    }
-
-    internal void MoveCursor2(int index)
-    {
-        this.CursorLeft += index;
-        var h = this.CursorLeft >= 0 ?
-            (this.CursorLeft / this.WindowWidth) :
-            (((this.CursorLeft - 1) / this.WindowWidth) - 1);
-        this.CursorLeft -= h * this.WindowWidth;
-        this.CursorTop += h;
     }
 }
