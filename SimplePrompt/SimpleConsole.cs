@@ -289,7 +289,7 @@ ProcessKeyInfo:
         {
             using (this.syncObject.EnterScope())
             {
-                if (!this.IsReadLineInProgress)
+                if (!this.TryGetActiveInstance(out var activeInstance))
                 {
                     this.WriteInternal(message);
                     (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
@@ -298,11 +298,11 @@ ProcessKeyInfo:
 
                 var location = this.GetLocation();
 
-                this.SetCursorAtFirst(CursorOperation.Hide);
+                activeInstance.SetCursorAtFirst(CursorOperation.Hide);
                 this.WriteInternal(message);
-                this.RedrawInternal();
+                activeInstance.RedrawInternal();
 
-                var buffer = this.buffers[location.BufferIndex];
+                var buffer = activeInstance.BufferList[location.BufferIndex];
                 var cursor = buffer.ToCursor(location.CursorIndex);
                 this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
             }
@@ -337,27 +337,6 @@ ProcessKeyInfo:
                 return false;
             }
         }
-    }
-
-    internal bool IsLengthWithinLimit(int dif)
-    {
-        var length = 0;
-        var isFirst = true;
-        for (var i = this.editableBufferIndex; i < this.buffers.Count; i++)
-        {
-            if (isFirst)
-            {
-                isFirst = false;
-            }
-            else
-            {
-                length += 1; // New line
-            }
-
-            length += this.buffers[i].Length;
-        }
-
-        return length + dif <= this.CurrentOptions.MaxInputLength;
     }
 
     internal ReadLineInstance RentInstance(ReadLineOptions options)
@@ -411,32 +390,6 @@ ProcessKeyInfo:
         var cursorLeft = buffer.PromtWidth;
         var cursorTop = buffer.Top;
         this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.None);
-    }
-
-    internal int SetCursorAtFirst(CursorOperation cursorOperation)
-    {
-        if (this.buffers.Count == 0)
-        {
-            return 0;
-        }
-
-        var buffer = this.buffers[0];
-        var top = Math.Max(0, buffer.Top);
-        this.SetCursorPosition(0, top, cursorOperation);
-        return top;
-    }
-
-    internal void SetCursorAtEnd(CursorOperation cursorOperation)
-    {
-        if (this.buffers.Count == 0)
-        {
-            return;
-        }
-
-        var buffer = this.buffers[this.buffers.Count - 1];
-        var newCursor = buffer.ToCursor(buffer.Width);
-        newCursor.Top += buffer.Top;
-        this.SetCursorPosition(newCursor.Left, newCursor.Top, cursorOperation);
     }
 
     internal void TrimCursor()
@@ -723,67 +676,6 @@ ProcessKeyInfo:
         {
             return (buffer.Index, buffer.GetCursorIndex());
         }
-    }
-
-    private void RedrawInternal()
-    {
-        if (this.buffers.Count == 0)
-        {
-            return;
-        }
-
-        var span = this.WindowBuffer.AsSpan();
-
-        /*if (resetCursor)
-        {
-            TryCopy(ResetCursor, ref span);
-            this.CursorLeft = 0;
-            this.CursorTop = 0;
-        }*/
-
-        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
-        var y = this.CursorTop;
-        var isFirst = true;
-        var remainingHeight = this.WindowHeight;
-        for (var i = 0; i < this.buffers.Count; i++)
-        {
-            var buffer = this.buffers[i];
-            if (buffer.Top >= 0 && buffer.Height <= remainingHeight)
-            {
-                if (isFirst)
-                {
-                    isFirst = false;
-                }
-                else
-                {
-                    TryCopy(ConsoleHelper.NewLineSpan, ref span);
-                }
-
-                remainingHeight -= buffer.Height;
-
-                if (buffer.Prompt is not null)
-                {
-                    TryCopy(buffer.Prompt.AsSpan(), ref span);
-                }
-
-                TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.CurrentOptions.InputColor).AsSpan(), ref span); // Input color
-                TryCopy(buffer.GetVisualSpan(0, buffer.Length), ref span);
-                TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
-                TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
-            }
-
-            buffer.Top = y;
-            y += buffer.Height;
-        }
-
-        remainingHeight = this.WindowHeight - remainingHeight;
-        var scroll = this.CursorTop + remainingHeight - this.WindowHeight;
-        if (scroll > 0)
-        {
-            this.Scroll(scroll, true);
-        }
-
-        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

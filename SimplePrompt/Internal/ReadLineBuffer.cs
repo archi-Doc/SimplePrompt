@@ -445,7 +445,7 @@ internal class ReadLineBuffer
     {
         // if (this.InputConsole.IsInsertMode)
         {// Insert
-            if (!this.simpleConsole.IsLengthWithinLimit(charBuffer.Length))
+            if (!this.readLineInstance.IsLengthWithinLimit(charBuffer.Length))
             {
                 return;
             }

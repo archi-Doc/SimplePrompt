@@ -236,7 +236,54 @@ internal class ReadLineInstance
         this.simpleConsole.SetCursor(this.BufferList[index]);
     }
 
-    private void Clear()
+    public bool IsLengthWithinLimit(int dif)
+    {
+        var length = 0;
+        var isFirst = true;
+        for (var i = this.EditableBufferIndex; i < this.BufferList.Count; i++)
+        {
+            if (isFirst)
+            {
+                isFirst = false;
+            }
+            else
+            {
+                length += 1; // New line
+            }
+
+            length += this.BufferList[i].Length;
+        }
+
+        return length + dif <= this.Options.MaxInputLength;
+    }
+
+    public int SetCursorAtFirst(CursorOperation cursorOperation)
+    {
+        if (this.BufferList.Count == 0)
+        {
+            return 0;
+        }
+
+        var buffer = this.BufferList[0];
+        var top = Math.Max(0, buffer.Top);
+        this.simpleConsole.SetCursorPosition(0, top, cursorOperation);
+        return top;
+    }
+
+    public void SetCursorAtEnd(CursorOperation cursorOperation)
+    {
+        if (this.BufferList.Count == 0)
+        {
+            return;
+        }
+
+        var buffer = this.BufferList[this.BufferList.Count - 1];
+        var newCursor = buffer.ToCursor(buffer.Width);
+        newCursor.Top += buffer.Top;
+        this.simpleConsole.SetCursorPosition(newCursor.Left, newCursor.Top, cursorOperation);
+    }
+
+    public void Clear()
     {
         this.MultilineMode = false;
         this.EditableBufferIndex = 0;
@@ -246,6 +293,69 @@ internal class ReadLineInstance
         }
 
         this.BufferList.Clear();
+    }
+
+    public void RedrawInternal()
+    {
+        if (this.BufferList.Count == 0)
+        {
+            return;
+        }
+
+        var windowBuffer = SimpleConsole.RentWindowBuffer();
+        var span = windowBuffer.AsSpan();
+
+        /*if (resetCursor)
+        {
+            TryCopy(ResetCursor, ref span);
+            this.CursorLeft = 0;
+            this.CursorTop = 0;
+        }*/
+
+        (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
+        var y = this.simpleConsole.CursorTop;
+        var isFirst = true;
+        var remainingHeight = this.simpleConsole.WindowHeight;
+        for (var i = 0; i < this.BufferList.Count; i++)
+        {
+            var buffer = this.BufferList[i];
+            if (buffer.Top >= 0 && buffer.Height <= remainingHeight)
+            {
+                if (isFirst)
+                {
+                    isFirst = false;
+                }
+                else
+                {
+                    TryCopy(ConsoleHelper.NewLineSpan, ref span);
+                }
+
+                remainingHeight -= buffer.Height;
+
+                if (buffer.Prompt is not null)
+                {
+                    TryCopy(buffer.Prompt.AsSpan(), ref span);
+                }
+
+                TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.InputColor).AsSpan(), ref span); // Input color
+                TryCopy(buffer.GetVisualSpan(0, buffer.Length), ref span);
+                TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
+                TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
+            }
+
+            buffer.Top = y;
+            y += buffer.Height;
+        }
+
+        remainingHeight = this.simpleConsole.WindowHeight - remainingHeight;
+        var scroll = this.simpleConsole.CursorTop + remainingHeight - this.simpleConsole.WindowHeight;
+        if (scroll > 0)
+        {
+            this.simpleConsole.Scroll(scroll, true);
+        }
+
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
+        SimpleConsole.ReturnWindowBuffer(windowBuffer);
     }
 
     private ReadLineBuffer? PrepareAndFindBuffer()
@@ -264,8 +374,8 @@ internal class ReadLineInstance
             x.UpdateHeight(false);
             y += x.Height;
             if (buffer is null &&
-                this.CursorTop >= x.Top &&
-                this.CursorTop < y)
+                this.simpleConsole.CursorTop >= x.Top &&
+                this.simpleConsole.CursorTop < y)
             {
                 buffer = x;
             }
