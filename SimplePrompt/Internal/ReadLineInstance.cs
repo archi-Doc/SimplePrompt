@@ -11,7 +11,6 @@ namespace SimplePrompt.Internal;
 internal record class ReadLineInstance
 {
     private const int CharBufferSize = 1024;
-    private const int WindowBufferSize = 64 * 1024;
 
     public ReadLineOptions Options => this.options;
 
@@ -28,16 +27,13 @@ internal record class ReadLineInstance
 
     private readonly Lock syncObject = new();
     private readonly char[] charBuffer;
-    private readonly char[] windowBuffer;
     private List<ReadLineBuffer> bufferList = new();
     private int editableBufferIndex;
 
     public ReadLineInstance(SimpleConsole simpleConsole)
     {
         this.simpleConsole = simpleConsole;
-
         this.charBuffer = new char[CharBufferSize]; ;
-        this.windowBuffer = new char[WindowBufferSize];
     }
 
     public void Initialize(ReadLineOptions options)
@@ -81,7 +77,8 @@ internal record class ReadLineInstance
             buffer.Top = this.simpleConsole.CursorTop;
             buffer.UpdateHeight(false);
 
-            var span = this.windowBuffer.AsSpan();
+            var windowBuffer = SimpleConsole.RentWindowBuffer();
+            var span = windowBuffer.AsSpan();
             TryCopy(buffer.Prompt.AsSpan(), ref span);
             if (prompt.Length == 0)
             {
@@ -94,7 +91,7 @@ internal record class ReadLineInstance
                 this.simpleConsole.CursorTop += buffer.Height;
             }
 
-            this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, this.windowBuffer.Length - span.Length));
+            this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, this.windowBuffer.Length - span.Length));
 
             if (prompt.Length == 0)
             {// Last buffer

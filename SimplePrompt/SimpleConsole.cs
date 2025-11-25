@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Buffers;
 using System.Runtime.CompilerServices;
 using Arc.Collections;
 using Arc.Threading;
@@ -17,6 +18,7 @@ namespace SimplePrompt;
 public partial class SimpleConsole : IConsoleService
 {
     private const int DelayInMilliseconds = 10;
+    private const int WindowBufferSize = 64 * 1024;
 
     private static SimpleConsole? _instance;
 
@@ -43,6 +45,12 @@ public partial class SimpleConsole : IConsoleService
         instance.Initialize();
         return instance;
     }
+
+    public static char[] RentWindowBuffer()
+        => ArrayPool<char>.Shared.Rent(WindowBufferSize);
+
+    public static void ReturnWindowBuffer(char[] buffer)
+        => ArrayPool<char>.Shared.Return(buffer);
 
     /// <summary>
     /// Gets or sets the <see cref="ThreadCoreBase"/> used for thread coordination and cancellation.<br/>

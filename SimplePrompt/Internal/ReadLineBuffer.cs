@@ -437,7 +437,8 @@ internal class ReadLineBuffer
         var appendLineFeed = startCursor == (this.WindowWidth * this.WindowHeight);
 
         ReadOnlySpan<char> span;
-        var buffer = this.simpleConsole.WindowBuffer.AsSpan();
+        var windowBuffer = SimpleConsole.RentWindowBuffer();
+        var buffer = windowBuffer.AsSpan();
         var written = 0;
 
         // Hide cursor
@@ -556,18 +557,10 @@ internal class ReadLineBuffer
             this.simpleConsole.Scroll(scroll, true);
         }
 
-        try
-        {
-            this.simpleConsole.RawConsole.WriteInternal(this.simpleConsole.WindowBuffer.AsSpan(0, written));
-            // Console.Out.Write(this.InputConsole.WindowBuffer.AsSpan(0, written));
-
-            // this.SetCursorPosition(newCursorLeft - this.Left, newCursorTop - this.Top, true);
-            this.simpleConsole.CursorLeft = newCursorLeft;
-            this.simpleConsole.CursorTop = newCursorTop;
-        }
-        catch
-        {
-        }
+        this.simpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        SimpleConsole.ReturnWindowBuffer(windowBuffer);
+        this.simpleConsole.CursorLeft = newCursorLeft;
+        this.simpleConsole.CursorTop = newCursorTop;
     }
 
     private int RemoveAt(int index)
