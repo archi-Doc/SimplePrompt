@@ -62,15 +62,15 @@ internal class ReadLineInstance
 
             windowBuffer ??= SimpleConsole.RentWindowBuffer();
             var span = windowBuffer.AsSpan();
-            TryCopy(buffer.Prompt.AsSpan(), ref span);
+            SimpleConsole.TryCopy(buffer.Prompt.AsSpan(), ref span);
             if (prompt.Length == 0)
             {
-                TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
+                SimpleConsole.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
                 this.simpleConsole.CursorTop += buffer.Height - 1;
             }
             else
             {
-                TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
+                SimpleConsole.TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
                 this.simpleConsole.CursorTop += buffer.Height;
             }
 
@@ -105,15 +105,15 @@ internal class ReadLineInstance
 
             if (buffer.ProcessInternal(keyInfo, charBuffer))
             {// Exit input mode and return the concatenated string.
-                if (this.buffers.Count == 0)
+                if (this.BufferList.Count == 0)
                 {
                     return string.Empty;
                 }
 
-                if (!string.IsNullOrEmpty(this.CurrentOptions.MultilineIdentifier) &&
-                    (SimpleCommandLine.SimpleParserHelper.CountOccurrences(buffer.TextSpan, this.CurrentOptions.MultilineIdentifier) % 2) > 0)
+                if (!string.IsNullOrEmpty(this.Options.MultilineIdentifier) &&
+                    (SimpleCommandLine.SimpleParserHelper.CountOccurrences(buffer.TextSpan, this.Options.MultilineIdentifier) % 2) > 0)
                 {// Multiple line
-                    if (buffer.Index == this.editableBufferIndex)
+                    if (buffer.Index == this.EditableBufferIndex)
                     {// Start
                         this.MultilineMode = true;
                     }
@@ -125,7 +125,7 @@ internal class ReadLineInstance
 
                 if (this.MultilineMode)
                 {
-                    if (buffer.Index == (this.buffers.Count - 1))
+                    if (buffer.Index == (this.BufferList.Count - 1))
                     {// New InputBuffer
                         if (buffer.Length == 0)
                         {// Empty
@@ -136,36 +136,36 @@ internal class ReadLineInstance
                             return null;
                         }
 
-                        buffer = this.RentBuffer(this, this.buffers.Count, this.CurrentOptions.MultilinePrompt);
-                        this.buffers.Add(buffer);
-                        var previousTop = this.CursorTop;
-                        this.UnderlyingTextWriter.WriteLine();
-                        this.UnderlyingTextWriter.Write(this.CurrentOptions.MultilinePrompt);
-                        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
-                        if (this.CursorTop == previousTop)
+                        buffer = this.simpleConsole.RentBuffer(this, this.BufferList.Count, this.Options.MultilinePrompt);
+                        this.BufferList.Add(buffer);
+                        var previousTop = this.simpleConsole.CursorTop;
+                        this.simpleConsole.UnderlyingTextWriter.WriteLine();
+                        this.simpleConsole.UnderlyingTextWriter.Write(this.Options.MultilinePrompt);
+                        (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
+                        if (this.simpleConsole.CursorTop == previousTop)
                         {
-                            this.Scroll(1, false);
+                            this.simpleConsole.Scroll(1, false);
                         }
 
                         return null;
                     }
                     else
                     {// Next buffer
-                        this.SetCursor(this.buffers[buffer.Index + 1]);
+                        this.simpleConsole.SetCursor(this.BufferList[buffer.Index + 1]);
                         return null;
                     }
                 }
 
-                var length = this.buffers[this.editableBufferIndex].Length;
-                for (var i = this.editableBufferIndex + 1; i < this.buffers.Count; i++)
+                var length = this.BufferList[this.EditableBufferIndex].Length;
+                for (var i = this.EditableBufferIndex + 1; i < this.BufferList.Count; i++)
                 {
-                    length += 1 + this.buffers[i].Length;
+                    length += 1 + this.BufferList[i].Length;
                 }
 
-                var result = string.Create(length, this.buffers, (span, buffers) =>
+                var result = string.Create(length, this.BufferList, (span, buffers) =>
                 {
                     var isFirst = true;
-                    for (var i = this.editableBufferIndex; i < buffers.Count; i++)
+                    for (var i = this.EditableBufferIndex; i < buffers.Count; i++)
                     {
                         if (!isFirst)
                         {
@@ -307,9 +307,9 @@ internal class ReadLineInstance
 
         /*if (resetCursor)
         {
-            TryCopy(ResetCursor, ref span);
-            this.CursorLeft = 0;
-            this.CursorTop = 0;
+            SimpleConsole.TryCopy(ResetCursor, ref span);
+            this.simpleConsole.CursorLeft = 0;
+            this.simpleConsole.CursorTop = 0;
         }*/
 
         (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
@@ -327,20 +327,34 @@ internal class ReadLineInstance
                 }
                 else
                 {
-                    TryCopy(ConsoleHelper.NewLineSpan, ref span);
+                    SimpleConsole.TryCopy(ConsoleHelper.NewLineSpan, ref span);
                 }
 
                 remainingHeight -= buffer.Height;
 
                 if (buffer.Prompt is not null)
                 {
-                    TryCopy(buffer.Prompt.AsSpan(), ref span);
+                    SimpleConsole.TryCopy(buffer.Prompt.AsSpan(), ref span);
                 }
 
-                TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.InputColor).AsSpan(), ref span); // Input color
-                TryCopy(buffer.GetVisualSpan(0, buffer.Length), ref span);
-                TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
-                TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
+                SimpleConsole.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.InputColor).AsSpan(), ref span); // Input color
+
+                var maskingCharacter = this.Options.MaskingCharacter;
+                if (maskingCharacter == default)
+                {
+                    SimpleConsole.TryCopy(buffer.TextSpan, ref span);
+                }
+                else
+                {
+                    if (span.Length >= buffer.Width)
+                    {
+                        span.Slice(0, buffer.Width).Fill(maskingCharacter);
+                        span = span.Slice(buffer.Width);
+                    }
+                }
+
+                SimpleConsole.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
+                SimpleConsole.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
             }
 
             buffer.Top = y;
@@ -439,18 +453,5 @@ internal class ReadLineInstance
 
         this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
-    {
-        if (source.Length > destination.Length)
-        {
-            return false;
-        }
-
-        source.CopyTo(destination);
-        destination = destination.Slice(source.Length);
-        return true;
     }
 }

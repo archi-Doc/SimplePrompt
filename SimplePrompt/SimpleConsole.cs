@@ -48,6 +48,19 @@ public partial class SimpleConsole : IConsoleService
         return instance;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
+    {
+        if (source.Length > destination.Length)
+        {
+            return false;
+        }
+
+        source.CopyTo(destination);
+        destination = destination.Slice(source.Length);
+        return true;
+    }
+
     public static char[] RentWindowBuffer()
         => ArrayPool<char>.Shared.Rent(WindowBufferSize);
 
@@ -339,6 +352,27 @@ ProcessKeyInfo:
         }
     }
 
+    internal void Prepare()
+    {
+        if (this.CursorLeft < 0)
+        {
+            this.CursorLeft = 0;
+        }
+        else if (this.CursorLeft >= this.WindowWidth)
+        {
+            this.CursorLeft = this.WindowWidth - 1;
+        }
+
+        if (this.CursorTop < 0)
+        {
+            this.CursorTop = 0;
+        }
+        else if (this.CursorTop >= this.WindowHeight)
+        {
+            this.CursorTop = this.WindowHeight - 1;
+        }
+    }
+
     internal ReadLineInstance RentInstance(ReadLineOptions options)
     {
         var obj = this.instancePool.Rent();
@@ -619,27 +653,6 @@ ProcessKeyInfo:
         }
     }
 
-    internal void Prepare()
-    {
-        if (this.CursorLeft < 0)
-        {
-            this.CursorLeft = 0;
-        }
-        else if (this.CursorLeft >= this.WindowWidth)
-        {
-            this.CursorLeft = this.WindowWidth - 1;
-        }
-
-        if (this.CursorTop < 0)
-        {
-            this.CursorTop = 0;
-        }
-        else if (this.CursorTop >= this.WindowHeight)
-        {
-            this.CursorTop = this.WindowHeight - 1;
-        }
-    }
-
     private (int BufferIndex, int CursorIndex) GetLocation()
     {
         if (!this.TryGetActiveInstance(out var instance))
@@ -676,18 +689,5 @@ ProcessKeyInfo:
         {
             return (buffer.Index, buffer.GetCursorIndex());
         }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
-    {
-        if (source.Length > destination.Length)
-        {
-            return false;
-        }
-
-        source.CopyTo(destination);
-        destination = destination.Slice(source.Length);
-        return true;
     }
 }
