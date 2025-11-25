@@ -49,7 +49,7 @@ public partial class SimpleConsole : IConsoleService
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
+    internal static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
     {
         if (source.Length > destination.Length)
         {
@@ -61,10 +61,10 @@ public partial class SimpleConsole : IConsoleService
         return true;
     }
 
-    public static char[] RentWindowBuffer()
+    internal static char[] RentWindowBuffer()
         => ArrayPool<char>.Shared.Rent(WindowBufferSize);
 
-    public static void ReturnWindowBuffer(char[] buffer)
+    internal static void ReturnWindowBuffer(char[] buffer)
         => ArrayPool<char>.Shared.Return(buffer);
 
     /// <summary>
