@@ -139,10 +139,17 @@ public partial class SimpleConsole : IConsoleService
             }
         }
 
-        var prompt = this.CurrentOptions.Prompt.AsSpan();
-        var bufferIndex = 0;
+        var readLineInstance = new ReadLineInstance(this, options ?? this.DefaultOptions);
         using (this.lockObject.EnterScope())
         {
+            readLineInstance.PrepareInputBuffer();
+            this.instances = [..this.instances, readLineInstance];
+        }
+
+        using (this.lockObject.EnterScope())
+        {
+            var prompt = this.CurrentOptions.Prompt.AsSpan();
+            var bufferIndex = 0;
             InputBuffer buffer;
             while (prompt.Length >= 0)
             {
@@ -496,6 +503,18 @@ ProcessKeyInfo:
         }
 
         return length + dif <= this.CurrentOptions.MaxInputLength;
+    }
+
+    internal InputBuffer RentBuffer(int index, string? prompt)
+    {
+        var buffer = this.bufferPool.Rent();
+        buffer.Initialize(index, prompt);
+        return buffer;
+    }
+
+    internal void ReturnBuffer(InputBuffer buffer)
+    {
+        this.bufferPool.Return(buffer);
     }
 
     internal void TryDeleteBuffer(int index)
@@ -876,7 +895,7 @@ ProcessKeyInfo:
         }
     }
 
-    private void TrimCursor()
+    internal void TrimCursor()
     {
         var scroll = this.CursorTop - this.WindowHeight + 1;
         if (scroll > 0)
@@ -998,13 +1017,6 @@ ProcessKeyInfo:
         return buffer;
     }
 
-    private InputBuffer RentBuffer(int index, string? prompt)
-    {
-        var buffer = this.bufferPool.Rent();
-        buffer.Initialize(index, prompt);
-        return buffer;
-    }
-
     private void Clear()
     {
         using (this.lockObject.EnterScope())
@@ -1038,7 +1050,7 @@ ProcessKeyInfo:
         }
     }
 
-    private void MoveCursor2(int index)
+    internal void MoveCursor2(int index)
     {
         this.CursorLeft += index;
         var h = this.CursorLeft >= 0 ?
