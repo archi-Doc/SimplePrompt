@@ -94,6 +94,7 @@ public partial class SimpleConsole : IConsoleService
     private readonly ObjectPool<InputBuffer> bufferPool;
 
     private readonly Lock lockObject = new();
+    private ReadLineInstance[] instances = [];
     private List<InputBuffer> buffers = new();
     private int editableBufferIndex = 0;
 
@@ -125,6 +126,7 @@ public partial class SimpleConsole : IConsoleService
         var position = 0;
         this.CurrentOptions = (options ?? this.DefaultOptions) with { }; // Clone
 
+        // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
         this.PrepareWindow(false);
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
         if (this.CursorLeft > 0)
