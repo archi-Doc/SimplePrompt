@@ -281,7 +281,7 @@ ProcessKeyInfo:
         {
             using (this.lockObject.EnterScope())
             {
-                if (this.buffers.Count == 0)
+                if (!this.IsReadLineInProgress)
                 {
                     this.WriteInternal(message);
                     (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
@@ -372,9 +372,65 @@ ProcessKeyInfo:
     internal void ReturnBuffer(ReadLineBuffer obj)
         => this.bufferPool.Return(obj);
 
+    internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
+    {// Move and show cursor.
+        /*if (this.CursorLeft == cursorLeft &&
+            this.CursorTop == cursorTop)
+        {
+            return;
+        }*/
+
+        var windowBuffer = SimpleConsole.RentWindowBuffer();
+        var buffer = windowBuffer.AsSpan();
+        var written = 0;
+        ReadOnlySpan<char> span;
+
+        span = ConsoleHelper.SetCursorSpan;
+        span.CopyTo(buffer);
+        buffer = buffer.Slice(span.Length);
+        written += span.Length;
+
+        var x = cursorTop + 1;
+        var y = cursorLeft + 1;
+        x.TryFormat(buffer, out var w);
+        buffer = buffer.Slice(w);
+        written += w;
+        buffer[0] = ';';
+        buffer = buffer.Slice(1);
+        written += 1;
+        y.TryFormat(buffer, out w);
+        buffer = buffer.Slice(w);
+        written += w;
+        buffer[0] = 'H';
+        buffer = buffer.Slice(1);
+        written += 1;
+
+        if (cursorOperation == CursorOperation.Show)
+        {
+            span = ConsoleHelper.ShowCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
+        }
+        else if (cursorOperation == CursorOperation.Hide)
+        {
+            span = ConsoleHelper.HideCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
+        }
+
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        SimpleConsole.ReturnWindowBuffer(windowBuffer);
+
+        this.CursorLeft = cursorLeft;
+        this.CursorTop = cursorTop;
+    }
+
     private void WriteInternal(ReadOnlySpan<char> message)
     {
-        var span = this.WindowBuffer.AsSpan();
+        var windowBuffer = SimpleConsole.RentWindowBuffer();
+        var span = windowBuffer.AsSpan();
 
         while (message.Length > 0)
         {
@@ -408,7 +464,8 @@ ProcessKeyInfo:
             }
         }
 
-        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
+        SimpleConsole.ReturnWindowBuffer(windowBuffer);
     }
 
     private void Initialize()

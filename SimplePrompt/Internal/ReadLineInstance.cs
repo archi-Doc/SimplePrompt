@@ -20,6 +20,8 @@ internal record class ReadLineInstance
 
     public int CursorTop { get; set; }
 
+    public List<ReadLineBuffer> BufferList => this.bufferList;
+
     public bool MultilineMode { get; private set; }
 
     private readonly SimpleConsole simpleConsole;
@@ -259,59 +261,6 @@ ProcessKeyInfo:
             (((this.CursorLeft - 1) / this.simpleConsole.WindowWidth) - 1);
         this.CursorLeft -= h * this.simpleConsole.WindowWidth;
         this.CursorTop += h;
-    }
-
-    internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
-    {// Move and show cursor.
-        /*if (this.CursorLeft == cursorLeft &&
-            this.CursorTop == cursorTop)
-        {
-            return;
-        }*/
-
-        var buffer = this.windowBuffer.AsSpan();
-        var written = 0;
-        ReadOnlySpan<char> span;
-
-        span = ConsoleHelper.SetCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;
-
-        var x = cursorTop + 1;
-        var y = cursorLeft + 1;
-        x.TryFormat(buffer, out var w);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = ';';
-        buffer = buffer.Slice(1);
-        written += 1;
-        y.TryFormat(buffer, out w);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = 'H';
-        buffer = buffer.Slice(1);
-        written += 1;
-
-        if (cursorOperation == CursorOperation.Show)
-        {
-            span = ConsoleHelper.ShowCursorSpan;
-            span.CopyTo(buffer);
-            buffer = buffer.Slice(span.Length);
-            written += span.Length;
-        }
-        else if (cursorOperation == CursorOperation.Hide)
-        {
-            span = ConsoleHelper.HideCursorSpan;
-            span.CopyTo(buffer);
-            buffer = buffer.Slice(span.Length);
-            written += span.Length;
-        }
-
-        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, written));
-
-        this.CursorLeft = cursorLeft;
-        this.CursorTop = cursorTop;
     }
 
     internal void Scroll(int scroll, bool moveCursor)
