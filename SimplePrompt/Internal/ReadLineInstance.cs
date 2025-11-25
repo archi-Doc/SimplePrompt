@@ -11,18 +11,19 @@ namespace SimplePrompt.Internal;
 internal record class ReadLineInstance
 {
     private const int CharBufferSize = 1024;
+    private const int WindowBufferSize = 64 * 1024;
 
     public ReadLineOptions Options => this.options;
 
-    internal char[] WindowBuffer => this.simpleConsole.WindowBuffer;
-
-    internal RawConsole RawConsole => this.simpleConsole.RawConsole;
+    public RawConsole RawConsole => this.simpleConsole.RawConsole;
 
     private readonly SimpleConsole simpleConsole;
-    private readonly char[] charBuffer = new char[CharBufferSize];
     private ReadLineOptions options = new();
 
     private readonly Lock syncObject = new();
+    private readonly char[] charBuffer;
+    private readonly char[] windowBuffer;
+    private readonly byte[] utf8Buffer;
     private List<ReadLineBuffer> bufferList = new();
     private int editableBufferIndex;
     private bool multilineMode;
@@ -30,6 +31,10 @@ internal record class ReadLineInstance
     public ReadLineInstance(SimpleConsole simpleConsole)
     {
         this.simpleConsole = simpleConsole;
+
+        this.charBuffer = new char[CharBufferSize]; ;
+        this.windowBuffer = new char[WindowBufferSize];
+        this.utf8Buffer = new byte[WindowBufferSize * 3];
     }
 
     public void Initialize(ReadLineOptions options)
@@ -37,7 +42,7 @@ internal record class ReadLineInstance
         GhostCopy.Copy(ref options, ref this.options);
     }
 
-    public void PrepareInputBuffer()
+    public void Prepare()
     {
         var prompt = this.Options.Prompt.AsSpan();
         var bufferIndex = 0;
@@ -60,7 +65,7 @@ internal record class ReadLineInstance
             buffer.Top = this.simpleConsole.CursorTop;
             buffer.UpdateHeight(false);
 
-            var span = this.simpleConsole.WindowBuffer.AsSpan();
+            var span = this.windowBuffer.AsSpan();
             TryCopy(buffer.Prompt.AsSpan(), ref span);
             if (prompt.Length == 0)
             {
@@ -73,10 +78,10 @@ internal record class ReadLineInstance
                 this.simpleConsole.CursorTop += buffer.Height;
             }
 
-            this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, this.WindowBuffer.Length - span.Length));
+            this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, this.windowBuffer.Length - span.Length));
 
             if (prompt.Length == 0)
-            {
+            {// Last buffer
                 this.editableBufferIndex = bufferIndex - 1;
                 this.simpleConsole.MoveCursor2(buffer.PromtWidth);
                 this.simpleConsole.TrimCursor();
@@ -245,7 +250,7 @@ ProcessKeyInfo:
 
     private void ClearLine(int top)
     {
-        var buffer = this.WindowBuffer.AsSpan();
+        var buffer = this.windowBuffer.AsSpan();
         var written = 0;
         ReadOnlySpan<char> span;
 
@@ -284,7 +289,7 @@ ProcessKeyInfo:
         buffer = buffer.Slice(span.Length);
         written += span.Length;*/
 
-        this.RawConsole.WriteInternal(this.WindowBuffer.AsSpan(0, written));
+        this.RawConsole.WriteInternal(this.windowBuffer.AsSpan(0, written));
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -303,8 +308,8 @@ ProcessKeyInfo:
     internal void PrepareWindow()
     {
         var newCursor = Console.GetCursorPosition();
-        var dif = newCursor.Top - this.simCursorTop;
-        (this.CursorLeft, this.CursorTop) = newCursor;
+        var dif = newCursor.Top - this.simpleConsole.CursorTop;
+        (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = newCursor;
         foreach (var x in this.bufferList)
         {
             x.Top += dif;

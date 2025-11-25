@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -134,10 +135,27 @@ internal sealed class RawConsole
         {
             if (this.handle is not null)
             {
-                var length = Encoding.UTF8.GetBytes(data, this.simpleConsole.Utf8Buffer);
-                fixed (byte* p = this.simpleConsole.Utf8Buffer)
+                var length = Encoding.UTF8.GetMaxByteCount(data.Length);
+
+                byte[]? pooledName = null;
+                Span<byte> buffer = length <= BaseConstants.StackallocThreshold ?
+                    stackalloc byte[length] :
+                    (pooledName = ArrayPool<byte>.Shared.Rent(length));
+
+                try
                 {
-                    _ = Interop.Sys.Write(this.handle, p, length);
+                    length = Encoding.UTF8.GetBytes(data, buffer);
+                    fixed (byte* p = buffer)
+                    {
+                        _ = Interop.Sys.Write(this.handle, p, length);
+                    }
+                }
+                finally
+                {
+                    if (pooledName is not null)
+                    {
+                        ArrayPool<byte>.Shared.Return(pooledName);
+                    }
                 }
             }
             else

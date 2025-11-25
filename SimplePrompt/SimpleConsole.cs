@@ -17,7 +17,6 @@ namespace SimplePrompt;
 public partial class SimpleConsole : IConsoleService
 {
     private const int DelayInMilliseconds = 10;
-    private const int WindowBufferSize = 64 * 1024;
 
     private static SimpleConsole? _instance;
 
@@ -58,9 +57,7 @@ public partial class SimpleConsole : IConsoleService
 
     public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
-    public bool IsReadLineInProgress => this.buffers.Count > 0;
-
-    // public bool IsInsertMode { get; set; } = true;
+    public bool IsReadLineInProgress => this.instanceArray.Length > 0;
 
     internal RawConsole RawConsole { get; }
 
@@ -76,8 +73,6 @@ public partial class SimpleConsole : IConsoleService
 
     internal char[] WindowBuffer => this.windowBuffer;
 
-    internal byte[] Utf8Buffer => this.utf8Buffer;
-
     internal List<ReadLineBuffer> Buffers => this.buffers;
 
     internal int EditableBufferIndex => this.editableBufferIndex;
@@ -85,9 +80,6 @@ public partial class SimpleConsole : IConsoleService
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly ObjectPool<ReadLineInstance> instancePool;
     private readonly ObjectPool<ReadLineBuffer> bufferPool;
-
-    private readonly char[] windowBuffer = [];
-    private readonly byte[] utf8Buffer = [];
 
     private readonly Lock syncInstanceArray = new();
     private ReadLineInstance[] instanceArray = [];
@@ -133,7 +125,7 @@ public partial class SimpleConsole : IConsoleService
 
         // Create and prepare a ReadLineInstance.
         var currentInstance = this.RentInstance(options ?? this.DefaultOptions);
-        currentInstance.PrepareInputBuffer();
+        currentInstance.Prepare();
         using (this.syncInstanceArray.EnterScope())
         {
             this.instanceArray = [.. this.instanceArray, currentInstance];
