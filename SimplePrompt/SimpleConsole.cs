@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using Arc.Collections;
@@ -18,7 +19,7 @@ namespace SimplePrompt;
 public partial class SimpleConsole : IConsoleService
 {
     private const int DelayInMilliseconds = 10;
-    private const int WindowBufferSize = 64 * 1024;
+    private const int WindowBufferSize = 32 * 1024;
 
     private static SimpleConsole? _instance;
 
@@ -81,7 +82,7 @@ public partial class SimpleConsole : IConsoleService
     private readonly ObjectPool<ReadLineInstance> instancePool;
     private readonly ObjectPool<ReadLineBuffer> bufferPool;
 
-    private readonly Lock syncInstanceArray = new();
+    private readonly Lock syncObject = new();
     private ReadLineInstance[] instanceArray = [];
 
     private SimpleConsole()
@@ -105,45 +106,79 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
-        // Create and prepare a ReadLineInstance.
-        var currentInstance = this.RentInstance(options ?? this.DefaultOptions);
-        currentInstance.Prepare();
-        using (this.syncInstanceArray.EnterScope())
+        ReadLineInstance currentInstance;
+        using (this.syncObject.EnterScope())
         {
+            // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
+            this.PrepareWindow(default);
+            (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+            if (this.CursorLeft > 0)
+            {
+                this.UnderlyingTextWriter.WriteLine();
+                this.CursorLeft = 0;
+                if (this.CursorTop < this.WindowHeight - 1)
+                {
+                    this.CursorTop++;
+                }
+            }
+
+            // Create and prepare a ReadLineInstance.
+            currentInstance = this.RentInstance(options ?? this.DefaultOptions);
+            currentInstance.Prepare();
             this.instanceArray = [.. this.instanceArray, currentInstance];
         }
 
+        try
+        {
+        }
+        finally
+        {
+            this.RemoveInstance(currentInstance);
+            this.ReturnInstance(currentInstance);
+        }
+
+        var delayFlag = false;
         var position = 0;
+        ConsoleKeyInfo keyInfo = default;
         ConsoleKeyInfo pendingKeyInfo = default;
-        while (!this.Core.IsTerminated)
+        while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            var array = this.instanceArray;
-            var idx = array.IndexOf(currentInstance);
-            if (idx < 0)
-            {// Not found
+            if (this.Core.IsTerminated)
+            {// Terminated
+                this.UnderlyingTextWriter.WriteLine();
                 return new(InputResultKind.Terminated);
             }
-            else if (idx != (array.Length - 1))
-            {// Not active instance
-                await Task.Delay(DelayInMilliseconds, cancellationToken);
-                continue;
-            }
 
-            if (this.PrepareWindow())
+            if (delayFlag)
             {
-                currentInstance.PrepareWindow();
+                await Task.Delay(DelayInMilliseconds, cancellationToken).ConfigureAwait(false);
+                delayFlag = false;
             }
 
-            // Polling isn’t an ideal approach, but due to the fact that the normal method causes a significant performance drop and that the function must be able to exit when the application terminates, this implementation was chosen.
-            if (!this.RawConsole.TryRead(out var keyInfo))
+            using (this.syncObject.EnterScope())
             {
-                await Task.Delay(DelayInMilliseconds, cancellationToken);
-                continue;
-            }
+                var array = this.instanceArray;
+                var idx = array.IndexOf(currentInstance);
+                if (idx < 0)
+                {// Not found
+                    return new(InputResultKind.Terminated);
+                }
+                else if (idx != (array.Length - 1))
+                {// Not active instance
+                    delayFlag = true;
+                    continue;
+                }
 
-            currentInstance.ProcessKeyInfo(keyInfo);
+                this.PrepareWindow(currentInstance);
+
+                // Polling isn’t an ideal approach, but due to the fact that the normal method causes a significant performance drop and that the function must be able to exit when the application terminates, this implementation was chosen.
+                if (!this.RawConsole.TryRead(out keyInfo))
+                {
+                    delayFlag = true;
+                    continue;
+                }
+            }
 
 ProcessKeyInfo:
             if (keyInfo.KeyChar == '\n' ||
@@ -234,12 +269,6 @@ ProcessKeyInfo:
                 }
             }
         }
-
-        // Terminated
-        // this.SetCursorPosition(this.WindowWidth - 1, this.CursorTop, true);
-        this.UnderlyingTextWriter.WriteLine();
-        this.Clear();
-        return new(InputResultKind.Terminated);
     }
 
     Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
@@ -247,27 +276,7 @@ ProcessKeyInfo:
 
     void IConsoleService.Write(string? message)
     {
-        using (this.lockObject.EnterScope())
-        {
-            if (this.buffers.Count == 0)
-            {
-                this.UnderlyingTextWriter.Write(message);
-                return;
-            }
-        }
-
-        /*if (Environment.NewLine == "\r\n" && message is not null)
-        {
-            message = Arc.BaseHelper.ConvertLfToCrLf(message);
-        }
-
-        try
-        {
-            this.UnderlyingTextWriter.Write(message);
-        }
-        catch
-        {
-        }*/
+        this.simpleTextWriter.Write(message);
     }
 
     public void WriteLine(string? message = null)
@@ -279,7 +288,7 @@ ProcessKeyInfo:
 
         try
         {
-            using (this.lockObject.EnterScope())
+            using (this.syncObject.EnterScope())
             {
                 if (!this.IsReadLineInProgress)
                 {
@@ -427,6 +436,39 @@ ProcessKeyInfo:
         this.CursorTop = cursorTop;
     }
 
+    private void RemoveInstance(ReadLineInstance target)
+    {
+        using (this.syncObject.EnterScope())
+        {
+            target.Clear();
+
+            var array = this.instanceArray;
+            var index = Array.IndexOf(array, target);
+            if (index < 0)
+            {// Not found
+                return;
+            }
+            else if (array.Length == 1)
+            {
+                this.instanceArray = [];
+                return;
+            }
+
+            var newArray = new ReadLineInstance[array.Length - 1];
+            if (index > 0)
+            {
+                Array.Copy(array, 0, newArray, 0, index);
+            }
+
+            if (index < array.Length - 1)
+            {
+                Array.Copy(array, index + 1, newArray, index, array.Length - index - 1);
+            }
+
+            this.instanceArray = newArray;
+        }
+    }
+
     private void WriteInternal(ReadOnlySpan<char> message)
     {
         var windowBuffer = SimpleConsole.RentWindowBuffer();
@@ -532,7 +574,7 @@ ProcessKeyInfo:
         return false;
     }
 
-    internal bool PrepareWindow()
+    private void PrepareWindow(ReadLineInstance? readLineInstance)
     {
         var windowWidth = 120;
         var windowHeight = 30;
@@ -559,12 +601,22 @@ ProcessKeyInfo:
         if (windowWidth == this.WindowWidth &&
             windowHeight == this.WindowHeight)
         {
-            return false;
+            return;
         }
 
         this.WindowWidth = windowWidth;
         this.WindowHeight = windowHeight;
-        return true;
+
+        if (readLineInstance is not null)
+        {
+            var newCursor = Console.GetCursorPosition();
+            var dif = newCursor.Top - this.CursorTop;
+            (this.CursorLeft, this.CursorTop) = newCursor;
+            foreach (var x in readLineInstance.BufferList)
+            {
+                x.Top += dif;
+            }
+        }
     }
 
     private void Prepare()
@@ -836,7 +888,7 @@ ProcessKeyInfo:
 
     private void Clear()
     {
-        using (this.lockObject.EnterScope())
+        using (this.syncObject.EnterScope())
         {
             this.MultilineMode = false;
             foreach (var buffer in this.buffers)

@@ -8,17 +8,13 @@ using SimplePrompt.Internal;
 
 namespace SimplePrompt.Internal;
 
-internal record class ReadLineInstance
+internal class ReadLineInstance
 {
     private const int CharBufferSize = 1024;
 
     public ReadLineOptions Options => this.options;
 
     public RawConsole RawConsole => this.simpleConsole.RawConsole;
-
-    public int CursorLeft { get; set; }
-
-    public int CursorTop { get; set; }
 
     public List<ReadLineBuffer> BufferList => this.bufferList;
 
@@ -36,7 +32,7 @@ internal record class ReadLineInstance
     public ReadLineInstance(SimpleConsole simpleConsole)
     {
         this.simpleConsole = simpleConsole;
-        this.charBuffer = new char[CharBufferSize]; ;
+        this.charBuffer = new char[CharBufferSize];
     }
 
     public void Initialize(ReadLineOptions options)
@@ -46,21 +42,9 @@ internal record class ReadLineInstance
 
     public void Prepare()
     {
-        // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
-        this.simpleConsole.PrepareWindow();
-        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
-        if (this.CursorLeft > 0)
-        {
-            this.simpleConsole.UnderlyingTextWriter.WriteLine();
-            this.CursorLeft = 0;
-            if (this.CursorTop < this.simpleConsole.WindowHeight - 1)
-            {
-                this.CursorTop++;
-            }
-        }
-
         var prompt = this.Options.Prompt.AsSpan();
         var bufferIndex = 0;
+        char[]? windowBuffer = null;
         while (prompt.Length >= 0)
         {
             var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
@@ -80,7 +64,7 @@ internal record class ReadLineInstance
             buffer.Top = this.simpleConsole.CursorTop;
             buffer.UpdateHeight(false);
 
-            var windowBuffer = SimpleConsole.RentWindowBuffer();
+            windowBuffer = SimpleConsole.RentWindowBuffer();
             var span = windowBuffer.AsSpan();
             TryCopy(buffer.Prompt.AsSpan(), ref span);
             if (prompt.Length == 0)
@@ -94,7 +78,7 @@ internal record class ReadLineInstance
                 this.simpleConsole.CursorTop += buffer.Height;
             }
 
-            this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, this.windowBuffer.Length - span.Length));
+            this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
 
             if (prompt.Length == 0)
             {// Last buffer
@@ -104,6 +88,11 @@ internal record class ReadLineInstance
                 this.SetCursorPosition(this.CursorLeft, this.CursorTop, CursorOperation.None);
                 break;
             }
+        }
+
+        if (windowBuffer is not null)
+        {
+            SimpleConsole.ReturnWindowBuffer(windowBuffer);
         }
     }
 
@@ -149,98 +138,6 @@ internal record class ReadLineInstance
 
         this.ClearLastLine(dif);
         this.SetCursor(this.bufferList[index]);
-    }
-
-    public void ProcessKeyInfo(ConsoleKeyInfo keyInfo)
-    {
-ProcessKeyInfo:
-        if (keyInfo.KeyChar == '\n' ||
-            keyInfo.Key == ConsoleKey.Enter)
-        {
-            keyInfo = SimplePromptHelper.EnterKeyInfo;
-        }
-        else if (keyInfo.KeyChar == '\t' ||
-            keyInfo.Key == ConsoleKey.Tab)
-        {// Tab -> Space; in the future, input completion.
-         // keyInfo = SimplePromptHelper.SpaceKeyInfo;
-        }
-        else if (keyInfo.KeyChar == '\r')
-        {// CrLf -> Lf
-            continue;
-        }
-        else if (this.CurrentOptions.CancelOnEscape &&
-            keyInfo.Key == ConsoleKey.Escape)
-        {
-            this.UnderlyingTextWriter.WriteLine();
-            this.Clear();
-            return new(InputResultKind.Canceled);
-        }
-
-        /*else if (keyInfo.Key == ConsoleKey.C &&
-            keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control))
-        { // Ctrl+C
-            ThreadCore.Root.Terminate(); // Send a termination signal to the root.
-            return null;
-        }*/
-
-        /*if (keyInfo.Key == ConsoleKey.F1)
-        {
-            this.WriteLine("Inserted text");
-            continue;
-        }
-        else if (keyInfo.Key == ConsoleKey.F2)
-        {
-            this.WriteLine("Text1\nText2");
-            continue;
-        }*/
-
-        bool flush = true;
-        if (IsControl(keyInfo))
-        {// Control
-        }
-        else
-        {// Not control
-            this.charBuffer[position++] = keyInfo.KeyChar;
-            if (this.RawConsole.TryRead(out keyInfo))
-            {
-                flush = false;
-                if (position >= (CharBufferSize - 2))
-                {
-                    if (position >= CharBufferSize ||
-                        char.IsLowSurrogate(keyInfo.KeyChar))
-                    {
-                        flush = true;
-                    }
-                }
-
-                if (flush)
-                {
-                    pendingKeyInfo = keyInfo;
-                }
-                else
-                {
-                    goto ProcessKeyInfo;
-                }
-            }
-        }
-
-        if (flush)
-        {// Flush
-            var result = this.Flush(keyInfo, this.charBuffer.AsSpan(0, position));
-            position = 0;
-            if (result is not null)
-            {
-                this.UnderlyingTextWriter.WriteLine();
-                this.Clear();
-                return new(result);
-            }
-
-            if (pendingKeyInfo.Key != ConsoleKey.None)
-            {// Process pending key input.
-                keyInfo = pendingKeyInfo;
-                goto ProcessKeyInfo;
-            }
-        }
     }
 
     public void Clear()
@@ -351,16 +248,5 @@ ProcessKeyInfo:
         source.CopyTo(destination);
         destination = destination.Slice(source.Length);
         return true;
-    }
-
-    internal void PrepareWindow()
-    {
-        var newCursor = Console.GetCursorPosition();
-        var dif = newCursor.Top - this.simpleConsole.CursorTop;
-        (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = newCursor;
-        foreach (var x in this.bufferList)
-        {
-            x.Top += dif;
-        }
     }
 }

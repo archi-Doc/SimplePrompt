@@ -4,8 +4,6 @@ using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Unit;
 
-#pragma warning disable SA1202 // Elements should be ordered by access
-
 namespace SimplePrompt.Internal;
 
 internal class ReadLineBuffer
@@ -54,6 +52,22 @@ internal class ReadLineBuffer
     public ReadLineBuffer(SimpleConsole inputConsole)
     {
         this.simpleConsole = inputConsole;
+    }
+
+    public void Initialize(ReadLineInstance @instance, int index, string? prompt)
+    {
+        this.readLineInstance = instance;
+        this.Index = index;
+        if (prompt?.Length > MaxPromptWidth)
+        {
+            prompt = prompt.Substring(0, MaxPromptWidth);
+        }
+
+        this.Prompt = prompt;
+        this.PromtWidth = SimplePromptHelper.GetWidth(this.Prompt);
+        this.Length = 0;
+        this.Width = 0;
+        this.Height = 1;
     }
 
     public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
@@ -231,22 +245,6 @@ internal class ReadLineBuffer
         this.Width = 0;
         this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
         // this.UpdateConsole(0, this.Length, 0, true);
-    }
-
-    public void Initialize(ReadLineInstance @instance, int index, string? prompt)
-    {
-        this.readLineInstance = instance;
-        this.Index = index;
-        if (prompt?.Length > MaxPromptWidth)
-        {
-            prompt = prompt.Substring(0, MaxPromptWidth);
-        }
-
-        this.Prompt = prompt;
-        this.PromtWidth = SimplePromptHelper.GetWidth(this.Prompt);
-        this.Length = 0;
-        this.Width = 0;
-        this.Height = 1;
     }
 
     private void EnsureCapacity(int capacity)
