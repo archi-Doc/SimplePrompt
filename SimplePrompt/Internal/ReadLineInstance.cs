@@ -24,13 +24,14 @@ internal record class ReadLineInstance
 
     public bool MultilineMode { get; private set; }
 
+    public int EditableBufferIndex { get; private set; }
+
     private readonly SimpleConsole simpleConsole;
     private ReadLineOptions options = new();
 
     private readonly Lock syncObject = new();
     private readonly char[] charBuffer;
     private List<ReadLineBuffer> bufferList = new();
-    private int editableBufferIndex;
 
     public ReadLineInstance(SimpleConsole simpleConsole)
     {
@@ -97,7 +98,7 @@ internal record class ReadLineInstance
 
             if (prompt.Length == 0)
             {// Last buffer
-                this.editableBufferIndex = bufferIndex - 1;
+                this.EditableBufferIndex = bufferIndex - 1;
                 this.MoveCursor2(buffer.PromtWidth);
                 this.TrimCursor();
                 this.SetCursorPosition(this.CursorLeft, this.CursorTop, CursorOperation.None);

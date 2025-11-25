@@ -115,7 +115,7 @@ internal class ReadLineBuffer
             {
                 if (this.Length == 0)
                 {// Delete empty buffer
-                    this.simpleConsole.TryDeleteBuffer(this.Index);
+                    this.readLineInstance.TryDeleteBuffer(this.Index);
                     return false;
                 }
 
@@ -216,7 +216,7 @@ internal class ReadLineBuffer
         this.Height = (this.TotalWidth + this.WindowWidth) / this.WindowWidth;
         if (refresh && previousHeight != this.Height)
         {
-            this.HeightChanged(this.Index, this.Height - previousHeight);
+            this.readLineInstance.HeightChanged(this.Index, this.Height - previousHeight);
         }
     }
 
@@ -232,11 +232,6 @@ internal class ReadLineBuffer
         this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
         // this.UpdateConsole(0, this.Length, 0, true);
     }
-
-    /*public int GetWidth()
-    {
-        return (int)BaseHelper.Sum(this.widthArray.AsSpan(0, this.Length));
-    }*/
 
     public void Initialize(ReadLineInstance @instance, int index, string? prompt)
     {
