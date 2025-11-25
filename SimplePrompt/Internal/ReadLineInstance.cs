@@ -97,7 +97,7 @@ internal class ReadLineInstance
         this.simpleConsole.Prepare();
         // using (this.lockObject.EnterScope())
         {
-            var buffer = this.simpleConsole.PrepareAndFindBuffer();
+            var buffer = this.PrepareAndFindBuffer();
             if (buffer is null)
             {
                 return string.Empty;
@@ -236,7 +236,7 @@ internal class ReadLineInstance
         this.simpleConsole.SetCursor(this.BufferList[index]);
     }
 
-    public void Clear()
+    private void Clear()
     {
         this.MultilineMode = false;
         this.EditableBufferIndex = 0;
@@ -246,6 +246,33 @@ internal class ReadLineInstance
         }
 
         this.BufferList.Clear();
+    }
+
+    private ReadLineBuffer? PrepareAndFindBuffer()
+    {
+        if (this.BufferList.Count == 0)
+        {
+            return null;
+        }
+
+        // Calculate buffer heights.
+        var y = this.BufferList[0].Top;
+        ReadLineBuffer? buffer = null;
+        foreach (var x in this.BufferList)
+        {
+            x.Top = y;
+            x.UpdateHeight(false);
+            y += x.Height;
+            if (buffer is null &&
+                this.CursorTop >= x.Top &&
+                this.CursorTop < y)
+            {
+                buffer = x;
+            }
+        }
+
+        buffer ??= this.BufferList[0];
+        return buffer;
     }
 
     private void ClearLastLine(int dif)

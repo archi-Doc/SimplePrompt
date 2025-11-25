@@ -258,7 +258,6 @@ ProcessKeyInfo:
                 if (result is not null)
                 {
                     this.UnderlyingTextWriter.WriteLine();
-                    this.Clear();
                     return new(result);
                 }
 
@@ -798,46 +797,5 @@ ProcessKeyInfo:
         source.CopyTo(destination);
         destination = destination.Slice(source.Length);
         return true;
-    }
-
-    private ReadLineBuffer? PrepareAndFindBuffer()
-    {
-        if (this.buffers.Count == 0)
-        {
-            return null;
-        }
-
-        // Calculate buffer heights.
-        var y = this.buffers[0].Top;
-        ReadLineBuffer? buffer = null;
-        foreach (var x in this.buffers)
-        {
-            x.Top = y;
-            x.UpdateHeight(false);
-            y += x.Height;
-            if (buffer is null &&
-                this.CursorTop >= x.Top &&
-                this.CursorTop < y)
-            {
-                buffer = x;
-            }
-        }
-
-        buffer ??= this.buffers[0];
-        return buffer;
-    }
-
-    private void Clear()
-    {
-        using (this.syncObject.EnterScope())
-        {
-            this.MultilineMode = false;
-            foreach (var buffer in this.buffers)
-            {
-                this.bufferPool.Return(buffer);
-            }
-
-            this.buffers.Clear();
-        }
     }
 }
