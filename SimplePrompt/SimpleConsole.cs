@@ -80,7 +80,7 @@ public partial class SimpleConsole : IConsoleService
 
     public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
-    public bool IsReadLineInProgress => this.instanceArray.Length > 0;
+    public bool IsReadLineInProgress => this.instanceList.Count > 0;
 
     internal RawConsole RawConsole { get; }
 
@@ -97,7 +97,7 @@ public partial class SimpleConsole : IConsoleService
     private readonly ObjectPool<ReadLineBuffer> bufferPool;
 
     private readonly Lock syncObject = new();
-    private ReadLineInstance[] instanceArray = [];
+    private List<ReadLineInstance> instanceList = [];
 
     private SimpleConsole()
     {
@@ -138,148 +138,150 @@ public partial class SimpleConsole : IConsoleService
 
             // Create and prepare a ReadLineInstance.
             currentInstance = this.RentInstance(options ?? this.DefaultOptions);
+            this.instanceList.Add(currentInstance);
             currentInstance.Prepare();
-            this.instanceArray = [.. this.instanceArray, currentInstance];
         }
 
         try
         {
+            var delayFlag = false;
+            var position = 0;
+            ConsoleKeyInfo keyInfo = default;
+            ConsoleKeyInfo pendingKeyInfo = default;
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (this.Core.IsTerminated)
+                {// Terminated
+                    this.UnderlyingTextWriter.WriteLine();
+                    return new(InputResultKind.Terminated);
+                }
+
+                if (delayFlag)
+                {
+                    delayFlag = false;
+                    await Task.Delay(DelayInMilliseconds, cancellationToken).ConfigureAwait(false);
+                }
+
+                using (this.syncObject.EnterScope())
+                {
+                    var idx = this.instanceList.IndexOf(currentInstance);
+                    if (idx < 0)
+                    {// Not found
+                        return new(InputResultKind.Terminated);
+                    }
+                    else if (idx != (this.instanceList.Count - 1))
+                    {// Not active instance
+                        delayFlag = true;
+                        continue;
+                    }
+
+                    // Active instance: Prepare window and read key input.
+                    this.PrepareWindow(currentInstance);
+                    if (!this.RawConsole.TryRead(out keyInfo))
+                    {
+                        delayFlag = true;
+                        continue;
+                    }
+                }
+
+ProcessKeyInfo:
+                if (keyInfo.KeyChar == '\n' ||
+                    keyInfo.Key == ConsoleKey.Enter)
+                {
+                    keyInfo = SimplePromptHelper.EnterKeyInfo;
+                }
+                else if (keyInfo.KeyChar == '\t' ||
+                    keyInfo.Key == ConsoleKey.Tab)
+                {// Tab -> Space; in the future, input completion.
+                 // keyInfo = SimplePromptHelper.SpaceKeyInfo;
+                }
+                else if (keyInfo.KeyChar == '\r')
+                {// CrLf -> Lf
+                    continue;
+                }
+                else if (currentInstance.Options.CancelOnEscape &&
+                    keyInfo.Key == ConsoleKey.Escape)
+                {
+                    this.UnderlyingTextWriter.WriteLine();
+                    return new(InputResultKind.Canceled);
+                }
+
+                /*else if (keyInfo.Key == ConsoleKey.C &&
+                    keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control))
+                { // Ctrl+C
+                    ThreadCore.Root.Terminate(); // Send a termination signal to the root.
+                    return null;
+                }*/
+
+                /*if (keyInfo.Key == ConsoleKey.F1)
+                {
+                    this.WriteLine("Inserted text");
+                    continue;
+                }
+                else if (keyInfo.Key == ConsoleKey.F2)
+                {
+                    this.WriteLine("Text1\nText2");
+                    continue;
+                }*/
+
+                bool flush = true;
+                if (IsControl(keyInfo))
+                {// Control
+                }
+                else
+                {// Not control
+                    currentInstance.CharBuffer[position++] = keyInfo.KeyChar;
+                    if (this.RawConsole.TryRead(out keyInfo))
+                    {
+                        flush = false;
+                        if (position >= (ReadLineInstance.CharBufferSize - 2))
+                        {
+                            if (position >= ReadLineInstance.CharBufferSize ||
+                                char.IsLowSurrogate(keyInfo.KeyChar))
+                            {
+                                flush = true;
+                            }
+                        }
+
+                        if (flush)
+                        {
+                            pendingKeyInfo = keyInfo;
+                        }
+                        else
+                        {
+                            goto ProcessKeyInfo;
+                        }
+                    }
+                }
+
+                if (flush)
+                {// Flush
+                    string? result;
+                    using (this.syncObject.EnterScope())
+                    {
+                        result = currentInstance.Flush(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
+                    }
+
+                    position = 0;
+                    if (result is not null)
+                    {
+                        this.UnderlyingTextWriter.WriteLine();
+                        return new(result);
+                    }
+
+                    if (pendingKeyInfo.Key != ConsoleKey.None)
+                    {// Process pending key input.
+                        keyInfo = pendingKeyInfo;
+                        goto ProcessKeyInfo;
+                    }
+                }
+            }
         }
         finally
         {
             this.RemoveInstance(currentInstance);
             this.ReturnInstance(currentInstance);
-        }
-
-        var delayFlag = false;
-        var position = 0;
-        ConsoleKeyInfo keyInfo = default;
-        ConsoleKeyInfo pendingKeyInfo = default;
-        while (true)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (this.Core.IsTerminated)
-            {// Terminated
-                this.UnderlyingTextWriter.WriteLine();
-                return new(InputResultKind.Terminated);
-            }
-
-            if (delayFlag)
-            {
-                await Task.Delay(DelayInMilliseconds, cancellationToken).ConfigureAwait(false);
-                delayFlag = false;
-            }
-
-            using (this.syncObject.EnterScope())
-            {
-                var array = this.instanceArray;
-                var idx = array.IndexOf(currentInstance);
-                if (idx < 0)
-                {// Not found
-                    return new(InputResultKind.Terminated);
-                }
-                else if (idx != (array.Length - 1))
-                {// Not active instance
-                    delayFlag = true;
-                    continue;
-                }
-
-                this.PrepareWindow(currentInstance);
-
-                // Polling isn’t an ideal approach, but due to the fact that the normal method causes a significant performance drop and that the function must be able to exit when the application terminates, this implementation was chosen.
-                if (!this.RawConsole.TryRead(out keyInfo))
-                {
-                    delayFlag = true;
-                    continue;
-                }
-            }
-
-ProcessKeyInfo:
-            if (keyInfo.KeyChar == '\n' ||
-                keyInfo.Key == ConsoleKey.Enter)
-            {
-                keyInfo = SimplePromptHelper.EnterKeyInfo;
-            }
-            else if (keyInfo.KeyChar == '\t' ||
-                keyInfo.Key == ConsoleKey.Tab)
-            {// Tab -> Space; in the future, input completion.
-                // keyInfo = SimplePromptHelper.SpaceKeyInfo;
-            }
-            else if (keyInfo.KeyChar == '\r')
-            {// CrLf -> Lf
-                continue;
-            }
-            else if (currentInstance.Options.CancelOnEscape &&
-                keyInfo.Key == ConsoleKey.Escape)
-            {
-                this.UnderlyingTextWriter.WriteLine();
-                return new(InputResultKind.Canceled);
-            }
-
-            /*else if (keyInfo.Key == ConsoleKey.C &&
-                keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control))
-            { // Ctrl+C
-                ThreadCore.Root.Terminate(); // Send a termination signal to the root.
-                return null;
-            }*/
-
-            /*if (keyInfo.Key == ConsoleKey.F1)
-            {
-                this.WriteLine("Inserted text");
-                continue;
-            }
-            else if (keyInfo.Key == ConsoleKey.F2)
-            {
-                this.WriteLine("Text1\nText2");
-                continue;
-            }*/
-
-            bool flush = true;
-            if (IsControl(keyInfo))
-            {// Control
-            }
-            else
-            {// Not control
-                currentInstance.CharBuffer[position++] = keyInfo.KeyChar;
-                if (this.RawConsole.TryRead(out keyInfo))
-                {
-                    flush = false;
-                    if (position >= (ReadLineInstance.CharBufferSize - 2))
-                    {
-                        if (position >= ReadLineInstance.CharBufferSize ||
-                            char.IsLowSurrogate(keyInfo.KeyChar))
-                        {
-                            flush = true;
-                        }
-                    }
-
-                    if (flush)
-                    {
-                        pendingKeyInfo = keyInfo;
-                    }
-                    else
-                    {
-                        goto ProcessKeyInfo;
-                    }
-                }
-            }
-
-            if (flush)
-            {// Flush
-                var result = currentInstance.Flush(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
-                position = 0;
-                if (result is not null)
-                {
-                    this.UnderlyingTextWriter.WriteLine();
-                    return new(result);
-                }
-
-                if (pendingKeyInfo.Key != ConsoleKey.None)
-                {// Process pending key input.
-                    keyInfo = pendingKeyInfo;
-                    goto ProcessKeyInfo;
-                }
-            }
         }
     }
 
@@ -352,7 +354,7 @@ ProcessKeyInfo:
         }
     }
 
-    internal void Prepare()
+    internal void PrepareCursor()
     {
         if (this.CursorLeft < 0)
         {
@@ -410,9 +412,9 @@ ProcessKeyInfo:
             this.CursorTop -= scroll;
         }
 
-        if (this.instanceArray.Length > 0)
+        if (this.TryGetActiveInstance(out var activeInstance))
         {
-            foreach (var y in this.instanceArray[this.instanceArray.Length - 1].BufferList)
+            foreach (var y in activeInstance.BufferList)
             {
                 y.Top -= scroll;
             }
@@ -492,14 +494,13 @@ ProcessKeyInfo:
 
     private bool TryGetActiveInstance([MaybeNullWhen(false)] out ReadLineInstance instance)
     {
-        var array = this.instanceArray;
-        if (array.Length == 0)
+        if (this.instanceList.Count == 0)
         {
             instance = null;
             return false;
         }
 
-        instance = array[array.Length - 1];
+        instance = this.instanceList[^1];
         return true;
     }
 
@@ -508,31 +509,7 @@ ProcessKeyInfo:
         using (this.syncObject.EnterScope())
         {
             target.Clear();
-
-            var array = this.instanceArray;
-            var index = Array.IndexOf(array, target);
-            if (index < 0)
-            {// Not found
-                return;
-            }
-            else if (array.Length == 1)
-            {
-                this.instanceArray = [];
-                return;
-            }
-
-            var newArray = new ReadLineInstance[array.Length - 1];
-            if (index > 0)
-            {
-                Array.Copy(array, 0, newArray, 0, index);
-            }
-
-            if (index < array.Length - 1)
-            {
-                Array.Copy(array, index + 1, newArray, index, array.Length - index - 1);
-            }
-
-            this.instanceArray = newArray;
+            this.instanceList.Remove(target);
         }
     }
 
