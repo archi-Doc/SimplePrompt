@@ -55,8 +55,8 @@ internal class Program
         var simpleConsole = SimpleConsole.GetOrCreate();
         Console.WriteLine(Environment.OSVersion.ToString());
 
-        // await TestConsoleMode(simpleConsole);
-        await TestMultilinePrompt(simpleConsole);
+        await TestConsoleMode(simpleConsole);
+        // await TestMultilinePrompt(simpleConsole);
 
         await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.
         if (product.Context.ServiceProvider.GetService<UnitLogger>() is { } unitLogger)
