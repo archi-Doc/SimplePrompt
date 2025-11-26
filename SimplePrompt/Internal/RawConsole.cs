@@ -39,7 +39,7 @@ internal sealed class RawConsole
 
     public bool IsCharsEmpty => this.charsStartIndex >= this.charsEndIndex;
 
-    public RawConsole(SimpleConsole inputConsole, CancellationToken cancellationToken = default)
+    public RawConsole(SimpleConsole inputConsole)
     {
         this.simpleConsole = inputConsole;
         this.encoding = Encoding.UTF8;

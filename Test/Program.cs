@@ -97,7 +97,7 @@ internal class Program
 
     private static async Task TestConsoleMode(SimpleConsole simpleConsole)
     {
-        Interop.SetConsoleMode();
+        Interop.SetConsoleMode(); // Causes "Press any key to close this window..." issue.
 
         while (!ThreadCore.Root.IsTerminated)
         {
@@ -113,7 +113,26 @@ internal class Program
                 MaskingCharacter = '$',
             };
 
-            var result = await simpleConsole.ReadLine(options);
+            var result = await simpleConsole.ReadLine(options, default, keyInfo =>
+            {
+                if (keyInfo.Key == ConsoleKey.F1)
+                {
+                    simpleConsole.WriteLine("Inserted text");
+                    return true;
+                }
+                else if (keyInfo.Key == ConsoleKey.F2)
+                {
+                    simpleConsole.WriteLine("Text1\nText2");
+                    return true;
+                }
+                else if (keyInfo.Key == ConsoleKey.F3)
+                {
+                    return true;
+                }
+
+                return false;
+            });
+
             if (!await ProcessInputResult(simpleConsole, result))
             {
                 break;

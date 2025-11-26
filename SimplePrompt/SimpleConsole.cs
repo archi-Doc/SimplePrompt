@@ -19,6 +19,16 @@ namespace SimplePrompt;
 /// </summary>
 public partial class SimpleConsole : IConsoleService
 {
+    /// <summary>
+    /// Represents a method that handles key input events during console read operations.
+    /// </summary>
+    /// <param name="keyInfo">The <see cref="ConsoleKeyInfo"/> containing information about the pressed key.</param>
+    /// <returns>
+    /// <see langword="true"/> to indicate the key input was handled and should not be processed further;
+    /// <see langword="false"/> to allow normal processing of the key input.
+    /// </returns>
+    public delegate bool KeyInputHook(ConsoleKeyInfo keyInfo);
+
     private const int DelayInMilliseconds = 10;
     private const int WindowBufferSize = 32 * 1024;
 
@@ -78,8 +88,16 @@ public partial class SimpleConsole : IConsoleService
     /// </summary>
     public ReadLineOptions DefaultOptions { get; set; }
 
+    /// <summary>
+    /// Gets the underlying <see cref="TextWriter"/> used for console output operations.
+    /// This writer is used internally for all text output to the console.
+    /// </summary>
     public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
+    /// <summary>
+    /// Gets a value indicating whether a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is currently in progress.<br/>
+    /// Returns <see langword="true"/> if at least one active instance exists in the instance list; otherwise, <see langword="false"/>.
+    /// </summary>
     public bool IsReadLineInProgress => this.instanceList.Count > 0;
 
     internal RawConsole RawConsole { get; }
@@ -98,6 +116,8 @@ public partial class SimpleConsole : IConsoleService
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
+    private int previousBufferIndex = 0;
+    private int previousCursorIndex = 0;
 
     private SimpleConsole()
     {
@@ -115,10 +135,14 @@ public partial class SimpleConsole : IConsoleService
     /// If not specified, <see cref="DefaultOptions" /> will be used.
     /// </param>
     /// <param name="cancellationToken">A cancellation token to cancel the read operation.</param>
+    /// <param name="keyInputHook">
+    /// An optional delegate that handles key input events during console read operations.<br/>
+    /// If provided and returns <see langword="true"/>, the key input is considered handled and will not be processed further.
+    /// </param>
     /// <returns>
     /// A task that represents the asynchronous operation. The task result contains an <see cref="InputResult"/>.
     /// </returns>
-    public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
+    public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default, KeyInputHook? keyInputHook = default)
     {
         ReadLineInstance currentInstance;
         using (this.syncObject.EnterScope())
@@ -207,22 +231,17 @@ ProcessKeyInfo:
                     return new(InputResultKind.Canceled);
                 }
 
+                if (keyInputHook is not null &&
+                    keyInputHook(keyInfo))
+                {// Handled by the hook delegate.
+                    continue;
+                }
+
                 /*else if (keyInfo.Key == ConsoleKey.C &&
                     keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control))
                 { // Ctrl+C
                     ThreadCore.Root.Terminate(); // Send a termination signal to the root.
                     return null;
-                }*/
-
-                /*if (keyInfo.Key == ConsoleKey.F1)
-                {
-                    this.WriteLine("Inserted text");
-                    continue;
-                }
-                else if (keyInfo.Key == ConsoleKey.F2)
-                {
-                    this.WriteLine("Text1\nText2");
-                    continue;
                 }*/
 
                 bool flush = true;
@@ -288,7 +307,12 @@ ProcessKeyInfo:
     Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
         => this.ReadLine(default, cancellationToken);
 
-    void IConsoleService.Write(string? message)
+    /// <summary>
+    /// Writes the specified message to the console without a newline.<br/>
+    /// Note that while <b>ReadLine()</b> is waiting for input, messages will not be displayed.
+    /// </summary>
+    /// <param name="message">The message to write. If null, nothing is written.</param>
+    public void Write(string? message)
     {
         this.simpleTextWriter.Write(message);
     }
@@ -311,8 +335,7 @@ ProcessKeyInfo:
                     return;
                 }
 
-                var location = this.GetLocation();
-
+                var location = activeInstance.GetLocation();
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
                 this.WriteInternal(message);
                 activeInstance.RedrawInternal();
@@ -585,7 +608,7 @@ ProcessKeyInfo:
         return false;
     }
 
-    private void PrepareWindow(ReadLineInstance? readLineInstance)
+    private void PrepareWindow(ReadLineInstance? activeInstance)
     {
         var windowWidth = 120;
         var windowHeight = 30;
@@ -612,59 +635,55 @@ ProcessKeyInfo:
         if (windowWidth == this.WindowWidth &&
             windowHeight == this.WindowHeight)
         {
+            if (activeInstance is not null)
+            {
+                (this.previousBufferIndex, this.previousCursorIndex) = activeInstance.GetLocation();
+            }
+
             return;
         }
 
+        var prevWindowWidth = this.WindowWidth;
+        var prevWindowHeight = this.WindowHeight;
         this.WindowWidth = windowWidth;
         this.WindowHeight = windowHeight;
 
-        if (readLineInstance is not null)
+        if (activeInstance is not null)
         {
             var newCursor = Console.GetCursorPosition();
-            var dif = newCursor.Top - this.CursorTop;
+            /*var dif = newCursor.Top - this.CursorTop;
+            if (dif != 0)
+            {
+                foreach (var x in activeInstance.BufferList)
+                {
+                    x.Top += dif;
+                }
+            }*/
+
+            // Estimate buffer index
+            /*var height = ((newCursor.Left - this.CursorLeft) + ((newCursor.Top - this.CursorTop) * windowWidth)) / (prevWindowWidth - windowWidth);
+            var top = this.CursorTop - height;
+            if (activeInstance.BufferList.Find(x => x.Top == top) is { } buffer)
+            {
+                var newTop = this.CursorTop - height;
+                buffer.Top = newTop;
+                buffer.UpdateHeight(false);
+                for (var i = buffer.Index - 1; i >= 0; i--)
+                {
+                    activeInstance.BufferList[i + 1].UpdateHeight(false);
+                    activeInstance.BufferList[i].Top = activeInstance.BufferList[i + 1].Top - activeInstance.BufferList[i + 1].Height;
+                }
+
+                for (var i = buffer.Index + 1; i < activeInstance.BufferList.Count; i++)
+                {
+                    activeInstance.BufferList[i - 1].UpdateHeight(false);
+                    activeInstance.BufferList[i].Top = activeInstance.BufferList[i - 1].Top + activeInstance.BufferList[i - 1].Height;
+                }
+            }*/
+
+            // var buffer = activeInstance.BufferList[this.previousBufferIndex];
+
             (this.CursorLeft, this.CursorTop) = newCursor;
-            foreach (var x in readLineInstance.BufferList)
-            {
-                x.Top += dif;
-            }
-        }
-    }
-
-    private (int BufferIndex, int CursorIndex) GetLocation()
-    {
-        if (!this.TryGetActiveInstance(out var instance))
-        {
-            return default;
-        }
-
-        if (instance.BufferList.Count == 0)
-        {
-            return default;
-        }
-
-        var y = instance.BufferList[0].Top;
-        ReadLineBuffer? buffer = null;
-        foreach (var x in instance.BufferList)
-        {
-            x.Top = y;
-            x.UpdateHeight(false);
-            y += x.Height;
-            if (buffer is null &&
-                this.CursorTop >= x.Top &&
-                this.CursorTop < y)
-            {
-                buffer = x;
-                break;
-            }
-        }
-
-        if (buffer is null)
-        {
-            return default;
-        }
-        else
-        {
-            return (buffer.Index, buffer.GetCursorIndex());
         }
     }
 }
