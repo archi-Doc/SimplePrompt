@@ -67,8 +67,8 @@ internal class Program
         while (!ThreadCore.Root.IsTerminated)
         {
             Console.Write("d");
-            // Thread.Sleep(100);
-            await Task.Delay(100/*DelayInMilliseconds*/).ConfigureAwait(false);
+            Thread.Sleep(100);
+            // await Task.Delay(100/*DelayInMilliseconds*/).ConfigureAwait(false);
             Console.Write("e");
         }
 
