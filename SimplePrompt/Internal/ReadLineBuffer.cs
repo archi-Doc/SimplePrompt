@@ -325,18 +325,17 @@ internal class ReadLineBuffer
         // Characters
         var maskingCharacter = this.readLineInstance.Options.MaskingCharacter;
         if (maskingCharacter == default)
-        {
+        {// Plain
             span = this.charArray.AsSpan(startIndex, length);
             span.CopyTo(buffer);
             written += span.Length;
             buffer = buffer.Slice(span.Length);
         }
         else
-        {
-            var width = (int)BaseHelper.Sum(this.widthArray.AsSpan(startIndex, length));
-            buffer.Slice(0, width).Fill(maskingCharacter);
-            written += width;
-            buffer = buffer.Slice(width);
+        {// Masked
+            buffer.Slice(0, totalWidth).Fill(maskingCharacter);
+            written += totalWidth;
+            buffer = buffer.Slice(totalWidth);
         }
 
         if (appendLineFeed)
@@ -374,26 +373,29 @@ internal class ReadLineBuffer
             buffer = buffer.Slice(span.Length);
         }
 
-        // Set cursor
-        span = ConsoleHelper.SetCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;
+        if (cursorDif != totalWidth)
+        {
+            // Set cursor
+            span = ConsoleHelper.SetCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
 
-        x = newCursorTop + 1;
-        y = newCursorLeft + 1;
-        x.TryFormat(buffer, out w);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = ';';
-        buffer = buffer.Slice(1);
-        written += 1;
-        y.TryFormat(buffer, out w);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = 'H';
-        buffer = buffer.Slice(1);
-        written += 1;
+            x = newCursorTop + 1;
+            y = newCursorLeft + 1;
+            x.TryFormat(buffer, out w);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = ';';
+            buffer = buffer.Slice(1);
+            written += 1;
+            y.TryFormat(buffer, out w);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = 'H';
+            buffer = buffer.Slice(1);
+            written += 1;
+        }
 
         // Show cursor
         span = ConsoleHelper.ShowCursorSpan;
