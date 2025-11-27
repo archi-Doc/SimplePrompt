@@ -4,17 +4,13 @@ using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Unit;
 
-#pragma warning disable SA1202 // Elements should be ordered by access
-
 namespace SimplePrompt.Internal;
 
-internal class InputBuffer
+internal class ReadLineBuffer
 {
     private const int BufferSize = 1_024;
     private const int BufferMargin = 32;
-    private const int MaxPromptWidth = 256;
-
-    public SimpleConsole InputConsole { get; }
+    private const int MaxPromptWidth = 1_024;
 
     public int Index { get; set; }
 
@@ -23,12 +19,12 @@ internal class InputBuffer
     /// <summary>
     /// Gets the cursor's horizontal position relative to the buffer's left edge.
     /// </summary>
-    public int CursorLeft => this.InputConsole.CursorLeft;
+    public int CursorLeft => this.simpleConsole.CursorLeft;
 
     /// <summary>
     /// Gets the cursor's vertical position relative to the buffer's top edge.
     /// </summary>
-    public int CursorTop => this.InputConsole.CursorTop - this.Top;
+    public int CursorTop => this.simpleConsole.CursorTop - this.Top;
 
     public string? Prompt { get; private set; }
 
@@ -42,29 +38,36 @@ internal class InputBuffer
 
     public int TotalWidth => this.PromtWidth + this.Width;
 
-    public int WindowWidth => this.InputConsole.WindowWidth;
+    public int WindowWidth => this.simpleConsole.WindowWidth;
 
-    public int WindowHeight => this.InputConsole.WindowHeight;
+    public int WindowHeight => this.simpleConsole.WindowHeight;
 
     public ReadOnlySpan<char> TextSpan => this.charArray.AsSpan(0, this.Length);
 
+    private readonly SimpleConsole simpleConsole;
+    private ReadLineInstance readLineInstance = default!;
     private char[] charArray = new char[BufferSize];
     private byte[] widthArray = new byte[BufferSize];
 
-    public InputBuffer(SimpleConsole inputConsole)
+    public ReadLineBuffer(SimpleConsole inputConsole)
     {
-        this.InputConsole = inputConsole;
+        this.simpleConsole = inputConsole;
     }
 
-    public override string ToString()
+    public void Initialize(ReadLineInstance @instance, int index, string? prompt)
     {
-        const int MaxLength = 32;
-        if (this.TextSpan.Length <= MaxLength)
+        this.readLineInstance = instance;
+        this.Index = index;
+        if (prompt?.Length > MaxPromptWidth)
         {
-            return new string(this.TextSpan);
+            prompt = prompt.Substring(0, MaxPromptWidth);
         }
 
-        return new string(this.TextSpan.Slice(0, MaxLength));
+        this.Prompt = prompt;
+        this.PromtWidth = SimplePromptHelper.GetWidth(this.Prompt);
+        this.Length = 0;
+        this.Width = 0;
+        this.Height = 1;
     }
 
     public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
@@ -80,11 +83,11 @@ internal class InputBuffer
             var key = keyInfo.Key;
             if (key == ConsoleKey.Enter)
             {// Exit or Multiline """
-                if (!this.InputConsole.CurrentOptions.AllowEmptyLineInput)
+                if (!this.readLineInstance.Options.AllowEmptyLineInput)
                 {
-                    if (this.InputConsole.Buffers.Count == 0 ||
-                    (this.InputConsole.Buffers.Count == 1 &&
-                    this.InputConsole.Buffers[0].Length == 0))
+                    if (this.readLineInstance.BufferList.Count == 0 ||
+                    (this.readLineInstance.BufferList.Count == 1 &&
+                    this.readLineInstance.BufferList[0].Length == 0))
                     {// Empty input
                         return false;
                     }
@@ -96,7 +99,7 @@ internal class InputBuffer
             {
                 if (this.Length == 0)
                 {// Delete empty buffer
-                    this.InputConsole.TryDeleteBuffer(this.Index);
+                    this.readLineInstance.TryDeleteBuffer(this.Index);
                     return false;
                 }
 
@@ -126,7 +129,7 @@ internal class InputBuffer
             {
                 if (this.Length == 0)
                 {// Delete empty buffer
-                    this.InputConsole.TryDeleteBuffer(this.Index);
+                    this.readLineInstance.TryDeleteBuffer(this.Index);
                     return false;
                 }
 
@@ -178,7 +181,7 @@ internal class InputBuffer
             }
             else if (key == ConsoleKey.UpArrow)
             {// History or move line
-                if (this.InputConsole.MultilineMode)
+                if (this.readLineInstance.MultilineMode)
                 {// Up
                     this.MoveUpOrDown(true);
                 }
@@ -190,7 +193,7 @@ internal class InputBuffer
             }
             else if (key == ConsoleKey.DownArrow)
             {// History or move line
-                if (this.InputConsole.MultilineMode)
+                if (this.readLineInstance.MultilineMode)
                 {// Down
                     this.MoveUpOrDown(false);
                 }
@@ -210,18 +213,15 @@ internal class InputBuffer
         return false;
     }
 
-    internal ReadOnlySpan<char> GetVisualSpan(int start, int length)
+    public override string ToString()
     {
-        var maskingCharacter = this.InputConsole.CurrentOptions.MaskingCharacter;
-        if (maskingCharacter == default)
+        const int MaxLength = 32;
+        if (this.TextSpan.Length <= MaxLength)
         {
-            return this.charArray.AsSpan(start, length);
+            return new string(this.TextSpan);
         }
-        else
-        {
-            var width = BaseHelper.Sum(this.widthArray.AsSpan(start, length));
-            return new string(maskingCharacter, (int)width).AsSpan(); // I'm worried about allocations, but maybe I don't need to care that much…
-        }
+
+        return new string(this.TextSpan.Slice(0, MaxLength));
     }
 
     internal void UpdateHeight(bool refresh)
@@ -230,8 +230,189 @@ internal class InputBuffer
         this.Height = (this.TotalWidth + this.WindowWidth) / this.WindowWidth;
         if (refresh && previousHeight != this.Height)
         {
-            this.InputConsole.HeightChanged(this.Index, this.Height - previousHeight);
+            this.readLineInstance.HeightChanged(this.Index, this.Height - previousHeight);
         }
+    }
+
+    internal (int Left, int Top) ToCursor(int cursorIndex)
+    {
+        cursorIndex += this.PromtWidth;
+        var top = cursorIndex / this.simpleConsole.WindowWidth;
+        var left = cursorIndex - (top * this.simpleConsole.WindowWidth);
+        return (left, top);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal int GetCursorIndex()
+        => this.GetCursorIndex(this.CursorLeft, this.CursorTop);
+
+    internal void Write(int startIndex, int endIndex, int cursorDif, int removedWidth, bool eraseLine = false)
+    {
+        int x, y, w;
+        var length = endIndex < 0 ? this.Length : endIndex - startIndex;
+        var widthSpan = this.widthArray.AsSpan(startIndex, length);
+        var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
+        var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
+
+        var startCursor = (this.Top * this.WindowWidth) + startPosition;
+        var windowRemaining = (this.WindowWidth * this.WindowHeight) - startCursor;
+        if (totalWidth > windowRemaining)
+        {
+        }
+
+        var startCursorLeft = startCursor % this.WindowWidth;
+        var startCursorTop = startCursor / this.WindowWidth;
+        if (startCursorTop < 0)
+        {
+            return;
+        }
+
+        var scroll = startCursorTop + 1 + ((startCursorLeft + totalWidth) / this.WindowWidth) - this.WindowHeight;
+
+        startCursor += cursorDif;
+        var newCursorLeft = startCursor % this.WindowWidth;
+        var newCursorTop = startCursor / this.WindowWidth;
+        var appendLineFeed = startCursor == (this.WindowWidth * this.WindowHeight);
+
+        ReadOnlySpan<char> span;
+        var windowBuffer = SimpleConsole.RentWindowBuffer();
+        var buffer = windowBuffer.AsSpan();
+        var written = 0;
+
+        // Hide cursor
+        span = ConsoleHelper.HideCursorSpan;
+        span.CopyTo(buffer);
+        written += span.Length;
+        buffer = buffer.Slice(span.Length);
+
+        if (startCursorLeft != this.CursorLeft || startCursorTop != (this.Top + this.CursorTop))
+        {// Move cursor
+            span = ConsoleHelper.SetCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
+
+            x = newCursorTop + 1;
+            y = newCursorLeft + 1;
+            x.TryFormat(buffer, out w);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = ';';
+            buffer = buffer.Slice(1);
+            written += 1;
+            y.TryFormat(buffer, out w);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = 'H';
+            buffer = buffer.Slice(1);
+            written += 1;
+        }
+
+        if (endIndex < 0 && this.Prompt is not null)
+        {// Prompt
+            span = this.Prompt.AsSpan();
+            span.CopyTo(buffer);
+            written += span.Length;
+            buffer = buffer.Slice(span.Length);
+        }
+
+        // Input color
+        span = ConsoleHelper.GetForegroundColorEscapeCode(this.readLineInstance.Options.InputColor).AsSpan();
+        span.CopyTo(buffer);
+        written += span.Length;
+        buffer = buffer.Slice(span.Length);
+
+        // Characters
+        var maskingCharacter = this.readLineInstance.Options.MaskingCharacter;
+        if (maskingCharacter == default)
+        {// Plain
+            span = this.charArray.AsSpan(startIndex, length);
+            span.CopyTo(buffer);
+            written += span.Length;
+            buffer = buffer.Slice(span.Length);
+        }
+        else
+        {// Masked
+            buffer.Slice(0, totalWidth).Fill(maskingCharacter);
+            written += totalWidth;
+            buffer = buffer.Slice(totalWidth);
+        }
+
+        /*if (appendLineFeed)
+        {
+            buffer[0] = '\n';
+            written += 1;
+            buffer = buffer.Slice(1);
+        }*/
+
+        // Reset color
+        span = ConsoleHelper.ResetSpan;
+        span.CopyTo(buffer);
+        written += span.Length;
+        buffer = buffer.Slice(span.Length);
+
+        if (removedWidth == 1)
+        {
+            buffer[0] = ' ';
+            written += 1;
+            buffer = buffer.Slice(1);
+        }
+        else if (removedWidth == 2)
+        {
+            buffer[0] = ' ';
+            buffer[1] = ' ';
+            written += 2;
+            buffer = buffer.Slice(2);
+        }
+
+        if (eraseLine)
+        {// Erase line
+            span = ConsoleHelper.EraseToEndOfLineSpan;
+            span.CopyTo(buffer);
+            written += span.Length;
+            buffer = buffer.Slice(span.Length);
+        }
+
+        if (cursorDif != totalWidth || cursorDif == 0)
+        {
+            // Set cursor
+            span = ConsoleHelper.SetCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
+
+            x = newCursorTop + 1;
+            y = newCursorLeft + 1;
+            x.TryFormat(buffer, out w);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = ';';
+            buffer = buffer.Slice(1);
+            written += 1;
+            y.TryFormat(buffer, out w);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = 'H';
+            buffer = buffer.Slice(1);
+            written += 1;
+        }
+
+        // Show cursor
+        span = ConsoleHelper.ShowCursorSpan;
+        span.CopyTo(buffer);
+        buffer = buffer.Slice(span.Length);
+        written += span.Length;
+
+        if (scroll > 0)
+        {
+            this.simpleConsole.Scroll(scroll, true);
+            newCursorTop -= scroll;
+        }
+
+        this.simpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        SimpleConsole.ReturnWindowBuffer(windowBuffer);
+        this.simpleConsole.CursorLeft = newCursorLeft;
+        this.simpleConsole.CursorTop = newCursorTop;
     }
 
     private void ClearLine()
@@ -245,26 +426,6 @@ internal class InputBuffer
         this.Width = 0;
         this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
         // this.UpdateConsole(0, this.Length, 0, true);
-    }
-
-    /*public int GetWidth()
-    {
-        return (int)BaseHelper.Sum(this.widthArray.AsSpan(0, this.Length));
-    }*/
-
-    public void Initialize(int index, string? prompt)
-    {
-        this.Index = index;
-        if (prompt?.Length > MaxPromptWidth)
-        {
-            prompt = prompt.Substring(0, MaxPromptWidth);
-        }
-
-        this.Prompt = prompt;
-        this.PromtWidth = SimplePromptHelper.GetWidth(this.Prompt);
-        this.Length = 0;
-        this.Width = 0;
-        this.Height = 1;
     }
 
     private void EnsureCapacity(int capacity)
@@ -287,7 +448,7 @@ internal class InputBuffer
     {
         // if (this.InputConsole.IsInsertMode)
         {// Insert
-            if (!this.InputConsole.IsLengthWithinLimit(charBuffer.Length))
+            if (!this.readLineInstance.IsLengthWithinLimit(charBuffer.Length))
             {
                 return;
             }
@@ -398,177 +559,6 @@ internal class InputBuffer
         cursorIndex = newIndex;
     }
 
-    internal (int Left, int Top) ToCursor(int cursorIndex)
-    {
-        cursorIndex += this.PromtWidth;
-        var top = cursorIndex / this.InputConsole.WindowWidth;
-        var left = cursorIndex - (top * this.InputConsole.WindowWidth);
-        return (left, top);
-    }
-
-    internal void Write(int startIndex, int endIndex, int cursorDif, int removedWidth, bool eraseLine = false)
-    {
-        int x, y, w;
-        var length = endIndex < 0 ? this.Length : endIndex - startIndex;
-        var charSpan = this.GetVisualSpan(startIndex, length);
-        var widthSpan = this.widthArray.AsSpan(startIndex, length);
-        var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
-        var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
-
-        var startCursor = (this.Top * this.WindowWidth) + startPosition;
-        var windowRemaining = (this.WindowWidth * this.WindowHeight) - startCursor;
-        if (totalWidth > windowRemaining)
-        {
-        }
-
-        var startCursorLeft = startCursor % this.WindowWidth;
-        var startCursorTop = startCursor / this.WindowWidth;
-        if (startCursorTop < 0)
-        {
-            return;
-        }
-
-        var scroll = startCursorTop + 1 + ((startCursorLeft + totalWidth) / this.WindowWidth) - this.WindowHeight;
-
-        startCursor += cursorDif;
-        var newCursorLeft = startCursor % this.WindowWidth;
-        var newCursorTop = startCursor / this.WindowWidth;
-        var appendLineFeed = startCursor == (this.WindowWidth * this.WindowHeight);
-
-        ReadOnlySpan<char> span;
-        var buffer = this.InputConsole.WindowBuffer.AsSpan();
-        var written = 0;
-
-        // Hide cursor
-        span = ConsoleHelper.HideCursorSpan;
-        span.CopyTo(buffer);
-        written += span.Length;
-        buffer = buffer.Slice(span.Length);
-
-        if (startCursorLeft != this.CursorLeft || startCursorTop != (this.Top + this.CursorTop))
-        {// Move cursor
-            span = ConsoleHelper.SetCursorSpan;
-            span.CopyTo(buffer);
-            buffer = buffer.Slice(span.Length);
-            written += span.Length;
-
-            x = newCursorTop + 1;
-            y = newCursorLeft + 1;
-            x.TryFormat(buffer, out w);
-            buffer = buffer.Slice(w);
-            written += w;
-            buffer[0] = ';';
-            buffer = buffer.Slice(1);
-            written += 1;
-            y.TryFormat(buffer, out w);
-            buffer = buffer.Slice(w);
-            written += w;
-            buffer[0] = 'H';
-            buffer = buffer.Slice(1);
-            written += 1;
-        }
-
-        if (endIndex < 0 && this.Prompt is not null)
-        {// Prompt
-            span = this.Prompt.AsSpan();
-            span.CopyTo(buffer);
-            written += span.Length;
-            buffer = buffer.Slice(span.Length);
-        }
-
-        // Input color
-        span = ConsoleHelper.GetForegroundColorEscapeCode(this.InputConsole.CurrentOptions.InputColor).AsSpan();
-        span.CopyTo(buffer);
-        written += span.Length;
-        buffer = buffer.Slice(span.Length);
-
-        // Characters
-        span = charSpan;
-        span.CopyTo(buffer);
-        written += span.Length;
-        buffer = buffer.Slice(span.Length);
-
-        if (appendLineFeed)
-        {
-            buffer[0] = '\n';
-            written += 1;
-            buffer = buffer.Slice(1);
-        }
-
-        // Reset color
-        span = ConsoleHelper.ResetSpan;
-        span.CopyTo(buffer);
-        written += span.Length;
-        buffer = buffer.Slice(span.Length);
-
-        if (removedWidth == 1)
-        {
-            buffer[0] = ' ';
-            written += 1;
-            buffer = buffer.Slice(1);
-        }
-        else if (removedWidth == 2)
-        {
-            buffer[0] = ' ';
-            buffer[1] = ' ';
-            written += 2;
-            buffer = buffer.Slice(2);
-        }
-
-        if (eraseLine)
-        {// Erase line
-            span = ConsoleHelper.EraseToEndOfLineSpan;
-            span.CopyTo(buffer);
-            written += span.Length;
-            buffer = buffer.Slice(span.Length);
-        }
-
-        // Set cursor
-        span = ConsoleHelper.SetCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;
-
-        x = newCursorTop + 1;
-        y = newCursorLeft + 1;
-        x.TryFormat(buffer, out w);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = ';';
-        buffer = buffer.Slice(1);
-        written += 1;
-        y.TryFormat(buffer, out w);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = 'H';
-        buffer = buffer.Slice(1);
-        written += 1;
-
-        // Show cursor
-        span = ConsoleHelper.ShowCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;
-
-        if (scroll > 0)
-        {
-            this.InputConsole.Scroll(scroll, true);
-        }
-
-        try
-        {
-            this.InputConsole.RawConsole.WriteInternal(this.InputConsole.WindowBuffer.AsSpan(0, written));
-            // Console.Out.Write(this.InputConsole.WindowBuffer.AsSpan(0, written));
-
-            // this.SetCursorPosition(newCursorLeft - this.Left, newCursorTop - this.Top, true);
-            this.InputConsole.CursorLeft = newCursorLeft;
-            this.InputConsole.CursorTop = newCursorTop;
-        }
-        catch
-        {
-        }
-    }
-
     private int RemoveAt(int index)
     {
         var w = this.widthArray[index];
@@ -630,13 +620,9 @@ internal class InputBuffer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int GetCursorIndex(int cursorLeft, int cursorTop)
     {
-        var index = cursorLeft - this.PromtWidth + (cursorTop * this.InputConsole.WindowWidth);
+        var index = cursorLeft - this.PromtWidth + (cursorTop * this.simpleConsole.WindowWidth);
         return index;
     }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal int GetCursorIndex()
-        => this.GetCursorIndex(this.CursorLeft, this.CursorTop);
 
     private void MoveLeft(int arrayPosition)
     {
@@ -688,12 +674,12 @@ internal class InputBuffer
         {// Up arrow
             if (cursorTop <= 0)
             {// Previous buffer
-                if (this.Index <= 0)
+                if (this.Index <= this.readLineInstance.EditableBufferIndex)
                 {
                     return;
                 }
 
-                buffer = this.InputConsole.Buffers[this.Index - 1];
+                buffer = this.readLineInstance.BufferList[this.Index - 1];
                 cursorTop = buffer.Height - 1;
             }
             else
@@ -705,12 +691,13 @@ internal class InputBuffer
         {// Down arrow
             if (cursorTop + 1 >= this.Height)
             {// Next buffer
-                if (this.Index + 1 >= this.InputConsole.Buffers.Count)
+                var idx = this.Index + 1;
+                if (idx >= this.readLineInstance.BufferList.Count)
                 {
                     return;
                 }
 
-                buffer = this.InputConsole.Buffers[this.Index + 1];
+                buffer = this.readLineInstance.BufferList[this.Index + 1];
                 cursorTop = 0;
             }
             else
@@ -742,7 +729,7 @@ internal class InputBuffer
                 cursorLeft != this.CursorLeft ||
                 cursorTop != this.CursorTop)
             {
-                this.InputConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
+                this.simpleConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
             }
         }
         catch

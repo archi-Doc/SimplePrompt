@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Runtime.InteropServices;
 using Arc;
 using Arc.Threading;
 using Arc.Unit;
@@ -11,8 +10,6 @@ namespace Playground;
 
 internal class Program
 {
-
-
     public static async Task Main(string[] args)
     {
         AppCloseHandler.Set(() =>
@@ -61,23 +58,12 @@ internal class Program
             // MaskingCharacter = '?',
         };
 
-        // Interop.SetConsoleMode();
-        // Console.WriteLine(Environment.OSVersion.ToString());
-
         Console.WriteLine(Environment.OSVersion.ToString());
 
         while (!ThreadCore.Root.IsTerminated)
         {
             var options = simpleConsole.DefaultOptions with
             {
-                // Prompt = "Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input> ",
-                MultilinePrompt = ">> ",
-                MultilineIdentifier = "...",
-                InputColor = ConsoleColor.Cyan,
-                CancelOnEscape = false,
-                AllowEmptyLineInput = true,
-                MaxInputLength = 10,
-                MaskingCharacter = '$',
             };
 
             var result = await simpleConsole.ReadLine(options);

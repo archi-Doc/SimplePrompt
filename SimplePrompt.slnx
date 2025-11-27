@@ -2,4 +2,5 @@
   <Project Path="Playground/Playground.csproj" Id="04e2665c-8e1f-415e-a517-a4a22e0c73d9" />
   <Project Path="QuickStart/QuickStart.csproj" Id="d185ef33-62f4-40ab-b836-0681d8805331" />
   <Project Path="SimplePrompt/SimplePrompt.csproj" />
+  <Project Path="Test/Test.csproj" Id="1050e6c0-3dc2-42b6-9a8e-fb632c3d9b51" />
 </Solution>

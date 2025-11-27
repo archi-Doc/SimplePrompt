@@ -47,12 +47,6 @@ internal static partial class Interop
         VEOL2 = 16,
     }
 
-    public enum BOOL : int
-    {
-        FALSE = 0,
-        TRUE = 1,
-    }
-
     internal static class FileDescriptors
     {
         internal static readonly SafeFileHandle STDIN_FILENO = CreateFileHandle(0);

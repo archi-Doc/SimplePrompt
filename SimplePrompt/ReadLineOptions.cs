@@ -11,6 +11,8 @@ namespace SimplePrompt;
 /// </summary>
 public record class ReadLineOptions
 {
+    public static readonly ReadLineOptions Default = new();
+
     /// <summary>
     /// Gets the color used for user input in the console.
     /// Default is <see cref="ConsoleColor.Yellow"/>.
