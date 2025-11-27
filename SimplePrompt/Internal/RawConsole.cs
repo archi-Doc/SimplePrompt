@@ -133,8 +133,8 @@ internal sealed class RawConsole
     {
         try
         {
-            if (this.handle is not null)
-            {//
+            /*if (this.handle is not null)
+            {
                 var length = Encoding.UTF8.GetMaxByteCount(data.Length);
 
                 byte[]? pooledName = null;
@@ -158,7 +158,7 @@ internal sealed class RawConsole
                     }
                 }
             }
-            else
+            else*/
             {
                 this.simpleConsole.UnderlyingTextWriter.Write(data);
             }
