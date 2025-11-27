@@ -185,12 +185,13 @@ public partial class SimpleConsole : IConsoleService
                 {
                     delayFlag = false;
                     this.UnderlyingTextWriter.Write("d");
-                    Thread.Sleep(100);
-                    // await Task.Delay(100/*DelayInMilliseconds*/, cancellationToken).ConfigureAwait(false);
+                    // Thread.Sleep(100);
+                    await Task.Delay(100/*DelayInMilliseconds*/, cancellationToken).ConfigureAwait(false);
                 }
 
                 using (this.syncObject.EnterScope())
                 {
+                    this.UnderlyingTextWriter.Write("e");
                     var idx = this.instanceList.IndexOf(currentInstance);
                     if (idx < 0)
                     {// Not found
@@ -204,6 +205,7 @@ public partial class SimpleConsole : IConsoleService
 
                     // Active instance: Prepare window and read key input.
                     this.PrepareWindow(currentInstance);
+                    this.UnderlyingTextWriter.Write("f");
                     if (!this.RawConsole.TryRead(out keyInfo))
                     {
                         delayFlag = true;
