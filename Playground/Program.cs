@@ -59,6 +59,7 @@ internal class Program
         };
 
         ThreadPool.GetMinThreads(out var worker, out var io);
+        ThreadPool.SetMinThreads(32, 32);
         Console.WriteLine($"Worker:{worker} Io:{io}");
         // ThreadPool.SetMinThreads(Math.Max(worker, 8), io)
 
