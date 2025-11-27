@@ -184,15 +184,11 @@ public partial class SimpleConsole : IConsoleService
                 if (delayFlag)
                 {
                     delayFlag = false;
-                    this.UnderlyingTextWriter.Write("d");
-                    // Thread.Sleep(100);
                     await Task.Delay(100/*DelayInMilliseconds*/, cancellationToken).ConfigureAwait(false);
-                    this.UnderlyingTextWriter.Write("d2");
                 }
 
                 using (this.syncObject.EnterScope())
                 {
-                    this.UnderlyingTextWriter.Write("e");
                     var idx = this.instanceList.IndexOf(currentInstance);
                     if (idx < 0)
                     {// Not found
