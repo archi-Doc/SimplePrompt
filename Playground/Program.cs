@@ -58,6 +58,10 @@ internal class Program
             // MaskingCharacter = '?',
         };
 
+        ThreadPool.GetMinThreads(out var worker, out var io);
+        Console.WriteLine($"Worker:{worker} Io:{io}");
+        // ThreadPool.SetMinThreads(Math.Max(worker, 8), io)
+
         Console.WriteLine(Environment.OSVersion.ToString());
 
         while (!ThreadCore.Root.IsTerminated)
