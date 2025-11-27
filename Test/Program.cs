@@ -46,7 +46,6 @@ internal class Program
                 });
             });
 
-
         var product = builder.Build();
         var logger = product.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
         logger.TryGet()?.Log("Start");
@@ -96,7 +95,7 @@ internal class Program
 
     private static async Task TestConsoleMode(SimpleConsole simpleConsole)
     {
-        Interop.SetConsoleMode(); // Causes "Press any key to close this window..." issue.
+        // Interop.SetConsoleMode(); // Causes "Press any key to close this window..." and other issues.
 
         while (!ThreadCore.Root.IsTerminated)
         {

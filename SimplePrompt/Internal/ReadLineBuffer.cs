@@ -373,7 +373,7 @@ internal class ReadLineBuffer
             buffer = buffer.Slice(span.Length);
         }
 
-        if (cursorDif != totalWidth)
+        if (cursorDif != totalWidth || cursorDif == 0)
         {
             // Set cursor
             span = ConsoleHelper.SetCursorSpan;
@@ -403,10 +403,10 @@ internal class ReadLineBuffer
         buffer = buffer.Slice(span.Length);
         written += span.Length;
 
-        if (scroll > 0)
+        /*if (scroll > 0)
         {
             this.simpleConsole.Scroll(scroll, true);
-        }
+        }*/
 
         this.simpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
