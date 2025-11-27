@@ -338,12 +338,12 @@ internal class ReadLineBuffer
             buffer = buffer.Slice(totalWidth);
         }
 
-        if (appendLineFeed)
+        /*if (appendLineFeed)
         {
             buffer[0] = '\n';
             written += 1;
             buffer = buffer.Slice(1);
-        }
+        }*/
 
         // Reset color
         span = ConsoleHelper.ResetSpan;
@@ -403,10 +403,11 @@ internal class ReadLineBuffer
         buffer = buffer.Slice(span.Length);
         written += span.Length;
 
-        /*if (scroll > 0)
+        if (scroll > 0)
         {
             this.simpleConsole.Scroll(scroll, true);
-        }*/
+            newCursorTop -= scroll;
+        }
 
         this.simpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
