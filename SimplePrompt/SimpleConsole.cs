@@ -187,6 +187,7 @@ public partial class SimpleConsole : IConsoleService
                     this.UnderlyingTextWriter.Write("d");
                     // Thread.Sleep(100);
                     await Task.Delay(100/*DelayInMilliseconds*/, cancellationToken).ConfigureAwait(false);
+                    this.UnderlyingTextWriter.Write("d2");
                 }
 
                 using (this.syncObject.EnterScope())
@@ -205,7 +206,6 @@ public partial class SimpleConsole : IConsoleService
 
                     // Active instance: Prepare window and read key input.
                     this.PrepareWindow(currentInstance);
-                    this.UnderlyingTextWriter.Write("f");
                     if (!this.RawConsole.TryRead(out keyInfo))
                     {
                         delayFlag = true;
