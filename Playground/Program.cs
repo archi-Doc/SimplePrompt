@@ -26,6 +26,14 @@ internal class Program
             ThreadCore.Root.Terminate(); // Send a termination signal to the root.
         };
 
+        while (!ThreadCore.Root.IsTerminated)
+        {
+            Console.Write("d");
+            Thread.Sleep(100);
+            // await Task.Delay(100/*DelayInMilliseconds*/).ConfigureAwait(false);
+            Console.Write("e");
+        }
+
         var builder = new UnitBuilder()
             .Configure(context =>
             {
@@ -60,17 +68,9 @@ internal class Program
             // MaskingCharacter = '?',
         };
 
-        ThreadPool.GetMinThreads(out var worker, out var io);
-        Console.WriteLine($"Worker:{worker} Io:{io}");
+        // ThreadPool.GetMinThreads(out var worker, out var io);
+        // Console.WriteLine($"Worker:{worker} Io:{io}");
         // ThreadPool.SetMinThreads(Math.Max(worker, 8), io)
-
-        while (!ThreadCore.Root.IsTerminated)
-        {
-            Console.Write("d");
-            Thread.Sleep(100);
-            // await Task.Delay(100/*DelayInMilliseconds*/).ConfigureAwait(false);
-            Console.Write("e");
-        }
 
         Console.WriteLine(Environment.OSVersion.ToString());
 
