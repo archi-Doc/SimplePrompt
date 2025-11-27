@@ -1,5 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System;
+using System.Threading;
 using Arc;
 using Arc.Threading;
 using Arc.Unit;
@@ -59,9 +61,16 @@ internal class Program
         };
 
         ThreadPool.GetMinThreads(out var worker, out var io);
-        ThreadPool.SetMinThreads(32, 32);
         Console.WriteLine($"Worker:{worker} Io:{io}");
         // ThreadPool.SetMinThreads(Math.Max(worker, 8), io)
+
+        while (!ThreadCore.Root.IsTerminated)
+        {
+            Console.Write("d");
+            // Thread.Sleep(100);
+            await Task.Delay(100/*DelayInMilliseconds*/).ConfigureAwait(false);
+            Console.Write("e");
+        }
 
         Console.WriteLine(Environment.OSVersion.ToString());
 
