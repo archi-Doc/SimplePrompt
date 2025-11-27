@@ -185,7 +185,8 @@ public partial class SimpleConsole : IConsoleService
                 {
                     delayFlag = false;
                     this.UnderlyingTextWriter.Write("d");
-                    await Task.Delay(100/*DelayInMilliseconds*/, cancellationToken).ConfigureAwait(false);
+                    Thread.Sleep(100);
+                    // await Task.Delay(100/*DelayInMilliseconds*/, cancellationToken).ConfigureAwait(false);
                 }
 
                 using (this.syncObject.EnterScope())
