@@ -95,7 +95,7 @@ internal class Program
 
     private static async Task TestConsoleMode(SimpleConsole simpleConsole)
     {
-        // Interop.SetConsoleMode(); // Causes "Press any key to close this window..." and other issues.
+        Interop.SetConsoleMode(); // Causes "Press any key to close this window..." issue.
 
         while (!ThreadCore.Root.IsTerminated)
         {

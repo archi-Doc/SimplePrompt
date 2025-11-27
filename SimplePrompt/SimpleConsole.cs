@@ -84,7 +84,7 @@ public partial class SimpleConsole : IConsoleService
     public ThreadCoreBase Core { get; set; } = ThreadCore.Root;
 
     /// <summary>
-    /// Gets or sets the default options for <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/>.
+    /// Gets or sets the default options for <see cref="ReadLine(ReadLineOptions?, CancellationToken, KeyInputHook?)"/>.
     /// </summary>
     public ReadLineOptions DefaultOptions { get; set; }
 
@@ -95,7 +95,7 @@ public partial class SimpleConsole : IConsoleService
     public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
     /// <summary>
-    /// Gets a value indicating whether a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is currently in progress.<br/>
+    /// Gets a value indicating whether a <see cref="ReadLine(ReadLineOptions?, CancellationToken, KeyInputHook?)"/> operation is currently in progress.<br/>
     /// Returns <see langword="true"/> if at least one active instance exists in the instance list; otherwise, <see langword="false"/>.
     /// </summary>
     public bool IsReadLineInProgress => this.instanceList.Count > 0;
