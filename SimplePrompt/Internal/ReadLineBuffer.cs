@@ -216,12 +216,10 @@ internal class ReadLineBuffer
     public override string ToString()
     {
         const int MaxLength = 32;
-        if (this.TextSpan.Length <= MaxLength)
-        {
-            return new string(this.TextSpan);
-        }
+        ReadOnlySpan<char> textSpan;
 
-        return new string(this.TextSpan.Slice(0, MaxLength));
+        textSpan = this.TextSpan.Length <= MaxLength ? this.TextSpan : this.TextSpan.Slice(0, MaxLength);
+        return $"(Top:{this.Top} {textSpan}";
     }
 
     internal void UpdateHeight(bool refresh)

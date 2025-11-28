@@ -85,15 +85,14 @@ internal class SimpleLocation
 
         if (buffer.Top != newTop)
         {
-            var st = $"Correct Cursor({newCursor.Left}, {newCursor.Top}) Position:{position}, New({newLeft}, {newTop}), Top {buffer.Top} -> {newTop}\r\n";
-            File.AppendAllText("log.txt", st);//
+            // var st = $"Correct Cursor({newCursor.Left}, {newCursor.Top}) Position:{position}, New({newLeft}, {newTop}), Top {buffer.Top} -> {newTop}\r\n";
 
             buffer.Top = newTop;
             buffer.UpdateHeight(false);
             for (var i = buffer.Index - 1; i >= 0; i--)
             {
-                bufferList[i + 1].UpdateHeight(false);
-                bufferList[i].Top = bufferList[i + 1].Top - bufferList[i + 1].Height;
+                bufferList[i].UpdateHeight(false);
+                bufferList[i].Top = bufferList[i + 1].Top - bufferList[i].Height;
             }
 
             for (var i = buffer.Index + 1; i < bufferList.Count; i++)
@@ -105,5 +104,10 @@ internal class SimpleLocation
 
         this.CursorLeft = newCursor.Left;
         this.CursorTop = newCursor.Top;
+    }
+
+    private void Log(string message)
+    {
+        File.AppendAllText("log.txt", message);
     }
 }

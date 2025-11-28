@@ -107,7 +107,7 @@ internal class Program
                 InputColor = ConsoleColor.Cyan,
                 CancelOnEscape = false,
                 AllowEmptyLineInput = true,
-                MaxInputLength = 10,
+                MaxInputLength = 20,
                 MaskingCharacter = '$',
             };
 
