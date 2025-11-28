@@ -26,14 +26,6 @@ internal class Program
             ThreadCore.Root.Terminate(); // Send a termination signal to the root.
         };
 
-        while (!ThreadCore.Root.IsTerminated)
-        {
-            Console.Write("d");
-            Thread.Sleep(100);
-            // await Task.Delay(100).ConfigureAwait(false);
-            Console.Write("e");
-        }
-
         var builder = new UnitBuilder()
             .Configure(context =>
             {

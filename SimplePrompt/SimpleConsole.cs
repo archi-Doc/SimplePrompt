@@ -110,19 +110,20 @@ public partial class SimpleConsole : IConsoleService
 
     internal int CursorTop { get; set; }
 
+    internal SimpleLocation Location { get; }
+
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly ObjectPool<ReadLineInstance> instancePool;
     private readonly ObjectPool<ReadLineBuffer> bufferPool;
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
-    private int previousBufferIndex = 0;
-    private int previousCursorIndex = 0;
 
     private SimpleConsole()
     {
         this.simpleTextWriter = new(this, Console.Out);
         this.RawConsole = new(this);
+        this.Location = new(this);
         this.instancePool = new(() => new ReadLineInstance(this), 4);
         this.bufferPool = new(() => new ReadLineBuffer(this), 32);
         this.DefaultOptions = new();
@@ -184,7 +185,7 @@ public partial class SimpleConsole : IConsoleService
                 if (delayFlag)
                 {
                     delayFlag = false;
-                    await Task.Delay(100/*DelayInMilliseconds*/, cancellationToken).ConfigureAwait(false);
+                    await Task.Delay(DelayInMilliseconds, cancellationToken).ConfigureAwait(false);
                 }
 
                 using (this.syncObject.EnterScope())
@@ -515,7 +516,7 @@ ProcessKeyInfo:
         this.CursorTop = cursorTop;
     }
 
-    private bool TryGetActiveInstance([MaybeNullWhen(false)] out ReadLineInstance instance)
+    internal bool TryGetActiveInstance([MaybeNullWhen(false)] out ReadLineInstance instance)
     {
         if (this.instanceList.Count == 0)
         {
@@ -637,7 +638,7 @@ ProcessKeyInfo:
         {
             if (activeInstance is not null)
             {
-                (this.previousBufferIndex, this.previousCursorIndex) = activeInstance.GetLocation();
+                this.Location.Update(activeInstance);
             }
 
             return;
@@ -651,6 +652,8 @@ ProcessKeyInfo:
         if (activeInstance is not null)
         {
             var newCursor = Console.GetCursorPosition();
+            this.Location.Correct(newCursor);
+            (this.CursorLeft, this.CursorTop) = newCursor;
             /*var dif = newCursor.Top - this.CursorTop;
             if (dif != 0)
             {
@@ -682,8 +685,6 @@ ProcessKeyInfo:
             }*/
 
             // var buffer = activeInstance.BufferList[this.previousBufferIndex];
-
-            (this.CursorLeft, this.CursorTop) = newCursor;
         }
     }
 }
