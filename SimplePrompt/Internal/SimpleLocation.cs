@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using Arc.Unit;
 using SimplePrompt.Internal;
 
 namespace SimplePrompt;
@@ -84,6 +85,9 @@ internal class SimpleLocation
 
         if (buffer.Top != newTop)
         {
+            var st = $"Correct Cursor({newCursor.Left}, {newCursor.Top}) Position:{position}, New({newLeft}, {newTop}), Top {buffer.Top} -> {newTop}\r\n";
+            File.AppendAllText("log.txt", st);//
+
             buffer.Top = newTop;
             buffer.UpdateHeight(false);
             for (var i = buffer.Index - 1; i >= 0; i--)
