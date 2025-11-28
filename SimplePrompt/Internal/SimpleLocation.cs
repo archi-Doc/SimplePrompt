@@ -80,7 +80,7 @@ internal class SimpleLocation
         var newLeft = position % this.simpleConsole.WindowWidth;
         if (newLeft != 0)
         {
-            // return;
+            return;
         }
 
         if (buffer.Top != newTop)
