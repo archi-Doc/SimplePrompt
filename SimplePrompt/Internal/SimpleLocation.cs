@@ -9,10 +9,6 @@ internal class SimpleLocation
 {
     private readonly SimpleConsole simpleConsole;
 
-    public int BufferIndex { get; private set; }
-
-    public int BufferPosition { get; private set; }
-
     private ReadLineInstance? previousInstance;
     private int previousCursorLeft;
     private int previousCursorTop;
@@ -24,7 +20,6 @@ internal class SimpleLocation
 
     public void Update(ReadLineInstance readLineInstance)
     {
-
         if (this.simpleConsole.CursorLeft == this.previousCursorLeft &&
             this.simpleConsole.CursorTop == this.previousCursorTop)
         {// Identical cursor position
@@ -34,8 +29,7 @@ internal class SimpleLocation
         this.previousInstance = readLineInstance;
         this.previousCursorLeft = this.simpleConsole.CursorLeft;
         this.previousCursorTop = this.simpleConsole.CursorTop;
-
-        (this.BufferIndex, this.BufferPosition) = this.previousInstance.GetLocation();
+        this.previousInstance.PrepareLocation();
     }
 
     /*public void Redraw()
@@ -106,18 +100,18 @@ internal class SimpleLocation
         }
 
         var bufferList = this.previousInstance.BufferList;
-        if (this.BufferIndex >= bufferList.Count)
+        if (this.previousInstance.BufferIndex >= bufferList.Count)
         {// Invalid buffer index
             return;
         }
 
-        var buffer = bufferList[this.BufferIndex];
-        if (this.BufferPosition > buffer.Width)
+        var buffer = bufferList[this.previousInstance.BufferIndex];
+        if (this.previousInstance.BufferPosition > buffer.Width)
         {// Invalid buffer position
             return;
         }
 
-        var position = newCursor.Left + (newCursor.Top * this.simpleConsole.WindowWidth) - this.BufferPosition - buffer.PromtWidth;
+        var position = newCursor.Left + (newCursor.Top * this.simpleConsole.WindowWidth) - this.previousInstance.BufferPosition - buffer.PromtWidth;
         if (position < 0)
         {// Invalid position
             return;

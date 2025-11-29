@@ -52,8 +52,8 @@ internal class Program
         Console.WriteLine(Environment.OSVersion.ToString());
 
         // Tests
-        await TestConsoleMode(simpleConsole);
-        // await TestMultilinePrompt(simpleConsole);
+        // await TestConsoleMode(simpleConsole);
+        await TestMultilinePrompt(simpleConsole);
 
         await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.
         if (product.Context.ServiceProvider.GetService<UnitLogger>() is { } unitLogger)
@@ -71,7 +71,7 @@ internal class Program
         {
             var options = simpleConsole.DefaultOptions with
             {// Multiline prompt example
-                Prompt = "Description (n:nested)\r\n\n<---\nInput> ",
+                Prompt = "Description (n or F3:nested)\r\n\n<---\nInput> ",
                 // Prompt = "Input> ",
             };
 

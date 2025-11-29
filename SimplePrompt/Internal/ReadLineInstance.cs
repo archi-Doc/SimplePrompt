@@ -18,6 +18,10 @@ internal class ReadLineInstance
 
     public List<ReadLineBuffer> BufferList { get; private set; } = new();
 
+    public int BufferIndex { get; set; }
+
+    public int BufferPosition { get; set; }
+
     public bool MultilineMode { get; private set; }
 
     public int EditableBufferIndex { get; private set; }
@@ -383,11 +387,13 @@ internal class ReadLineInstance
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
     }
 
-    public (int BufferIndex, int CursorIndex) GetLocation()
+    public void PrepareLocation()
     {
         if (this.BufferList.Count == 0)
         {
-            return default;
+            this.BufferIndex = 0;
+            this.BufferPosition = 0;
+            return;
         }
 
         var y = this.BufferList[0].Top;
@@ -408,11 +414,15 @@ internal class ReadLineInstance
 
         if (buffer is null)
         {
-            return default;
+            this.BufferIndex = 0;
+            this.BufferPosition = 0;
+            return;
         }
         else
         {
-            return (buffer.Index, buffer.GetCursorIndex());
+            this.BufferIndex = buffer.Index;
+            this.BufferPosition = buffer.GetCursorIndex();
+            return;
         }
     }
 

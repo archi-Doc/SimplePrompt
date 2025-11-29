@@ -335,13 +335,13 @@ ProcessKeyInfo:
                     return;
                 }
 
-                var location = activeInstance.GetLocation();
+                activeInstance.PrepareLocation();
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
                 this.WriteInternal(message);
                 activeInstance.Redraw();
 
-                var buffer = activeInstance.BufferList[location.BufferIndex];
-                var cursor = buffer.ToCursor(location.CursorIndex);
+                var buffer = activeInstance.BufferList[activeInstance.BufferIndex];
+                var cursor = buffer.ToCursor(activeInstance.BufferPosition);
                 this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
             }
         }
@@ -540,8 +540,19 @@ ProcessKeyInfo:
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
                 activeInstance.Redraw();
 
-                var buffer = activeInstance.BufferList[activeInstance.EditableBufferIndex];
-                var cursor = buffer.ToCursor(0);
+                if (activeInstance.BufferIndex < activeInstance.EditableBufferIndex)
+                {
+                    activeInstance.BufferIndex = activeInstance.EditableBufferIndex;
+                    activeInstance.BufferPosition = 0;
+                }
+
+                if (activeInstance.BufferPosition > activeInstance.BufferList[activeInstance.BufferIndex].Width)
+                {
+                    activeInstance.BufferPosition = activeInstance.BufferList[activeInstance.BufferIndex].Width;
+                }
+
+                var buffer = activeInstance.BufferList[activeInstance.BufferIndex];
+                var cursor = buffer.ToCursor(activeInstance.BufferPosition);
                 this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
             }
         }
