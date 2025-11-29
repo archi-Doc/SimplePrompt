@@ -51,6 +51,42 @@ internal class SimpleLocation
         (this.BufferIndex, this.BufferPosition) = this.previousInstance.GetLocation();
     }
 
+    public void Redraw()
+    {
+        if (this.previousInstance is null)
+        {
+            this.Reset();
+            return;
+        }
+
+        var bufferList = this.previousInstance.BufferList;
+        if (this.BufferIndex >= bufferList.Count)
+        {// Invalid buffer index
+            this.Reset();
+            return;
+        }
+
+        var buffer = bufferList[this.BufferIndex];
+        if (this.BufferPosition > buffer.Width)
+        {// Invalid buffer position
+            this.Reset();
+            return;
+        }
+
+        var totalHeight = 0;
+        foreach (var x in bufferList)
+        {
+            x.UpdateHeight(false);
+            totalHeight += x.Height;
+        }
+
+
+    }
+
+    public void Reset()
+    {//
+    }
+
     public void Correct((int Left, int Top) newCursor)
     {
         if (this.previousInstance is null)

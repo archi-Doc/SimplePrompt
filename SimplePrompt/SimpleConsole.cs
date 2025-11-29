@@ -651,9 +651,13 @@ ProcessKeyInfo:
 
         if (activeInstance is not null)
         {
-            var newCursor = Console.GetCursorPosition();
-            this.Location.Correct(newCursor);
-            (this.CursorLeft, this.CursorTop) = newCursor;
+            this.Location.Redraw();
+            this.CursorLeft = this.Location.CursorLeft;
+            this.CursorTop = this.Location.CursorTop;
+
+            // var newCursor = Console.GetCursorPosition();
+            // this.Location.Correct(newCursor);
+            // (this.CursorLeft, this.CursorTop) = newCursor;
             /*var dif = newCursor.Top - this.CursorTop;
             if (dif != 0)
             {
