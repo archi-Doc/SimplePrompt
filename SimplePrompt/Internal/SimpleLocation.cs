@@ -9,10 +9,6 @@ internal class SimpleLocation
 {
     private readonly SimpleConsole simpleConsole;
 
-    public int CursorLeft { get; set; }
-
-    public int CursorTop { get; set; }
-
     public int BufferIndex { get; private set; }
 
     public int BufferPosition { get; private set; }
@@ -28,23 +24,21 @@ internal class SimpleLocation
 
     public void Update(ReadLineInstance readLineInstance)
     {
-        this.CursorLeft = this.simpleConsole.CursorLeft;
-        this.CursorTop = this.simpleConsole.CursorTop;
 
-        if (this.CursorLeft == this.previousCursorLeft &&
-            this.CursorTop == this.previousCursorTop)
+        if (this.simpleConsole.CursorLeft == this.previousCursorLeft &&
+            this.simpleConsole.CursorTop == this.previousCursorTop)
         {// Identical cursor position
             return;
         }
 
         this.previousInstance = readLineInstance;
-        this.previousCursorLeft = this.CursorLeft;
-        this.previousCursorTop = this.CursorTop;
+        this.previousCursorLeft = this.simpleConsole.CursorLeft;
+        this.previousCursorTop = this.simpleConsole.CursorTop;
 
         (this.BufferIndex, this.BufferPosition) = this.previousInstance.GetLocation();
     }
 
-    public void Redraw()
+    /*public void Redraw()
     {
         if (this.previousInstance is null)
         {
@@ -101,11 +95,11 @@ internal class SimpleLocation
 
     public void Reset()
     {
-    }
+    }*/
 
     public void AdjustBuffers((int Left, int Top) newCursor)
     {
-        // this.Log($"({newCursor.Left}, {newCursor.Top}) {this.simpleConsole.WindowWidth}-{this.simpleConsole.WindowHeight}\r\n");
+        this.Log($"({newCursor.Left}, {newCursor.Top}) {this.simpleConsole.WindowWidth}-{this.simpleConsole.WindowHeight}\r\n");
         if (this.previousInstance is null)
         {
             return;
@@ -138,7 +132,7 @@ internal class SimpleLocation
 
         if (buffer.Top != newTop)
         {
-            // this.Log($"Top {buffer.Top} -> {newTop}\r\n");
+            this.Log($"Top {buffer.Top} -> {newTop}\r\n");
 
             buffer.Top = newTop;
             foreach (var x in bufferList)
@@ -157,8 +151,8 @@ internal class SimpleLocation
             }
         }
 
-        this.CursorLeft = newCursor.Left;
-        this.CursorTop = newCursor.Top;
+        this.simpleConsole.CursorLeft = newCursor.Left;
+        this.simpleConsole.CursorTop = newCursor.Top;
     }
 
     private void Log(string message)

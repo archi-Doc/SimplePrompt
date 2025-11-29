@@ -1,8 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Arc;
 using Arc.Threading;
 using Arc.Unit;
@@ -54,8 +51,9 @@ internal class Program
         var simpleConsole = SimpleConsole.GetOrCreate();
         Console.WriteLine(Environment.OSVersion.ToString());
 
-        // await TestConsoleMode(simpleConsole);
-        await TestMultilinePrompt(simpleConsole);
+        // Tests
+        await TestConsoleMode(simpleConsole);
+        // await TestMultilinePrompt(simpleConsole);
 
         await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.
         if (product.Context.ServiceProvider.GetService<UnitLogger>() is { } unitLogger)
