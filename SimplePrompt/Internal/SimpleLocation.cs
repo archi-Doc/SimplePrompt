@@ -80,7 +80,30 @@ internal class SimpleLocation
             totalHeight += x.Height;
         }
 
+        var diff = bufferList[0].Top + totalHeight - this.simpleConsole.WindowHeight;
+        var minBuffer = bufferList.Count - 1;
+        if (diff > 0)
+        {
+            foreach (var x in bufferList)
+            {
+                x.Top -= diff;
+                if (x.Top >= 0 && minBuffer > x.Index)
+                {
+                    minBuffer = x.Index;
+                }
+            }
+        }
 
+        if (this.BufferIndex < minBuffer)
+        {
+            this.BufferIndex = minBuffer;
+            this.BufferPosition = 0;
+        }
+
+        buffer = bufferList[this.BufferIndex];
+        var newCursor = buffer.ToCursor(this.BufferPosition);
+        newCursor.Top += buffer.Top;
+        this.simpleConsole.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
     }
 
     public void Reset()

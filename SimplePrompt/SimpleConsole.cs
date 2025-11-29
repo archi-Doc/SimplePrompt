@@ -651,13 +651,12 @@ ProcessKeyInfo:
 
         if (activeInstance is not null)
         {
-            this.Location.Redraw();
-            this.CursorLeft = this.Location.CursorLeft;
-            this.CursorTop = this.Location.CursorTop;
+            // this.Location.Redraw();
 
-            // var newCursor = Console.GetCursorPosition();
-            // this.Location.Correct(newCursor);
-            // (this.CursorLeft, this.CursorTop) = newCursor;
+            var newCursor = Console.GetCursorPosition();
+            this.Location.Correct(newCursor);
+            (this.CursorLeft, this.CursorTop) = newCursor;
+
             /*var dif = newCursor.Top - this.CursorTop;
             if (dif != 0)
             {

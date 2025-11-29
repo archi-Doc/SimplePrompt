@@ -244,6 +244,22 @@ internal class ReadLineBuffer
     internal int GetCursorIndex()
         => this.GetCursorIndex(this.CursorLeft, this.CursorTop);
 
+    internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
+    {
+        try
+        {
+            if (cursorOperation == CursorOperation.Show ||
+                cursorLeft != this.CursorLeft ||
+                cursorTop != this.CursorTop)
+            {
+                this.simpleConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
+            }
+        }
+        catch
+        {
+        }
+    }
+
     internal void Write(int startIndex, int endIndex, int cursorDif, int removedWidth, bool eraseLine = false)
     {
         int x, y, w;
@@ -713,25 +729,6 @@ internal class ReadLineBuffer
             buffer != this)
         {
             buffer.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
-        }
-    }
-
-    /// <summary>
-    /// Specifies the cursor position relative to the current InputBuffer’s Left and Top.
-    /// </summary>
-    private void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
-    {
-        try
-        {
-            if (cursorOperation == CursorOperation.Show ||
-                cursorLeft != this.CursorLeft ||
-                cursorTop != this.CursorTop)
-            {
-                this.simpleConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
-            }
-        }
-        catch
-        {
         }
     }
 }
