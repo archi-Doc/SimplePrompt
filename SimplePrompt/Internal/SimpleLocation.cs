@@ -41,13 +41,6 @@ internal class SimpleLocation
         this.previousCursorLeft = this.CursorLeft;
         this.previousCursorTop = this.CursorTop;
 
-        /*if (!this.simpleConsole.TryGetActiveInstance(out var activeInstance))
-        {
-            this.BufferIndex = 0;
-            this.BufferPosition = 0;
-            return;
-        }*/
-
         (this.BufferIndex, this.BufferPosition) = this.previousInstance.GetLocation();
     }
 
@@ -107,12 +100,12 @@ internal class SimpleLocation
     }
 
     public void Reset()
-    {//
+    {
     }
 
     public void Correct((int Left, int Top) newCursor)
     {
-        this.Log($"({newCursor.Left}, {newCursor.Top}) {this.simpleConsole.WindowWidth}-{this.simpleConsole.WindowHeight}\r\n");
+        // this.Log($"({newCursor.Left}, {newCursor.Top}) {this.simpleConsole.WindowWidth}-{this.simpleConsole.WindowHeight}\r\n");
         if (this.previousInstance is null)
         {
             return;
@@ -145,11 +138,9 @@ internal class SimpleLocation
 
         if (buffer.Top != newTop)
         {
-            this.Log($"Top {buffer.Top} -> {newTop}\r\n");
-            // var st = $"Correct Cursor({newCursor.Left}, {newCursor.Top}) Position:{position}, New({newLeft}, {newTop}), Top {buffer.Top} -> {newTop}\r\n";
+            // this.Log($"Top {buffer.Top} -> {newTop}\r\n");
 
             buffer.Top = newTop;
-            // buffer.UpdateHeight(false);
             foreach (var x in bufferList)
             {
                 x.UpdateHeight(false);

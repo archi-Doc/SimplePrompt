@@ -225,7 +225,6 @@ internal class ReadLineBuffer
     internal void UpdateHeight(bool refresh)
     {
         var previousHeight = this.Height;
-        var ne = (this.TotalWidth / this.WindowWidth) + ((this.TotalWidth % this.WindowWidth) != 0 ? 1 : 0);
         if (this.TotalWidth == 0)
         {
             this.Height = 1;
@@ -233,10 +232,6 @@ internal class ReadLineBuffer
         else
         {
             this.Height = (this.TotalWidth - 1 + this.WindowWidth) / this.WindowWidth;
-        }
-        if (this.Height != ne)
-        {
-
         }
 
         if (refresh && previousHeight != this.Height)

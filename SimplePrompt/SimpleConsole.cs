@@ -656,38 +656,6 @@ ProcessKeyInfo:
             var newCursor = Console.GetCursorPosition();
             this.Location.Correct(newCursor);
             (this.CursorLeft, this.CursorTop) = newCursor;
-
-            /*var dif = newCursor.Top - this.CursorTop;
-            if (dif != 0)
-            {
-                foreach (var x in activeInstance.BufferList)
-                {
-                    x.Top += dif;
-                }
-            }*/
-
-            // Estimate buffer index
-            /*var height = ((newCursor.Left - this.CursorLeft) + ((newCursor.Top - this.CursorTop) * windowWidth)) / (prevWindowWidth - windowWidth);
-            var top = this.CursorTop - height;
-            if (activeInstance.BufferList.Find(x => x.Top == top) is { } buffer)
-            {
-                var newTop = this.CursorTop - height;
-                buffer.Top = newTop;
-                buffer.UpdateHeight(false);
-                for (var i = buffer.Index - 1; i >= 0; i--)
-                {
-                    activeInstance.BufferList[i + 1].UpdateHeight(false);
-                    activeInstance.BufferList[i].Top = activeInstance.BufferList[i + 1].Top - activeInstance.BufferList[i + 1].Height;
-                }
-
-                for (var i = buffer.Index + 1; i < activeInstance.BufferList.Count; i++)
-                {
-                    activeInstance.BufferList[i - 1].UpdateHeight(false);
-                    activeInstance.BufferList[i].Top = activeInstance.BufferList[i - 1].Top + activeInstance.BufferList[i - 1].Height;
-                }
-            }*/
-
-            // var buffer = activeInstance.BufferList[this.previousBufferIndex];
         }
     }
 }
