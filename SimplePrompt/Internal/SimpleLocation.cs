@@ -112,6 +112,7 @@ internal class SimpleLocation
 
     public void Correct((int Left, int Top) newCursor)
     {
+        this.Log($"({newCursor.Left}, {newCursor.Top}) {this.simpleConsole.WindowWidth}-{this.simpleConsole.WindowHeight}\r\n");
         if (this.previousInstance is null)
         {
             return;
@@ -144,19 +145,23 @@ internal class SimpleLocation
 
         if (buffer.Top != newTop)
         {
+            this.Log($"Top {buffer.Top} -> {newTop}\r\n");
             // var st = $"Correct Cursor({newCursor.Left}, {newCursor.Top}) Position:{position}, New({newLeft}, {newTop}), Top {buffer.Top} -> {newTop}\r\n";
 
             buffer.Top = newTop;
-            buffer.UpdateHeight(false);
+            // buffer.UpdateHeight(false);
+            foreach (var x in bufferList)
+            {
+                x.UpdateHeight(false);
+            }
+
             for (var i = buffer.Index - 1; i >= 0; i--)
             {
-                bufferList[i].UpdateHeight(false);
                 bufferList[i].Top = bufferList[i + 1].Top - bufferList[i].Height;
             }
 
             for (var i = buffer.Index + 1; i < bufferList.Count; i++)
             {
-                bufferList[i - 1].UpdateHeight(false);
                 bufferList[i].Top = bufferList[i - 1].Top + bufferList[i - 1].Height;
             }
         }

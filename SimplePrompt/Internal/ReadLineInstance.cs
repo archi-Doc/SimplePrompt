@@ -137,11 +137,13 @@ internal class ReadLineInstance
 
                     buffer = this.simpleConsole.RentBuffer(this, this.BufferList.Count, this.Options.MultilinePrompt);
                     this.BufferList.Add(buffer);
+                    var previousLeft = this.simpleConsole.CursorLeft;
                     var previousTop = this.simpleConsole.CursorTop;
                     this.simpleConsole.UnderlyingTextWriter.WriteLine();
                     this.simpleConsole.UnderlyingTextWriter.Write(this.Options.MultilinePrompt);
                     (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
-                    if (this.simpleConsole.CursorTop == previousTop)
+                    if (this.simpleConsole.CursorTop == previousTop &&
+                        previousLeft != 0)
                     {
                         this.simpleConsole.Scroll(1, false);
                     }
