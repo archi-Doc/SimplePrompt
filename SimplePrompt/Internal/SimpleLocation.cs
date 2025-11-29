@@ -103,7 +103,7 @@ internal class SimpleLocation
     {
     }
 
-    public void Correct((int Left, int Top) newCursor)
+    public void AdjustBuffers((int Left, int Top) newCursor)
     {
         // this.Log($"({newCursor.Left}, {newCursor.Top}) {this.simpleConsole.WindowWidth}-{this.simpleConsole.WindowHeight}\r\n");
         if (this.previousInstance is null)

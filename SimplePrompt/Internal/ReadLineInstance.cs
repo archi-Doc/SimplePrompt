@@ -294,7 +294,19 @@ internal class ReadLineInstance
         this.BufferList.Clear();
     }
 
-    public void RedrawInternal()
+    public void Restore()
+    {
+        (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
+        var y = this.simpleConsole.CursorTop;
+        foreach (var x in this.BufferList)
+        {
+            x.Top = y;
+            x.UpdateHeight(false);
+            y += x.Height;
+        }
+    }
+
+    public void Redraw()
     {
         if (this.BufferList.Count == 0)
         {

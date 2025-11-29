@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -339,7 +338,7 @@ ProcessKeyInfo:
                 var location = activeInstance.GetLocation();
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
                 this.WriteInternal(message);
-                activeInstance.RedrawInternal();
+                activeInstance.Redraw();
 
                 var buffer = activeInstance.BufferList[location.BufferIndex];
                 var cursor = buffer.ToCursor(location.CursorIndex);
@@ -534,6 +533,17 @@ ProcessKeyInfo:
         {
             target.Clear();
             this.instanceList.Remove(target);
+
+            if (this.TryGetActiveInstance(out var activeInstance))
+            {
+                activeInstance.Restore();
+                activeInstance.SetCursorAtFirst(CursorOperation.Hide);
+                activeInstance.Redraw();
+
+                var buffer = activeInstance.BufferList[activeInstance.EditableBufferIndex];
+                var cursor = buffer.ToCursor(0);
+                this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
+            }
         }
     }
 
@@ -654,7 +664,7 @@ ProcessKeyInfo:
             // this.Location.Redraw();
 
             var newCursor = Console.GetCursorPosition();
-            this.Location.Correct(newCursor);
+            this.Location.AdjustBuffers(newCursor);
             (this.CursorLeft, this.CursorTop) = newCursor;
         }
     }

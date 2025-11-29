@@ -54,8 +54,8 @@ internal class Program
         var simpleConsole = SimpleConsole.GetOrCreate();
         Console.WriteLine(Environment.OSVersion.ToString());
 
-        await TestConsoleMode(simpleConsole);
-        // await TestMultilinePrompt(simpleConsole);
+        // await TestConsoleMode(simpleConsole);
+        await TestMultilinePrompt(simpleConsole);
 
         await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.
         if (product.Context.ServiceProvider.GetService<UnitLogger>() is { } unitLogger)
@@ -77,7 +77,52 @@ internal class Program
                 // Prompt = "Input> ",
             };
 
-            var result = await simpleConsole.ReadLine(options);
+            var result = await simpleConsole.ReadLine(options, default, keyInfo =>
+            {
+                if (keyInfo.Key == ConsoleKey.F1)
+                {
+                    simpleConsole.WriteLine("Inserted text");
+                    return true;
+                }
+                else if (keyInfo.Key == ConsoleKey.F2)
+                {
+                    simpleConsole.WriteLine("Text1\nText2");
+                    return true;
+                }
+                else if (keyInfo.Key == ConsoleKey.F3)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        var options2 = simpleConsole.DefaultOptions with
+                        {
+                            Prompt = "Nested2>>> ",
+                        };
+
+                        await Task.Delay(100);
+                        var result = await simpleConsole.ReadLine(options2, default, keyInfo =>
+                        {
+                            if (keyInfo.Key == ConsoleKey.F1)
+                            {
+                                simpleConsole.WriteLine("Inserted text");
+                                return true;
+                            }
+                            else if (keyInfo.Key == ConsoleKey.F2)
+                            {
+                                simpleConsole.WriteLine("Text1\nText2");
+                                return true;
+                            }
+
+                            return false;
+                        });
+                        Console.WriteLine($"Nested2: {result.Text}");
+                    });
+
+                    return true;
+                }
+
+                return false;
+            });
+
             if (!await ProcessInputResult(simpleConsole, result))
             {
                 break;
@@ -86,8 +131,14 @@ internal class Program
             {
                 _ = Task.Run(async () =>
                 {
-                    await Task.Delay(1000);
-                    Console.WriteLine("nested");
+                    var options2 = simpleConsole.DefaultOptions with
+                    {
+                        Prompt = "Nested>>> ",
+                    };
+
+                    await Task.Delay(100);
+                    var result = await simpleConsole.ReadLine(options2);
+                    Console.WriteLine($"Nested: {result.Text}");
                 });
             }
         }
