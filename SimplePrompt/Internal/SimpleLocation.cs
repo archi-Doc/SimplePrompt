@@ -25,7 +25,7 @@ internal class SimpleLocation
         {// Identical cursor position
             return;
         }
-
+        //
         this.previousInstance = readLineInstance;
         this.previousCursorLeft = this.simpleConsole.CursorLeft;
         this.previousCursorTop = this.simpleConsole.CursorTop;
@@ -137,6 +137,10 @@ internal class SimpleLocation
             for (var i = buffer.Index - 1; i >= 0; i--)
             {
                 bufferList[i].Top = bufferList[i + 1].Top - bufferList[i].Height;
+
+                if (bufferList[0].Top >= 4)
+                {
+                }
             }
 
             for (var i = buffer.Index + 1; i < bufferList.Count; i++)
