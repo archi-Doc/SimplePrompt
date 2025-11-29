@@ -108,7 +108,7 @@ internal class Program
                 CancelOnEscape = false,
                 AllowEmptyLineInput = true,
                 MaxInputLength = 20,
-                // MaskingCharacter = '$',
+                MaskingCharacter = '$',
             };
 
             var result = await simpleConsole.ReadLine(options, default, keyInfo =>
