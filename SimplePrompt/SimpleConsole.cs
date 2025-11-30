@@ -29,6 +29,14 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public delegate bool KeyInputHook(ConsoleKeyInfo keyInfo);
 
+    /// <summary>
+    /// Represents a method that handles text input validation or transformation after the user submits input.
+    /// </summary>
+    /// <param name="text">The input text submitted by the user.</param>
+    /// <returns>
+    /// The validated or transformed text to be returned as the final result.
+    /// If <see langword="null"/> is returned, the input is rejected and the user can continue editing.
+    /// </returns>
     public delegate string? TextInputHook(string text);
 
     private const int DelayInMilliseconds = 10;
@@ -285,7 +293,7 @@ ProcessKeyInfo:
                         {
                             result = currentInstance.Options.TextInputHook(result);
                             if (result is null)
-                            {
+                            {// Rejected by the hook delegate.
                                 this.UnderlyingTextWriter.WriteLine();
                                 currentInstance.Reset();
                                 currentInstance.Redraw();

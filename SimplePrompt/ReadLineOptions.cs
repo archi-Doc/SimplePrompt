@@ -78,5 +78,11 @@ public record class ReadLineOptions
     /// </summary>
     public KeyInputHook? KeyInputHook { get; init; } = default;
 
+    /// <summary>
+    /// Gets the hook for intercepting and processing text input during console reading operations.
+    /// Default is <see langword="null"/> (no custom text input handling).<br/>
+    /// If a valid string is returned, it is treated as valid text input and the function completes.<br/>
+    /// If <see langword="null"/> is returned, the input is rejected and the user is prompted to enter it again.
+    /// </summary>
     public TextInputHook? TextInputHook { get; init; } = default;
 }
