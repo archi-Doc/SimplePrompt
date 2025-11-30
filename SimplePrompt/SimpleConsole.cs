@@ -185,6 +185,7 @@ public partial class SimpleConsole : IConsoleService
                 if (this.Core.IsTerminated)
                 {// Terminated
                     this.UnderlyingTextWriter.WriteLine();
+                    this.CursorTop++;
                     return new(InputResultKind.Terminated);
                 }
 
@@ -236,6 +237,7 @@ ProcessKeyInfo:
                     keyInfo.Key == ConsoleKey.Escape)
                 {
                     this.UnderlyingTextWriter.WriteLine();
+                    this.CursorTop++;
                     return new(InputResultKind.Canceled);
                 }
 
@@ -295,6 +297,7 @@ ProcessKeyInfo:
                             if (result is null)
                             {// Rejected by the hook delegate.
                                 this.UnderlyingTextWriter.WriteLine();
+                                this.CursorTop++;
                                 currentInstance.Reset();
                                 currentInstance.Redraw(true);
                                 var buffer = currentInstance.BufferList[currentInstance.BufferList.Count - 1];
@@ -309,6 +312,7 @@ ProcessKeyInfo:
                     if (result is not null)
                     {
                         this.UnderlyingTextWriter.WriteLine();
+                        this.CursorTop++;
                         return new(result);
                     }
 

@@ -332,13 +332,6 @@ internal class ReadLineInstance
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
 
-        /*if (resetCursor)
-        {
-            SimpleConsole.TryCopy(ResetCursor, ref span);
-            this.simpleConsole.CursorLeft = 0;
-            this.simpleConsole.CursorTop = 0;
-        }*/
-
         if (resetCursor)
         {
             (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
