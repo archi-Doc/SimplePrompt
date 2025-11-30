@@ -216,18 +216,24 @@ internal class ReadLineBuffer
     public override string ToString()
     {
         const int MaxLength = 32;
-        if (this.TextSpan.Length <= MaxLength)
-        {
-            return new string(this.TextSpan);
-        }
+        ReadOnlySpan<char> textSpan;
 
-        return new string(this.TextSpan.Slice(0, MaxLength));
+        textSpan = this.TextSpan.Length <= MaxLength ? this.TextSpan : this.TextSpan.Slice(0, MaxLength);
+        return $"(Top:{this.Top} {textSpan}";
     }
 
     internal void UpdateHeight(bool refresh)
     {
         var previousHeight = this.Height;
-        this.Height = (this.TotalWidth + this.WindowWidth) / this.WindowWidth;
+        if (this.TotalWidth == 0)
+        {
+            this.Height = 1;
+        }
+        else
+        {
+            this.Height = (this.TotalWidth - 1 + this.WindowWidth) / this.WindowWidth;
+        }
+
         if (refresh && previousHeight != this.Height)
         {
             this.readLineInstance.HeightChanged(this.Index, this.Height - previousHeight);
@@ -245,6 +251,22 @@ internal class ReadLineBuffer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal int GetCursorIndex()
         => this.GetCursorIndex(this.CursorLeft, this.CursorTop);
+
+    internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
+    {
+        try
+        {
+            if (cursorOperation == CursorOperation.Show ||
+                cursorLeft != this.CursorLeft ||
+                cursorTop != this.CursorTop)
+            {
+                this.simpleConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
+            }
+        }
+        catch
+        {
+        }
+    }
 
     internal void Write(int startIndex, int endIndex, int cursorDif, int removedWidth, bool eraseLine = false)
     {
@@ -715,25 +737,6 @@ internal class ReadLineBuffer
             buffer != this)
         {
             buffer.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
-        }
-    }
-
-    /// <summary>
-    /// Specifies the cursor position relative to the current InputBuffer’s Left and Top.
-    /// </summary>
-    private void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
-    {
-        try
-        {
-            if (cursorOperation == CursorOperation.Show ||
-                cursorLeft != this.CursorLeft ||
-                cursorTop != this.CursorTop)
-            {
-                this.simpleConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
-            }
-        }
-        catch
-        {
         }
     }
 }

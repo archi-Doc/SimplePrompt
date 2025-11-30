@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="DelayTest/DelayTest.csproj" Id="8fb2657f-fba2-4e3b-8c86-51c277b000dd" />
   <Project Path="Playground/Playground.csproj" Id="04e2665c-8e1f-415e-a517-a4a22e0c73d9" />
   <Project Path="QuickStart/QuickStart.csproj" Id="d185ef33-62f4-40ab-b836-0681d8805331" />
   <Project Path="SimplePrompt/SimplePrompt.csproj" />

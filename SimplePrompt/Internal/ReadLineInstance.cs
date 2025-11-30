@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Unit;
 using CrossChannel;
@@ -18,6 +17,10 @@ internal class ReadLineInstance
     public char[] CharBuffer { get; private set; } = new char[CharBufferSize];
 
     public List<ReadLineBuffer> BufferList { get; private set; } = new();
+
+    public int BufferIndex { get; set; }
+
+    public int BufferPosition { get; set; }
 
     public bool MultilineMode { get; private set; }
 
@@ -137,11 +140,13 @@ internal class ReadLineInstance
 
                     buffer = this.simpleConsole.RentBuffer(this, this.BufferList.Count, this.Options.MultilinePrompt);
                     this.BufferList.Add(buffer);
+                    var previousLeft = this.simpleConsole.CursorLeft;
                     var previousTop = this.simpleConsole.CursorTop;
                     this.simpleConsole.UnderlyingTextWriter.WriteLine();
                     this.simpleConsole.UnderlyingTextWriter.Write(this.Options.MultilinePrompt);
                     (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
-                    if (this.simpleConsole.CursorTop == previousTop)
+                    if (this.simpleConsole.CursorTop == previousTop &&
+                        previousLeft != 0)
                     {
                         this.simpleConsole.Scroll(1, false);
                     }
@@ -293,7 +298,19 @@ internal class ReadLineInstance
         this.BufferList.Clear();
     }
 
-    public void RedrawInternal()
+    public void Restore()
+    {
+        (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
+        var y = this.simpleConsole.CursorTop;
+        foreach (var x in this.BufferList)
+        {
+            x.Top = y;
+            x.UpdateHeight(false);
+            y += x.Height;
+        }
+    }
+
+    public void Redraw()
     {
         if (this.BufferList.Count == 0)
         {
@@ -370,11 +387,13 @@ internal class ReadLineInstance
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
     }
 
-    public (int BufferIndex, int CursorIndex) GetLocation()
+    public void PrepareLocation()
     {
         if (this.BufferList.Count == 0)
         {
-            return default;
+            this.BufferIndex = 0;
+            this.BufferPosition = 0;
+            return;
         }
 
         var y = this.BufferList[0].Top;
@@ -395,11 +414,15 @@ internal class ReadLineInstance
 
         if (buffer is null)
         {
-            return default;
+            this.BufferIndex = 0;
+            this.BufferPosition = 0;
+            return;
         }
         else
         {
-            return (buffer.Index, buffer.GetCursorIndex());
+            this.BufferIndex = buffer.Index;
+            this.BufferPosition = buffer.GetCursorIndex();
+            return;
         }
     }
 

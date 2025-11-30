@@ -1,5 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System;
+using System.Threading;
 using Arc;
 using Arc.Threading;
 using Arc.Unit;
@@ -57,6 +59,10 @@ internal class Program
             CancelOnEscape = true,
             // MaskingCharacter = '?',
         };
+
+        // ThreadPool.GetMinThreads(out var worker, out var io);
+        // Console.WriteLine($"Worker:{worker} Io:{io}");
+        // ThreadPool.SetMinThreads(Math.Max(worker, 8), io)
 
         Console.WriteLine(Environment.OSVersion.ToString());
 

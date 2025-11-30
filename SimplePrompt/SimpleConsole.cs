@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -110,19 +109,20 @@ public partial class SimpleConsole : IConsoleService
 
     internal int CursorTop { get; set; }
 
+    internal SimpleLocation Location { get; }
+
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly ObjectPool<ReadLineInstance> instancePool;
     private readonly ObjectPool<ReadLineBuffer> bufferPool;
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
-    private int previousBufferIndex = 0;
-    private int previousCursorIndex = 0;
 
     private SimpleConsole()
     {
         this.simpleTextWriter = new(this, Console.Out);
         this.RawConsole = new(this);
+        this.Location = new(this);
         this.instancePool = new(() => new ReadLineInstance(this), 4);
         this.bufferPool = new(() => new ReadLineBuffer(this), 32);
         this.DefaultOptions = new();
@@ -210,6 +210,7 @@ public partial class SimpleConsole : IConsoleService
                 }
 
 ProcessKeyInfo:
+                this.Location.Invalidate();
                 if (keyInfo.KeyChar == '\n' ||
                     keyInfo.Key == ConsoleKey.Enter)
                 {
@@ -335,13 +336,13 @@ ProcessKeyInfo:
                     return;
                 }
 
-                var location = activeInstance.GetLocation();
+                activeInstance.PrepareLocation();
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
                 this.WriteInternal(message);
-                activeInstance.RedrawInternal();
+                activeInstance.Redraw();
 
-                var buffer = activeInstance.BufferList[location.BufferIndex];
-                var cursor = buffer.ToCursor(location.CursorIndex);
+                var buffer = activeInstance.BufferList[activeInstance.BufferIndex];
+                var cursor = buffer.ToCursor(activeInstance.BufferPosition);
                 this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
             }
         }
@@ -515,7 +516,7 @@ ProcessKeyInfo:
         this.CursorTop = cursorTop;
     }
 
-    private bool TryGetActiveInstance([MaybeNullWhen(false)] out ReadLineInstance instance)
+    internal bool TryGetActiveInstance([MaybeNullWhen(false)] out ReadLineInstance instance)
     {
         if (this.instanceList.Count == 0)
         {
@@ -533,6 +534,28 @@ ProcessKeyInfo:
         {
             target.Clear();
             this.instanceList.Remove(target);
+
+            if (this.TryGetActiveInstance(out var activeInstance))
+            {
+                activeInstance.Restore();
+                activeInstance.SetCursorAtFirst(CursorOperation.Hide);
+                activeInstance.Redraw();
+
+                if (activeInstance.BufferIndex < activeInstance.EditableBufferIndex)
+                {
+                    activeInstance.BufferIndex = activeInstance.EditableBufferIndex;
+                    activeInstance.BufferPosition = 0;
+                }
+
+                if (activeInstance.BufferPosition > activeInstance.BufferList[activeInstance.BufferIndex].Width)
+                {
+                    activeInstance.BufferPosition = activeInstance.BufferList[activeInstance.BufferIndex].Width;
+                }
+
+                var buffer = activeInstance.BufferList[activeInstance.BufferIndex];
+                var cursor = buffer.ToCursor(activeInstance.BufferPosition);
+                this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
+            }
         }
     }
 
@@ -634,55 +657,25 @@ ProcessKeyInfo:
 
         if (windowWidth == this.WindowWidth &&
             windowHeight == this.WindowHeight)
-        {
+        {// Window size not changed
             if (activeInstance is not null)
             {
-                (this.previousBufferIndex, this.previousCursorIndex) = activeInstance.GetLocation();
+                this.Location.Update(activeInstance);
             }
 
             return;
         }
 
-        var prevWindowWidth = this.WindowWidth;
-        var prevWindowHeight = this.WindowHeight;
+        // Window size changed
         this.WindowWidth = windowWidth;
         this.WindowHeight = windowHeight;
 
         if (activeInstance is not null)
         {
+            // this.Location.Redraw();
+
             var newCursor = Console.GetCursorPosition();
-            /*var dif = newCursor.Top - this.CursorTop;
-            if (dif != 0)
-            {
-                foreach (var x in activeInstance.BufferList)
-                {
-                    x.Top += dif;
-                }
-            }*/
-
-            // Estimate buffer index
-            /*var height = ((newCursor.Left - this.CursorLeft) + ((newCursor.Top - this.CursorTop) * windowWidth)) / (prevWindowWidth - windowWidth);
-            var top = this.CursorTop - height;
-            if (activeInstance.BufferList.Find(x => x.Top == top) is { } buffer)
-            {
-                var newTop = this.CursorTop - height;
-                buffer.Top = newTop;
-                buffer.UpdateHeight(false);
-                for (var i = buffer.Index - 1; i >= 0; i--)
-                {
-                    activeInstance.BufferList[i + 1].UpdateHeight(false);
-                    activeInstance.BufferList[i].Top = activeInstance.BufferList[i + 1].Top - activeInstance.BufferList[i + 1].Height;
-                }
-
-                for (var i = buffer.Index + 1; i < activeInstance.BufferList.Count; i++)
-                {
-                    activeInstance.BufferList[i - 1].UpdateHeight(false);
-                    activeInstance.BufferList[i].Top = activeInstance.BufferList[i - 1].Top + activeInstance.BufferList[i - 1].Height;
-                }
-            }*/
-
-            // var buffer = activeInstance.BufferList[this.previousBufferIndex];
-
+            this.Location.RearrangeBuffers(newCursor);
             (this.CursorLeft, this.CursorTop) = newCursor;
         }
     }
