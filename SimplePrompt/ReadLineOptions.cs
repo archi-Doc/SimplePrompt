@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using Arc.Threading;
+using static SimplePrompt.SimpleConsole;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
@@ -11,7 +12,16 @@ namespace SimplePrompt;
 /// </summary>
 public record class ReadLineOptions
 {
-    public static readonly ReadLineOptions Default = new();
+    public static readonly ReadLineOptions SingleLine = new()
+    {
+        MaxInputLength = 1024,
+        MultilineIdentifier = null,
+        AllowEmptyLineInput = false,
+    };
+
+    public static readonly ReadLineOptions MultiLine = new()
+    {
+    };
 
     /// <summary>
     /// Gets the color used for user input in the console.
@@ -60,4 +70,19 @@ public record class ReadLineOptions
     /// Default is 0 (no masking).
     /// </summary>
     public char MaskingCharacter { get; init; } = default;
+
+    /// <summary>
+    /// Gets the hook for intercepting and processing key input during console reading operations.
+    /// Default is <see langword="null"/> (no custom key input handling).<br/>
+    /// If provided and returns <see langword="true"/>, the key input is considered handled and will not be processed further.
+    /// </summary>
+    public KeyInputHook? KeyInputHook { get; init; } = default;
+
+    /// <summary>
+    /// Gets the hook for intercepting and processing text input during console reading operations.
+    /// Default is <see langword="null"/> (no custom text input handling).<br/>
+    /// If a valid string is returned, it is treated as valid text input and the function completes.<br/>
+    /// If <see langword="null"/> is returned, the input is rejected and the user is prompted to enter it again.
+    /// </summary>
+    public TextInputHook? TextInputHook { get; init; } = default;
 }

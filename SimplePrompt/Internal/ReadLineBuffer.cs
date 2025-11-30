@@ -70,6 +70,13 @@ internal class ReadLineBuffer
         this.Height = 1;
     }
 
+    public void Reset()
+    {
+        this.Length = 0;
+        this.Width = 0;
+        this.Height = 1;
+    }
+
     public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
         if (charBuffer.Length > 0)

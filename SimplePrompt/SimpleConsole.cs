@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -27,6 +28,16 @@ public partial class SimpleConsole : IConsoleService
     /// <see langword="false"/> to allow normal processing of the key input.
     /// </returns>
     public delegate bool KeyInputHook(ConsoleKeyInfo keyInfo);
+
+    /// <summary>
+    /// Represents a method that handles text input validation or transformation after the user submits input.
+    /// </summary>
+    /// <param name="text">The input text submitted by the user.</param>
+    /// <returns>
+    /// The validated or transformed text to be returned as the final result.
+    /// If <see langword="null"/> is returned, the input is rejected and the user can continue editing.
+    /// </returns>
+    public delegate string? TextInputHook(string text);
 
     private const int DelayInMilliseconds = 10;
     private const int WindowBufferSize = 32 * 1024;
@@ -83,7 +94,7 @@ public partial class SimpleConsole : IConsoleService
     public ThreadCoreBase Core { get; set; } = ThreadCore.Root;
 
     /// <summary>
-    /// Gets or sets the default options for <see cref="ReadLine(ReadLineOptions?, CancellationToken, KeyInputHook?)"/>.
+    /// Gets or sets the default options for <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/>.
     /// </summary>
     public ReadLineOptions DefaultOptions { get; set; }
 
@@ -94,7 +105,7 @@ public partial class SimpleConsole : IConsoleService
     public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
     /// <summary>
-    /// Gets a value indicating whether a <see cref="ReadLine(ReadLineOptions?, CancellationToken, KeyInputHook?)"/> operation is currently in progress.<br/>
+    /// Gets a value indicating whether a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is currently in progress.<br/>
     /// Returns <see langword="true"/> if at least one active instance exists in the instance list; otherwise, <see langword="false"/>.
     /// </summary>
     public bool IsReadLineInProgress => this.instanceList.Count > 0;
@@ -135,14 +146,10 @@ public partial class SimpleConsole : IConsoleService
     /// If not specified, <see cref="DefaultOptions" /> will be used.
     /// </param>
     /// <param name="cancellationToken">A cancellation token to cancel the read operation.</param>
-    /// <param name="keyInputHook">
-    /// An optional delegate that handles key input events during console read operations.<br/>
-    /// If provided and returns <see langword="true"/>, the key input is considered handled and will not be processed further.
-    /// </param>
     /// <returns>
     /// A task that represents the asynchronous operation. The task result contains an <see cref="InputResult"/>.
     /// </returns>
-    public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default, KeyInputHook? keyInputHook = default)
+    public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
         ReadLineInstance currentInstance;
         using (this.syncObject.EnterScope())
@@ -232,8 +239,8 @@ ProcessKeyInfo:
                     return new(InputResultKind.Canceled);
                 }
 
-                if (keyInputHook is not null &&
-                    keyInputHook(keyInfo))
+                if (currentInstance.Options.KeyInputHook is not null &&
+                    currentInstance.Options.KeyInputHook(keyInfo))
                 {// Handled by the hook delegate.
                     continue;
                 }
@@ -281,6 +288,21 @@ ProcessKeyInfo:
                     using (this.syncObject.EnterScope())
                     {
                         result = currentInstance.Flush(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
+                        if (result is not null &&
+                            currentInstance.Options.TextInputHook is not null)
+                        {
+                            result = currentInstance.Options.TextInputHook(result);
+                            if (result is null)
+                            {// Rejected by the hook delegate.
+                                this.UnderlyingTextWriter.WriteLine();
+                                currentInstance.Reset();
+                                currentInstance.Redraw();
+                                var buffer = currentInstance.BufferList[currentInstance.BufferList.Count - 1];
+                                var cursor = buffer.ToCursor(0);
+                                this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.None);
+                                continue;
+                            }
+                        }
                     }
 
                     position = 0;

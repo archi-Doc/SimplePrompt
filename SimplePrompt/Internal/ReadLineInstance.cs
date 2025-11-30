@@ -286,6 +286,18 @@ internal class ReadLineInstance
         this.simpleConsole.SetCursorPosition(newCursor.Left, newCursor.Top, cursorOperation);
     }
 
+    public void Reset()
+    {
+        this.MultilineMode = false;
+        for (var i = this.EditableBufferIndex + 1; i < this.BufferList.Count; i++)
+        {
+            this.BufferList.Remove(this.BufferList[i]);
+            this.simpleConsole.ReturnBuffer(this.BufferList[i]);
+        }
+
+        this.BufferList[this.EditableBufferIndex].Reset();
+    }
+
     public void Clear()
     {
         this.MultilineMode = false;

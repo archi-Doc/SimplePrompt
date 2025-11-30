@@ -5,6 +5,7 @@ using Arc.Threading;
 using Arc.Unit;
 using Microsoft.Extensions.DependencyInjection;
 using SimplePrompt;
+using static SimpleCommandLine.SimpleParser;
 
 namespace Playground;
 
@@ -71,55 +72,12 @@ internal class Program
         {
             var options = simpleConsole.DefaultOptions with
             {// Multiline prompt example
-                Prompt = "Description (n or F3:nested)\r\n\n<---\nInput> ",
+                Prompt = "Description (n or F3:Nested, y or F4:Yes or No)\r\n\n<---\nInput> ",
                 // Prompt = "Input> ",
+                KeyInputHook = keyInfo => KeyInputHook(keyInfo),
             };
 
-            var result = await simpleConsole.ReadLine(options, default, keyInfo =>
-            {
-                if (keyInfo.Key == ConsoleKey.F1)
-                {
-                    simpleConsole.WriteLine("Inserted text");
-                    return true;
-                }
-                else if (keyInfo.Key == ConsoleKey.F2)
-                {
-                    simpleConsole.WriteLine("Text1\nText2");
-                    return true;
-                }
-                else if (keyInfo.Key == ConsoleKey.F3)
-                {
-                    _ = Task.Run(async () =>
-                    {
-                        var options2 = simpleConsole.DefaultOptions with
-                        {
-                            Prompt = "Nested2>>> ",
-                        };
-
-                        await Task.Delay(100);
-                        var result = await simpleConsole.ReadLine(options2, default, keyInfo =>
-                        {
-                            if (keyInfo.Key == ConsoleKey.F1)
-                            {
-                                simpleConsole.WriteLine("Inserted text");
-                                return true;
-                            }
-                            else if (keyInfo.Key == ConsoleKey.F2)
-                            {
-                                simpleConsole.WriteLine("Text1\nText2");
-                                return true;
-                            }
-
-                            return false;
-                        });
-                        Console.WriteLine($"Nested2: {result.Text}");
-                    });
-
-                    return true;
-                }
-
-                return false;
-            });
+            var result = await simpleConsole.ReadLine(options);
 
             if (!await ProcessInputResult(simpleConsole, result))
             {
@@ -127,18 +85,75 @@ internal class Program
             }
             else if (string.Equals(result.Text, "n", StringComparison.InvariantCultureIgnoreCase))
             {
-                _ = Task.Run(async () =>
-                {
-                    var options2 = simpleConsole.DefaultOptions with
-                    {
-                        Prompt = "Nested>>> ",
-                    };
-
-                    await Task.Delay(100);
-                    var result = await simpleConsole.ReadLine(options2);
-                    Console.WriteLine($"Nested: {result.Text}");
-                });
+                _ = NestedPrompt();
             }
+            else if (string.Equals(result.Text, "y", StringComparison.InvariantCultureIgnoreCase))
+            {
+                _ = YesOrNoPrompt();
+            }
+        }
+
+        bool KeyInputHook(ConsoleKeyInfo keyInfo)
+        {
+            if (keyInfo.Key == ConsoleKey.F1)
+            {
+                simpleConsole.WriteLine("Inserted text");
+                return true;
+            }
+            else if (keyInfo.Key == ConsoleKey.F2)
+            {
+                simpleConsole.WriteLine("Text1\nText2");
+                return true;
+            }
+            else if (keyInfo.Key == ConsoleKey.F3)
+            {
+                _ = NestedPrompt();
+                return true;
+            }
+            else if (keyInfo.Key == ConsoleKey.F4)
+            {
+                _ = YesOrNoPrompt();
+                return true;
+            }
+
+            return false;
+        }
+
+        async Task NestedPrompt()
+        {
+            var options2 = ReadLineOptions.SingleLine with
+            {
+                Prompt = "Nested>>> ",
+                KeyInputHook = keyInfo => KeyInputHook(keyInfo),
+            };
+
+            await Task.Delay(100);
+            var result = await simpleConsole.ReadLine(options2);
+            Console.WriteLine($"Nested: {result.Text}");
+        }
+
+        async Task YesOrNoPrompt()
+        {
+            var options = ReadLineOptions.MultiLine with
+            {
+                Prompt = "Yes or No?\r\n[Y/n] ",
+                MultilineIdentifier = "|",
+                MaxInputLength = 5,
+                TextInputHook = text =>
+                {
+                    var lower = text.ToLowerInvariant();
+                    if (lower == "y" || lower == "n" || lower == "yes" || lower == "no")
+                    {
+                        return text;
+                    }
+
+                    return null;
+                },
+            };
+
+            await Task.Delay(100);
+            var result = await simpleConsole.ReadLine(options);
+            Console.WriteLine($"Yes or No: {result.Text}");
         }
     }
 
@@ -158,27 +173,28 @@ internal class Program
                 AllowEmptyLineInput = true,
                 MaxInputLength = 20,
                 MaskingCharacter = '$',
+                KeyInputHook = keyInfo =>
+                {
+                    if (keyInfo.Key == ConsoleKey.F1)
+                    {
+                        simpleConsole.WriteLine("Inserted text");
+                        return true;
+                    }
+                    else if (keyInfo.Key == ConsoleKey.F2)
+                    {
+                        simpleConsole.WriteLine("Text1\nText2");
+                        return true;
+                    }
+                    else if (keyInfo.Key == ConsoleKey.F3)
+                    {
+                        return true;
+                    }
+
+                    return false;
+                },
             };
 
-            var result = await simpleConsole.ReadLine(options, default, keyInfo =>
-            {
-                if (keyInfo.Key == ConsoleKey.F1)
-                {
-                    simpleConsole.WriteLine("Inserted text");
-                    return true;
-                }
-                else if (keyInfo.Key == ConsoleKey.F2)
-                {
-                    simpleConsole.WriteLine("Text1\nText2");
-                    return true;
-                }
-                else if (keyInfo.Key == ConsoleKey.F3)
-                {
-                    return true;
-                }
-
-                return false;
-            });
+            var result = await simpleConsole.ReadLine(options);
 
             if (!await ProcessInputResult(simpleConsole, result))
             {
