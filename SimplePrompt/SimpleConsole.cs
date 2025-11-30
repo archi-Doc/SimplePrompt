@@ -561,7 +561,7 @@ ProcessKeyInfo:
             {
                 activeInstance.Restore();
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
-                activeInstance.Redraw(true);
+                activeInstance.Redraw();
 
                 if (activeInstance.BufferIndex < activeInstance.EditableBufferIndex)
                 {
@@ -621,8 +621,8 @@ ProcessKeyInfo:
             height++;
         }
 
-        // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
-        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
+        this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
+        // this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
 
         this.CursorLeft = 0;
