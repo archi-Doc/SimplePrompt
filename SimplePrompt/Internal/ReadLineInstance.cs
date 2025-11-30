@@ -322,7 +322,7 @@ internal class ReadLineInstance
         }
     }
 
-    public void Redraw()
+    public void Redraw(bool resetCursor)
     {
         if (this.BufferList.Count == 0)
         {
@@ -332,14 +332,11 @@ internal class ReadLineInstance
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
 
-        /*if (resetCursor)
+        if (resetCursor)
         {
-            SimpleConsole.TryCopy(ResetCursor, ref span);
-            this.simpleConsole.CursorLeft = 0;
-            this.simpleConsole.CursorTop = 0;
-        }*/
+            (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
+        }
 
-        (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
         var y = this.simpleConsole.CursorTop;
         var isFirst = true;
         var remainingHeight = this.simpleConsole.WindowHeight;
