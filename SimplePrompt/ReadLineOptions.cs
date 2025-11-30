@@ -11,7 +11,12 @@ namespace SimplePrompt;
 /// </summary>
 public record class ReadLineOptions
 {
-    public static readonly ReadLineOptions Default = new();
+    public static readonly ReadLineOptions SingleLine = new()
+    {
+        MaxInputLength = 1024,
+        MultilineIdentifier = null,
+        AllowEmptyLineInput = false,
+    };
 
     /// <summary>
     /// Gets the color used for user input in the console.

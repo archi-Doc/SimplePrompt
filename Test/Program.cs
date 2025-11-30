@@ -71,7 +71,7 @@ internal class Program
         {
             var options = simpleConsole.DefaultOptions with
             {// Multiline prompt example
-                Prompt = "Description (n or F3:nested)\r\n\n<---\nInput> ",
+                Prompt = "Description (n or F3:Nested, y or F4:Yes or No)\r\n\n<---\nInput> ",
                 // Prompt = "Input> ",
             };
 
@@ -117,6 +117,10 @@ internal class Program
 
                     return true;
                 }
+                else if (keyInfo.Key == ConsoleKey.F4)
+                {
+                    _ = YesOrNoPrompt();
+                }
 
                 return false;
             });
@@ -139,6 +143,23 @@ internal class Program
                     Console.WriteLine($"Nested: {result.Text}");
                 });
             }
+            else if (string.Equals(result.Text, "y", StringComparison.InvariantCultureIgnoreCase))
+            {
+                _ = YesOrNoPrompt();
+            }
+        }
+
+        async Task YesOrNoPrompt()
+        {
+            var options = ReadLineOptions.SingleLine with
+            {
+                Prompt = "[Y/n] ",
+                MaxInputLength = 3,
+            };
+
+            await Task.Delay(100);
+            var result = await simpleConsole.ReadLine(options);
+            Console.WriteLine($"Yes or No: {result.Text}");
         }
     }
 
