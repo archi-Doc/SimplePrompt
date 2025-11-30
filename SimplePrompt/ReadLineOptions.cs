@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using Arc.Threading;
+using static SimplePrompt.SimpleConsole;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
@@ -65,4 +66,11 @@ public record class ReadLineOptions
     /// Default is 0 (no masking).
     /// </summary>
     public char MaskingCharacter { get; init; } = default;
+
+    /// <summary>
+    /// Gets the hook for intercepting and processing key input during console reading operations.
+    /// Default is <see langword="null"/> (no custom key input handling).<br/>
+    /// If provided and returns <see langword="true"/>, the key input is considered handled and will not be processed further.
+    /// </summary>
+    public KeyInputHook? KeyInputHook { get; init; } = default;
 }

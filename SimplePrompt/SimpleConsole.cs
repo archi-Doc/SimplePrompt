@@ -83,7 +83,7 @@ public partial class SimpleConsole : IConsoleService
     public ThreadCoreBase Core { get; set; } = ThreadCore.Root;
 
     /// <summary>
-    /// Gets or sets the default options for <see cref="ReadLine(ReadLineOptions?, CancellationToken, KeyInputHook?)"/>.
+    /// Gets or sets the default options for <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/>.
     /// </summary>
     public ReadLineOptions DefaultOptions { get; set; }
 
@@ -94,7 +94,7 @@ public partial class SimpleConsole : IConsoleService
     public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
     /// <summary>
-    /// Gets a value indicating whether a <see cref="ReadLine(ReadLineOptions?, CancellationToken, KeyInputHook?)"/> operation is currently in progress.<br/>
+    /// Gets a value indicating whether a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is currently in progress.<br/>
     /// Returns <see langword="true"/> if at least one active instance exists in the instance list; otherwise, <see langword="false"/>.
     /// </summary>
     public bool IsReadLineInProgress => this.instanceList.Count > 0;
@@ -135,14 +135,10 @@ public partial class SimpleConsole : IConsoleService
     /// If not specified, <see cref="DefaultOptions" /> will be used.
     /// </param>
     /// <param name="cancellationToken">A cancellation token to cancel the read operation.</param>
-    /// <param name="keyInputHook">
-    /// An optional delegate that handles key input events during console read operations.<br/>
-    /// If provided and returns <see langword="true"/>, the key input is considered handled and will not be processed further.
-    /// </param>
     /// <returns>
     /// A task that represents the asynchronous operation. The task result contains an <see cref="InputResult"/>.
     /// </returns>
-    public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default, KeyInputHook? keyInputHook = default)
+    public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
         ReadLineInstance currentInstance;
         using (this.syncObject.EnterScope())
@@ -232,8 +228,8 @@ ProcessKeyInfo:
                     return new(InputResultKind.Canceled);
                 }
 
-                if (keyInputHook is not null &&
-                    keyInputHook(keyInfo))
+                if (currentInstance.Options.KeyInputHook is not null &&
+                    currentInstance.Options.KeyInputHook(keyInfo))
                 {// Handled by the hook delegate.
                     continue;
                 }
