@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
@@ -27,6 +28,8 @@ public partial class SimpleConsole : IConsoleService
     /// <see langword="false"/> to allow normal processing of the key input.
     /// </returns>
     public delegate bool KeyInputHook(ConsoleKeyInfo keyInfo);
+
+    public delegate string? TextInputHook(string text);
 
     private const int DelayInMilliseconds = 10;
     private const int WindowBufferSize = 32 * 1024;
@@ -277,6 +280,21 @@ ProcessKeyInfo:
                     using (this.syncObject.EnterScope())
                     {
                         result = currentInstance.Flush(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
+                        if (result is not null &&
+                            currentInstance.Options.TextInputHook is not null)
+                        {
+                            result = currentInstance.Options.TextInputHook(result);
+                            if (result is null)
+                            {
+                                this.UnderlyingTextWriter.WriteLine();
+                                currentInstance.Reset();
+                                currentInstance.Redraw();
+                                var buffer = currentInstance.BufferList[currentInstance.BufferList.Count - 1];
+                                var cursor = buffer.ToCursor(0);
+                                this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.None);
+                                continue;
+                            }
+                        }
                     }
 
                     position = 0;

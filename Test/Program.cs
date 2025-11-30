@@ -134,10 +134,21 @@ internal class Program
 
         async Task YesOrNoPrompt()
         {
-            var options = ReadLineOptions.SingleLine with
+            var options = ReadLineOptions.MultiLine with
             {
-                Prompt = "[Y/n] ",
-                MaxInputLength = 3,
+                Prompt = "Yes or No?\r\n[Y/n] ",
+                MultilineIdentifier = "|",
+                MaxInputLength = 5,
+                TextInputHook = text =>
+                {
+                    var lower = text.ToLowerInvariant();
+                    if (lower == "y" || lower == "n" || lower == "yes" || lower == "no")
+                    {
+                        return text;
+                    }
+
+                    return null;
+                },
             };
 
             await Task.Delay(100);

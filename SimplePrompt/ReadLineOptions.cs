@@ -19,6 +19,10 @@ public record class ReadLineOptions
         AllowEmptyLineInput = false,
     };
 
+    public static readonly ReadLineOptions MultiLine = new()
+    {
+    };
+
     /// <summary>
     /// Gets the color used for user input in the console.
     /// Default is <see cref="ConsoleColor.Yellow"/>.
@@ -73,4 +77,6 @@ public record class ReadLineOptions
     /// If provided and returns <see langword="true"/>, the key input is considered handled and will not be processed further.
     /// </summary>
     public KeyInputHook? KeyInputHook { get; init; } = default;
+
+    public TextInputHook? TextInputHook { get; init; } = default;
 }
