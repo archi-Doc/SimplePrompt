@@ -210,6 +210,7 @@ public partial class SimpleConsole : IConsoleService
                 }
 
 ProcessKeyInfo:
+                this.Location.Invalidate();
                 if (keyInfo.KeyChar == '\n' ||
                     keyInfo.Key == ConsoleKey.Enter)
                 {
@@ -656,7 +657,7 @@ ProcessKeyInfo:
 
         if (windowWidth == this.WindowWidth &&
             windowHeight == this.WindowHeight)
-        {
+        {// Window size not changed
             if (activeInstance is not null)
             {
                 this.Location.Update(activeInstance);
@@ -665,8 +666,7 @@ ProcessKeyInfo:
             return;
         }
 
-        var prevWindowWidth = this.WindowWidth;
-        var prevWindowHeight = this.WindowHeight;
+        // Window size changed
         this.WindowWidth = windowWidth;
         this.WindowHeight = windowHeight;
 
@@ -675,7 +675,7 @@ ProcessKeyInfo:
             // this.Location.Redraw();
 
             var newCursor = Console.GetCursorPosition();
-            this.Location.AdjustBuffers(newCursor);
+            this.Location.RearrangeBuffers(newCursor);
             (this.CursorLeft, this.CursorTop) = newCursor;
         }
     }

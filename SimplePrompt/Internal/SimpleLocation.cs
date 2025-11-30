@@ -16,6 +16,7 @@ internal class SimpleLocation
     public SimpleLocation(SimpleConsole simpleConsole)
     {
         this.simpleConsole = simpleConsole;
+        this.Invalidate();
     }
 
     public void Update(ReadLineInstance readLineInstance)
@@ -25,11 +26,17 @@ internal class SimpleLocation
         {// Identical cursor position
             return;
         }
-        //
+
         this.previousInstance = readLineInstance;
         this.previousCursorLeft = this.simpleConsole.CursorLeft;
         this.previousCursorTop = this.simpleConsole.CursorTop;
         this.previousInstance.PrepareLocation();
+    }
+
+    public void Invalidate()
+    {
+        this.previousCursorLeft = -1;
+        this.previousCursorTop = -1;
     }
 
     /*public void Redraw()
@@ -91,9 +98,9 @@ internal class SimpleLocation
     {
     }*/
 
-    public void AdjustBuffers((int Left, int Top) newCursor)
+    public void RearrangeBuffers((int Left, int Top) newCursor)
     {
-        this.Log($"({newCursor.Left}, {newCursor.Top}) {this.simpleConsole.WindowWidth}-{this.simpleConsole.WindowHeight}\r\n");
+        // this.Log($"({newCursor.Left}, {newCursor.Top}) {this.simpleConsole.WindowWidth}-{this.simpleConsole.WindowHeight}\r\n");
         if (this.previousInstance is null)
         {
             return;
@@ -126,7 +133,7 @@ internal class SimpleLocation
 
         if (buffer.Top != newTop)
         {
-            this.Log($"Top {buffer.Top} -> {newTop}\r\n");
+            // this.Log($"Top {buffer.Top} -> {newTop}\r\n");
 
             buffer.Top = newTop;
             foreach (var x in bufferList)
@@ -137,10 +144,6 @@ internal class SimpleLocation
             for (var i = buffer.Index - 1; i >= 0; i--)
             {
                 bufferList[i].Top = bufferList[i + 1].Top - bufferList[i].Height;
-
-                if (bufferList[0].Top >= 4)
-                {
-                }
             }
 
             for (var i = buffer.Index + 1; i < bufferList.Count; i++)
