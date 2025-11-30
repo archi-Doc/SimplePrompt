@@ -561,7 +561,7 @@ ProcessKeyInfo:
             {
                 activeInstance.Restore();
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
-                activeInstance.Redraw();
+                activeInstance.Redraw(false);
 
                 if (activeInstance.BufferIndex < activeInstance.EditableBufferIndex)
                 {
