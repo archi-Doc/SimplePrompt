@@ -322,7 +322,7 @@ internal class ReadLineInstance
         }
     }
 
-    public void Redraw()
+    public void Redraw(bool resetCursor)
     {
         if (this.BufferList.Count == 0)
         {
@@ -339,7 +339,11 @@ internal class ReadLineInstance
             this.simpleConsole.CursorTop = 0;
         }*/
 
-        (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
+        if (resetCursor)
+        {
+            (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
+        }
+
         var y = this.simpleConsole.CursorTop;
         var isFirst = true;
         var remainingHeight = this.simpleConsole.WindowHeight;

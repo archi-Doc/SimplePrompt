@@ -296,7 +296,7 @@ ProcessKeyInfo:
                             {// Rejected by the hook delegate.
                                 this.UnderlyingTextWriter.WriteLine();
                                 currentInstance.Reset();
-                                currentInstance.Redraw();
+                                currentInstance.Redraw(true);
                                 var buffer = currentInstance.BufferList[currentInstance.BufferList.Count - 1];
                                 var cursor = buffer.ToCursor(0);
                                 this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.None);
@@ -354,14 +354,14 @@ ProcessKeyInfo:
                 if (!this.TryGetActiveInstance(out var activeInstance))
                 {
                     this.WriteInternal(message);
-                    (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+                    // (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition(); // Alternative
                     return;
                 }
 
                 activeInstance.PrepareLocation();
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
                 this.WriteInternal(message);
-                activeInstance.Redraw();
+                activeInstance.Redraw(false);
 
                 var buffer = activeInstance.BufferList[activeInstance.BufferIndex];
                 var cursor = buffer.ToCursor(activeInstance.BufferPosition);
@@ -561,7 +561,7 @@ ProcessKeyInfo:
             {
                 activeInstance.Restore();
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
-                activeInstance.Redraw();
+                activeInstance.Redraw(true);
 
                 if (activeInstance.BufferIndex < activeInstance.EditableBufferIndex)
                 {
@@ -585,6 +585,7 @@ ProcessKeyInfo:
     {
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
+        var height = 0;
 
         while (message.Length > 0)
         {
@@ -616,11 +617,16 @@ ProcessKeyInfo:
             {
                 break;
             }
+
+            height++;
         }
 
-        this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
-        //this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
+        // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
+
+        this.CursorLeft = 0;
+        this.CursorTop += height;
     }
 
     private void Initialize()
