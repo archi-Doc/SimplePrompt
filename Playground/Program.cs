@@ -66,6 +66,12 @@ internal class Program
 
         Console.WriteLine(Environment.OSVersion.ToString());
 
+        var count = 0;
+        while (!ThreadCore.Root.IsTerminated)
+        {
+            Console.WriteLine(count++);
+        }
+
         while (!ThreadCore.Root.IsTerminated)
         {
             var options = simpleConsole.DefaultOptions with
