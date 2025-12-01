@@ -70,7 +70,7 @@ internal class Program
         while (!ThreadCore.Root.IsTerminated)
         {
             await Task.Delay(1_000).ConfigureAwait(false);
-            Console.WriteLine(count++);
+            Console.WriteLine($"{count++}");
         }
 
         while (!ThreadCore.Root.IsTerminated)
