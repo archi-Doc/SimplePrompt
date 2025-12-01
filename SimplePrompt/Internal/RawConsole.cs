@@ -49,6 +49,7 @@ internal sealed class RawConsole
             this.InitializeStdin();
             this.db = TermInfo.DatabaseFactory.ReadActiveDatabase();
             // Console.WriteLine("Stdin");
+            Console.WriteLine();
         }
         catch
         {
