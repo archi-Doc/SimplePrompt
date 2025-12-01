@@ -215,6 +215,8 @@ public partial class SimpleConsole : IConsoleService
                         delayFlag = true;
                         continue;
                     }
+
+                    this.Location.CorrectCursorTop(currentInstance);//
                 }
 
 ProcessKeyInfo:
@@ -363,7 +365,7 @@ ProcessKeyInfo:
                     return;
                 }
 
-                this.Location.CorrectCursorTop(activeInstance);
+                this.Location.CorrectCursorTop(activeInstance);//
                 activeInstance.PrepareLocation();
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
                 this.WriteInternal(message);

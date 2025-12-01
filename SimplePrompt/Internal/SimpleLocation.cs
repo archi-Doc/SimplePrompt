@@ -159,7 +159,7 @@ internal class SimpleLocation
     public void CorrectCursorTop(ReadLineInstance readLineInstance)
     {//
         var newCursor = Console.GetCursorPosition();
-        this.simpleConsole.UnderlyingTextWriter.Write($"{this.simpleConsole.CursorTop}->{newCursor.Top}, ");
+        // this.simpleConsole.UnderlyingTextWriter.Write($"{this.simpleConsole.CursorTop}->{newCursor.Top}, ");
         if (newCursor.Top == this.simpleConsole.CursorTop)
         {
             return;
