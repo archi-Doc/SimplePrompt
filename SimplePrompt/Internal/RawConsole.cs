@@ -133,8 +133,8 @@ internal sealed class RawConsole
     public unsafe void WriteInternal(ReadOnlySpan<char> data)
     {
         try
-        {//
-            /*if (this.handle is not null)
+        {
+            if (this.handle is not null)
             {
                 var length = Encoding.UTF8.GetMaxByteCount(data.Length);
 
@@ -159,7 +159,7 @@ internal sealed class RawConsole
                     }
                 }
             }
-            else*/
+            else
             {
                 this.simpleConsole.UnderlyingTextWriter.Write(data);
             }
