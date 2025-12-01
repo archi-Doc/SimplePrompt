@@ -156,6 +156,24 @@ internal class SimpleLocation
         this.simpleConsole.CursorTop = newCursor.Top;
     }
 
+    public void CorrectCursor(ReadLineInstance readLineInstance)
+    {//
+        var newCursor = Console.GetCursorPosition();
+        if (newCursor.Left == this.simpleConsole.CursorLeft &&
+            newCursor.Top == this.simpleConsole.CursorTop)
+        {
+            return;
+        }
+
+        var topDiff = newCursor.Top - this.simpleConsole.CursorTop;
+        foreach (var x in readLineInstance.BufferList)
+        {
+            x.Top += topDiff;
+        }
+
+        (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = newCursor;
+    }
+
     private void Log(string message)
     {
         File.AppendAllText("log.txt", message);

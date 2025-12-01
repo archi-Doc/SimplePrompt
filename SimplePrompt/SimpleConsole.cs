@@ -363,6 +363,7 @@ ProcessKeyInfo:
                     return;
                 }
 
+                this.Location.CorrectCursor(activeInstance);
                 activeInstance.PrepareLocation();
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
                 this.WriteInternal(message);

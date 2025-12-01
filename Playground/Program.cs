@@ -60,18 +60,14 @@ internal class Program
             // MaskingCharacter = '?',
         };
 
-        // ThreadPool.GetMinThreads(out var worker, out var io);
-        // Console.WriteLine($"Worker:{worker} Io:{io}");
-        // ThreadPool.SetMinThreads(Math.Max(worker, 8), io)
-
         Console.WriteLine(Environment.OSVersion.ToString());
 
-        var count = 0;
+        /*var count = 0;
         while (!ThreadCore.Root.IsTerminated)
         {
             await Task.Delay(1_000).ConfigureAwait(false);
             Console.WriteLine($"{count++}");
-        }
+        }*/
 
         while (!ThreadCore.Root.IsTerminated)
         {
