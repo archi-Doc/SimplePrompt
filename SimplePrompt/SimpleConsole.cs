@@ -218,6 +218,7 @@ public partial class SimpleConsole : IConsoleService
                 }
 
 ProcessKeyInfo:
+                (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();//
                 this.Location.Invalidate();
                 if (keyInfo.KeyChar == '\n' ||
                     keyInfo.Key == ConsoleKey.Enter)
