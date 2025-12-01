@@ -69,6 +69,7 @@ internal class Program
         var count = 0;
         while (!ThreadCore.Root.IsTerminated)
         {
+            await Task.Delay(1_000).ConfigureAwait(false);
             Console.WriteLine(count++);
         }
 
