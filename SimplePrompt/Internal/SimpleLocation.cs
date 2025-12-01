@@ -156,11 +156,11 @@ internal class SimpleLocation
         this.simpleConsole.CursorTop = newCursor.Top;
     }
 
-    public void CorrectCursor(ReadLineInstance readLineInstance)
+    public void CorrectCursorTop(ReadLineInstance readLineInstance)
     {//
         var newCursor = Console.GetCursorPosition();
-        if (newCursor.Left == this.simpleConsole.CursorLeft &&
-            newCursor.Top == this.simpleConsole.CursorTop)
+        this.simpleConsole.UnderlyingTextWriter.Write($"{this.simpleConsole.CursorTop}->{newCursor.Top}, ");
+        if (newCursor.Top == this.simpleConsole.CursorTop)
         {
             return;
         }
@@ -171,7 +171,7 @@ internal class SimpleLocation
             x.Top += topDiff;
         }
 
-        (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = newCursor;
+        (_, this.simpleConsole.CursorTop) = newCursor;
     }
 
     private void Log(string message)
