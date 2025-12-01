@@ -10,12 +10,14 @@ internal class Program
     private static async Task Log()
     {
         Console.WriteLine("Log test");
+        var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        Console.WriteLine(homeDirectory);
         while (true)
         {
             await Task.Delay(1_000).ConfigureAwait(false);
 
             var st = $"Cursor {Console.CursorLeft}, {Console.CursorTop} Window {Console.WindowWidth}, {Console.WindowHeight}\n";
-            File.AppendAllText("log.txt", st);
+            File.AppendAllText($"{homeDirectory}\\log.txt", st);
         }
     }
 
