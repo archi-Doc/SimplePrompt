@@ -65,15 +65,15 @@ internal class ReadLineInstance
 
             windowBuffer ??= SimpleConsole.RentWindowBuffer();
             var span = windowBuffer.AsSpan();
-            SimpleConsole.TryCopy(buffer.Prompt.AsSpan(), ref span);
+            SimplePromptHelper.TryCopy(buffer.Prompt.AsSpan(), ref span);
             if (prompt.Length == 0)
             {
-                SimpleConsole.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
+                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
                 // this.simpleConsole.CursorTop += buffer.Height - 1;
             }
             else
             {
-                SimpleConsole.TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
+                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
                 this.simpleConsole.CursorTop += buffer.Height;
             }
 
@@ -82,7 +82,7 @@ internal class ReadLineInstance
             if (prompt.Length == 0)
             {// Last buffer
                 this.EditableBufferIndex = bufferIndex - 1;
-                this.simpleConsole.MoveCursor(buffer.PromtWidth, false);
+                this.simpleConsole.AdvanceCursor(buffer.PromtWidth, false);
                 // this.simpleConsole.SetCursorPosition(this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop, CursorOperation.None);
                 break;
             }
@@ -350,22 +350,22 @@ internal class ReadLineInstance
                 }
                 else
                 {
-                    SimpleConsole.TryCopy(ConsoleHelper.NewLineSpan, ref span);
+                    SimplePromptHelper.TryCopy(ConsoleHelper.NewLineSpan, ref span);
                 }
 
                 remainingHeight -= buffer.Height;
 
                 if (buffer.Prompt is not null)
                 {
-                    SimpleConsole.TryCopy(buffer.Prompt.AsSpan(), ref span);
+                    SimplePromptHelper.TryCopy(buffer.Prompt.AsSpan(), ref span);
                 }
 
-                SimpleConsole.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.InputColor).AsSpan(), ref span); // Input color
+                SimplePromptHelper.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.InputColor).AsSpan(), ref span); // Input color
 
                 var maskingCharacter = this.Options.MaskingCharacter;
                 if (maskingCharacter == default)
                 {
-                    SimpleConsole.TryCopy(buffer.TextSpan, ref span);
+                    SimplePromptHelper.TryCopy(buffer.TextSpan, ref span);
                 }
                 else
                 {
@@ -376,8 +376,8 @@ internal class ReadLineInstance
                     }
                 }
 
-                SimpleConsole.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
-                SimpleConsole.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
+                SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
+                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
             }
 
             buffer.Top = y;

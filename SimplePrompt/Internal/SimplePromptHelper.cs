@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace SimplePrompt.Internal;
 
@@ -8,6 +9,19 @@ internal static class SimplePromptHelper
 {
     public static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
     public static readonly ConsoleKeyInfo SpaceKeyInfo = new(' ', ConsoleKey.Spacebar, false, false, false);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
+    {
+        if (source.Length > destination.Length)
+        {
+            return false;
+        }
+
+        source.CopyTo(destination);
+        destination = destination.Slice(source.Length);
+        return true;
+    }
 
     public static byte GetCharWidth(int codePoint)
     {

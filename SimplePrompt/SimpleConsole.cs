@@ -1,11 +1,9 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using Arc;
 using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
@@ -68,19 +66,6 @@ public partial class SimpleConsole : IConsoleService
 
         instance.Initialize();
         return instance;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
-    {
-        if (source.Length > destination.Length)
-        {
-            return false;
-        }
-
-        source.CopyTo(destination);
-        destination = destination.Slice(source.Length);
-        return true;
     }
 
     internal static char[] RentWindowBuffer()
@@ -435,27 +420,6 @@ ProcessKeyInfo:
         }
     }
 
-    internal void PrepareCursor()
-    {
-        if (this.CursorLeft < 0)
-        {
-            this.CursorLeft = 0;
-        }
-        else if (this.CursorLeft >= this.WindowWidth)
-        {
-            this.CursorLeft = this.WindowWidth - 1;
-        }
-
-        if (this.CursorTop < 0)
-        {
-            this.CursorTop = 0;
-        }
-        else if (this.CursorTop >= this.WindowHeight)
-        {
-            this.CursorTop = this.WindowHeight - 1;
-        }
-    }
-
     internal ReadLineInstance RentInstance(ReadLineOptions options)
     {
         var obj = this.instancePool.Rent();
@@ -476,7 +440,7 @@ ProcessKeyInfo:
     internal void ReturnBuffer(ReadLineBuffer obj)
         => this.bufferPool.Return(obj);
 
-    internal void MoveCursor(int width, bool newLine)
+    internal void AdvanceCursor(int width, bool newLine)
     {
         this.CursorLeft += width;
         var h = this.CursorLeft >= 0 ?
@@ -650,27 +614,27 @@ ProcessKeyInfo:
             }
 
             // Text
-            if (!TryCopy(text, ref span))
+            if (!SimplePromptHelper.TryCopy(text, ref span))
             {
                 break;
             }
 
             if (appendNewLine)
             {
-                if (!TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span))
+                if (!SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span))
                 {
                     break;
                 }
             }
             else
             {
-                if (!TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span))
+                if (!SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span))
                 {
                     break;
                 }
             }
 
-            this.MoveCursor(SimplePromptHelper.GetWidth(text), appendNewLine);
+            this.AdvanceCursor(SimplePromptHelper.GetWidth(text), appendNewLine);
         }
 
         // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
