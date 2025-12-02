@@ -220,7 +220,7 @@ public partial class SimpleConsole : IConsoleService
                 }
 
 ProcessKeyInfo:
-                //(this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();//
+//(this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();//
                 this.Location.Invalidate();
                 if (keyInfo.KeyChar == '\n' ||
                     keyInfo.Key == ConsoleKey.Enter)
@@ -349,11 +349,6 @@ ProcessKeyInfo:
 
     public void WriteLine(string? message = null)
     {
-        /*if (Environment.NewLine == "\r\n" && message is not null)
-        {
-            message = Arc.BaseHelper.ConvertLfToCrLf(message);
-        }*/
-
         try
         {
             using (this.syncObject.EnterScope())
@@ -593,7 +588,7 @@ ProcessKeyInfo:
     {
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
-        var height = 0;
+        // var height = 0;
 
         while (message.Length > 0)
         {
@@ -626,11 +621,11 @@ ProcessKeyInfo:
                 break;
             }
 
-            height++;
+            // height++;
         }
 
-        this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
-        // this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
+        // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
 
         this.CursorLeft = 0;
