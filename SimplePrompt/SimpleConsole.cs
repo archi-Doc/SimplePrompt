@@ -2,6 +2,7 @@
 
 using System;
 using System.Buffers;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Arc;
@@ -351,7 +352,11 @@ ProcessKeyInfo:
         {
             if (!this.IsReadLineInProgress)
             {
+                this.CheckCursor();
+
                 this.WriteInternal(message, false);
+
+                this.CheckCursor();
                 return;
             }
         }
@@ -359,29 +364,28 @@ ProcessKeyInfo:
 
     public void WriteLine(string? message = null)
     {
-        try
+        using (this.syncObject.EnterScope())
         {
-            using (this.syncObject.EnterScope())
+            this.CheckCursor();
+            if (!this.TryGetActiveInstance(out var activeInstance))
             {
-                if (!this.TryGetActiveInstance(out var activeInstance))
-                {
-                    this.WriteInternal(message, true);
-                    return;
-                }
-
-                this.Location.CorrectCursorTop(activeInstance);//
-                activeInstance.PrepareLocation();
-                activeInstance.SetCursorAtFirst(CursorOperation.Hide);
                 this.WriteInternal(message, true);
-                activeInstance.Redraw(false);
 
-                var buffer = activeInstance.BufferList[activeInstance.BufferIndex];
-                var cursor = buffer.ToCursor(activeInstance.BufferPosition);
-                this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
+                this.CheckCursor();
+                return;
             }
-        }
-        catch
-        {
+
+            this.Location.CorrectCursorTop(activeInstance);//
+            activeInstance.PrepareLocation();
+            activeInstance.SetCursorAtFirst(CursorOperation.Hide);
+            this.WriteInternal(message, true);
+            activeInstance.Redraw(false);
+
+            var buffer = activeInstance.BufferList[activeInstance.BufferIndex];
+            var cursor = buffer.ToCursor(activeInstance.BufferPosition);
+            this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
+
+            this.CheckCursor();
         }
     }
 
@@ -409,6 +413,25 @@ ProcessKeyInfo:
             {
                 return false;
             }
+        }
+    }
+
+    [Conditional("DEBUG")]
+    internal void CheckCursor()
+    {
+        try
+        {
+            var cursor = Console.GetCursorPosition();
+            if (cursor.Left != this.CursorLeft ||
+                cursor.Top != this.CursorTop)
+            {// Inconsisitent cursor position
+                var st = $"({this.CursorLeft}, {this.CursorTop})->({cursor.Left},{cursor.Top})";
+                this.UnderlyingTextWriter.WriteLine(st);
+                (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+            }
+        }
+        catch
+        {
         }
     }
 
