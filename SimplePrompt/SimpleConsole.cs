@@ -138,6 +138,8 @@ public partial class SimpleConsole : IConsoleService
         this.instancePool = new(() => new ReadLineInstance(this), 4);
         this.bufferPool = new(() => new ReadLineBuffer(this), 32);
         this.DefaultOptions = new();
+
+        this.PrepareWindow(default);
     }
 
     /// <summary>
@@ -364,7 +366,6 @@ ProcessKeyInfo:
                 if (!this.TryGetActiveInstance(out var activeInstance))
                 {
                     this.WriteInternal(message, true);
-                    // (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition(); // Alternative
                     return;
                 }
 
@@ -600,26 +601,29 @@ ProcessKeyInfo:
     {
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
-        // var height = 0;
 
         while (message.Length > 0)
         {
+            var appendNewLine = false;
             ReadOnlySpan<char> text;
             var i = message.IndexOf('\n');
             if (i > 0 && message[i - 1] == '\r')
             {// text\r\n
                 text = message.Slice(0, i - 1);
                 message = message.Slice(i + 1);
+                appendNewLine = true;
             }
             else if (i >= 0)
             {// text\n
                 text = message.Slice(0, i);
                 message = message.Slice(i + 1);
+                appendNewLine = true;
             }
             else
             {// text
                 text = message;
                 message = default;
+                appendNewLine = newLine;
             }
 
             // Text
@@ -628,7 +632,7 @@ ProcessKeyInfo:
                 break;
             }
 
-            if (newLine)
+            if (appendNewLine)
             {
                 if (!TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span))
                 {
@@ -643,7 +647,7 @@ ProcessKeyInfo:
                 }
             }
 
-            this.MoveCursor(SimplePromptHelper.GetWidth(text), newLine);
+            this.MoveCursor(SimplePromptHelper.GetWidth(text), appendNewLine);
         }
 
         // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative

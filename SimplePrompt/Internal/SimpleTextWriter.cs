@@ -22,12 +22,7 @@ internal class SimpleTextWriter : TextWriter
         => this.SimpleConsole.WriteLine(value);
 
     public override void Write(string? value)
-    {
-        if (!this.SimpleConsole.IsReadLineInProgress)
-        {
-            this.UnderlyingTextWriter.Write(value);
-        }
-    }
+        => this.SimpleConsole.Write(value);
 
     public override void Write(char value)
     {
