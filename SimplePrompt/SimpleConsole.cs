@@ -4,6 +4,7 @@ using System;
 using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using Arc;
 using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
@@ -344,7 +345,14 @@ ProcessKeyInfo:
     /// <param name="message">The message to write. If null, nothing is written.</param>
     public void Write(string? message)
     {
-        this.simpleTextWriter.Write(message);
+        using (this.syncObject.EnterScope())
+        {
+            if (!this.IsReadLineInProgress)
+            {
+                this.WriteInternal(message, false);
+                return;
+            }
+        }
     }
 
     public void WriteLine(string? message = null)
@@ -355,7 +363,7 @@ ProcessKeyInfo:
             {
                 if (!this.TryGetActiveInstance(out var activeInstance))
                 {
-                    this.WriteInternal(message);
+                    this.WriteInternal(message, true);
                     // (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition(); // Alternative
                     return;
                 }
@@ -363,7 +371,7 @@ ProcessKeyInfo:
                 this.Location.CorrectCursorTop(activeInstance);//
                 activeInstance.PrepareLocation();
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
-                this.WriteInternal(message);
+                this.WriteInternal(message, true);
                 activeInstance.Redraw(false);
 
                 var buffer = activeInstance.BufferList[activeInstance.BufferIndex];
@@ -444,14 +452,27 @@ ProcessKeyInfo:
     internal void ReturnBuffer(ReadLineBuffer obj)
         => this.bufferPool.Return(obj);
 
-    internal void MoveCursor2(int index)
+    internal void MoveCursor(int width, bool newLine)
     {
-        this.CursorLeft += index;
+        this.CursorLeft += width;
         var h = this.CursorLeft >= 0 ?
             (this.CursorLeft / this.WindowWidth) :
             (((this.CursorLeft - 1) / this.WindowWidth) - 1);
         this.CursorLeft -= h * this.WindowWidth;
         this.CursorTop += h;
+
+        if (newLine && this.CursorLeft > 0)
+        {
+            this.CursorLeft = 0;
+            this.CursorTop++;
+        }
+
+        // Scroll if needed.
+        var scroll = this.CursorTop - this.WindowHeight + 1;
+        if (scroll > 0)
+        {
+            this.Scroll(scroll, true);
+        }
     }
 
     internal void Scroll(int scroll, bool moveCursor)
@@ -475,15 +496,6 @@ ProcessKeyInfo:
         var cursorLeft = buffer.PromtWidth;
         var cursorTop = buffer.Top;
         this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.None);
-    }
-
-    internal void TrimCursor()
-    {
-        var scroll = this.CursorTop - this.WindowHeight + 1;
-        if (scroll > 0)
-        {
-            this.Scroll(scroll, true);
-        }
     }
 
     internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
@@ -584,7 +596,7 @@ ProcessKeyInfo:
         }
     }
 
-    private void WriteInternal(ReadOnlySpan<char> message)
+    private void WriteInternal(ReadOnlySpan<char> message, bool newLine)
     {
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
@@ -616,20 +628,27 @@ ProcessKeyInfo:
                 break;
             }
 
-            if (!TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span))
+            if (newLine)
             {
-                break;
+                if (!TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span))
+                {
+                    break;
+                }
+            }
+            else
+            {
+                if (!TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span))
+                {
+                    break;
+                }
             }
 
-            // height++;
+            this.MoveCursor(SimplePromptHelper.GetWidth(text), newLine);
         }
 
         // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
         this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
-
-        this.CursorLeft = 0;
-        this.CursorTop += height;
     }
 
     private void Initialize()

@@ -82,8 +82,7 @@ internal class ReadLineInstance
             if (prompt.Length == 0)
             {// Last buffer
                 this.EditableBufferIndex = bufferIndex - 1;
-                this.simpleConsole.MoveCursor2(buffer.PromtWidth);
-                this.simpleConsole.TrimCursor();
+                this.simpleConsole.MoveCursor(buffer.PromtWidth, false);
                 // this.simpleConsole.SetCursorPosition(this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop, CursorOperation.None);
                 break;
             }
