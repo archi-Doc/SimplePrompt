@@ -45,7 +45,6 @@ internal class Program
                 });
             });
 
-
         var product = builder.Build();
         var logger = product.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
         logger.TryGet()?.Log("Start");
@@ -58,16 +57,10 @@ internal class Program
             MultilineIdentifier = "|",
             CancelOnEscape = true,
             // MaskingCharacter = '?',
+            KeyInputHook = keyInfo => KeyInputHook(keyInfo),
         };
 
         Console.WriteLine(Environment.OSVersion.ToString());
-
-        /*var count = 0;
-        while (!ThreadCore.Root.IsTerminated)
-        {
-            await Task.Delay(1_000).ConfigureAwait(false);
-            Console.WriteLine($"{count++}");
-        }*/
 
         while (!ThreadCore.Root.IsTerminated)
         {
@@ -126,5 +119,38 @@ internal class Program
         }
 
         ThreadCore.Root.TerminationEvent.Set(); // The termination process is complete (#1).
+
+        bool KeyInputHook(ConsoleKeyInfo keyInfo)
+        {
+            if (keyInfo.Key == ConsoleKey.F1)
+            {
+                simpleConsole.WriteLine("Inserted text");
+                return true;
+            }
+            else if (keyInfo.Key == ConsoleKey.F2)
+            {
+                simpleConsole.WriteLine("Text1\nText2");
+                return true;
+            }
+            else if (keyInfo.Key == ConsoleKey.F3)
+            {
+                var options2 = ReadLineOptions.SingleLine with
+                {
+                    Prompt = "Nested>>> ",
+                    KeyInputHook = keyInfo => KeyInputHook(keyInfo),
+                };
+
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(100);
+                    var result = await simpleConsole.ReadLine(options2);
+                    Console.WriteLine($"Nested: {result.Text}");
+                });
+
+                return true;
+            }
+
+            return false;
+        }
     }
 }
