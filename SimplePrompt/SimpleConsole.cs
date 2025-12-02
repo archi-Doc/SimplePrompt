@@ -463,6 +463,26 @@ ProcessKeyInfo:
         }
     }
 
+    internal int AdvanceCursor(ref int cursorLeft, ref int cursorTop, int width, bool newLine)
+    {
+        cursorLeft += width;
+        var h = cursorLeft >= 0 ?
+            (cursorLeft / this.WindowWidth) :
+            (((cursorLeft - 1) / this.WindowWidth) - 1);
+        cursorLeft -= h * this.WindowWidth;
+        cursorTop += h;
+
+        if (newLine && cursorLeft > 0)
+        {
+            cursorLeft = 0;
+            cursorTop++;
+        }
+
+        // Scroll if needed.
+        var scroll = cursorTop - this.WindowHeight + 1;
+        return scroll;
+    }
+
     internal void Scroll(int scroll, bool moveCursor)
     {
         if (moveCursor)

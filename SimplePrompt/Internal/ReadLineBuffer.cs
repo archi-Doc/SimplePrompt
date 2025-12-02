@@ -247,6 +247,12 @@ internal class ReadLineBuffer
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal int GetHeight2()
+    {
+        return (this.TotalWidth + this.WindowWidth) / this.WindowWidth;
+    }
+
     internal (int Left, int Top) ToCursor(int cursorIndex)
     {
         cursorIndex += this.PromtWidth;
@@ -301,7 +307,6 @@ internal class ReadLineBuffer
         startCursor += cursorDif;
         var newCursorLeft = startCursor % this.WindowWidth;
         var newCursorTop = startCursor / this.WindowWidth;
-        var appendLineFeed = startCursor == (this.WindowWidth * this.WindowHeight);
 
         ReadOnlySpan<char> span;
         var windowBuffer = SimpleConsole.RentWindowBuffer();
@@ -366,13 +371,6 @@ internal class ReadLineBuffer
             written += totalWidth;
             buffer = buffer.Slice(totalWidth);
         }
-
-        /*if (appendLineFeed)
-        {
-            buffer[0] = '\n';
-            written += 1;
-            buffer = buffer.Slice(1);
-        }*/
 
         // Reset color
         span = ConsoleHelper.ResetSpan;
