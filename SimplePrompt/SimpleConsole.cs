@@ -107,6 +107,10 @@ public partial class SimpleConsole : IConsoleService
 
     internal int CursorTop { get; set; }
 
+    internal int CursorExtra { get; set; }
+
+    internal int CursorLeftAndExtra => this.CursorLeft + this.CursorExtra;
+
     internal SimpleLocation Location { get; }
 
     private readonly SimpleTextWriter simpleTextWriter;
@@ -513,6 +517,11 @@ ProcessKeyInfo:
         {
             return;
         }*/
+
+        if (cursorLeft > (this.WindowWidth - 1))
+        {
+            cursorLeft = this.WindowWidth - 1;
+        }
 
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var buffer = windowBuffer.AsSpan();
