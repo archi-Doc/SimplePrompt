@@ -12,6 +12,8 @@ internal class ReadLineBuffer
     private const int BufferMargin = 32;
     private const int MaxPromptWidth = 1_024;
 
+    public static ReadOnlySpan<char> ForceNewLineCursor => " \e[1D";
+
     public int Index { get; set; }
 
     public int Top { get; set; }
@@ -370,6 +372,14 @@ internal class ReadLineBuffer
             buffer.Slice(0, totalWidth).Fill(maskingCharacter);
             written += totalWidth;
             buffer = buffer.Slice(totalWidth);
+        }
+
+        if (newCursorLeft == 0 && cursorDif > 0)
+        {// New line at the end
+            span = ForceNewLineCursor;
+            span.CopyTo(buffer);
+            written += span.Length;
+            buffer = buffer.Slice(span.Length);
         }
 
         // Reset color

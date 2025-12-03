@@ -421,12 +421,12 @@ ProcessKeyInfo:
             if (cursor.Left != this.CursorLeft ||
                 cursor.Top != this.CursorTop)
             {// Inconsisitent cursor position
-                if (cursor.Left == (this.WindowWidth - 1) &&
+                /*if (cursor.Left == (this.WindowWidth - 1) &&
                     this.CursorLeft == 0 &&
                     this.CursorTop == (cursor.Top + 1))
                 {// Special case: cursor wrapped to the next line
                     return;
-                }
+                }*/
 
                 var st = $"({this.CursorLeft}, {this.CursorTop})->({cursor.Left},{cursor.Top})";
                 this.UnderlyingTextWriter.WriteLine(st);
