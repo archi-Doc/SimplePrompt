@@ -149,15 +149,14 @@ internal class ReadLineInstance
                     this.BufferList.Add(buffer);
                     var previousLeft = this.simpleConsole.CursorLeft;
                     var previousTop = this.simpleConsole.CursorTop;
-                    this.simpleConsole.UnderlyingTextWriter.WriteLine();
-                    this.simpleConsole.UnderlyingTextWriter.Write(this.Options.MultilinePrompt);
-                    (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
-                    if (this.simpleConsole.CursorTop == previousTop &&
-                        previousLeft != 0)
+                    if (this.simpleConsole.CursorLeft > 0)
                     {
-                        this.simpleConsole.Scroll(1, false);
+                        this.simpleConsole.UnderlyingTextWriter.WriteLine();
+                        this.simpleConsole.NewLineCursor();
                     }
 
+                    this.simpleConsole.UnderlyingTextWriter.Write(buffer.Prompt);
+                    this.simpleConsole.AdvanceCursor(buffer.PromtWidth, false);
                     return null;
                 }
                 else
