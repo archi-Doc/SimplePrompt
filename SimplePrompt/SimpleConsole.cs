@@ -155,11 +155,7 @@ public partial class SimpleConsole : IConsoleService
             if (this.CursorLeft > 0)
             {
                 this.UnderlyingTextWriter.WriteLine();
-                this.CursorLeft = 0;
-                if (this.CursorTop < this.WindowHeight - 1)
-                {
-                    this.CursorTop++;
-                }
+                this.NewLineCursor();
             }
 
             // Create and prepare a ReadLineInstance.
@@ -240,7 +236,11 @@ ProcessKeyInfo:
                     keyInfo.Key == ConsoleKey.Escape)
                 {
                     this.UnderlyingTextWriter.WriteLine();
-                    this.CursorTop++;
+                    using (this.syncObject.EnterScope())
+                    {
+                        this.NewLineCursor();
+                    }
+
                     return new(InputResultKind.Canceled);
                 }
 
