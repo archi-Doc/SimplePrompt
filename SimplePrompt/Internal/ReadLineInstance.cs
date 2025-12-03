@@ -10,6 +10,8 @@ internal class ReadLineInstance
 {
     public const int CharBufferSize = 1024;
 
+    #region FieldAndProperty
+
     public ReadLineOptions Options => this.options;
 
     public RawConsole RawConsole => this.simpleConsole.RawConsole;
@@ -28,6 +30,8 @@ internal class ReadLineInstance
 
     private readonly SimpleConsole simpleConsole;
     private ReadLineOptions options = new();
+
+    #endregion
 
     public ReadLineInstance(SimpleConsole simpleConsole)
     {

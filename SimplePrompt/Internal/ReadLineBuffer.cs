@@ -14,6 +14,8 @@ internal class ReadLineBuffer
 
     public static ReadOnlySpan<char> ForceNewLineCursor => " \e[1D";
 
+    #region FieldAndProperty
+
     public int Index { get; set; }
 
     public int Top { get; set; }
@@ -52,6 +54,8 @@ internal class ReadLineBuffer
     private ReadLineInstance readLineInstance = default!;
     private char[] charArray = new char[BufferSize];
     private byte[] widthArray = new byte[BufferSize];
+
+    #endregion
 
     public ReadLineBuffer(SimpleConsole inputConsole)
     {

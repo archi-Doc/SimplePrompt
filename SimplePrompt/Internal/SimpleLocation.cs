@@ -7,12 +7,16 @@ namespace SimplePrompt;
 
 internal class SimpleLocation
 {
+    #region FieldAndProperty
+
     private readonly SimpleConsole simpleConsole;
 
     private ReadLineInstance? previousInstance;
     private int previousCursorLeft;
     private int previousCursorTop;
     // private int previousCursorExtra;
+
+    #endregion
 
     public SimpleLocation(SimpleConsole simpleConsole)
     {
