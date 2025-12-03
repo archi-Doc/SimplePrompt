@@ -652,7 +652,18 @@ internal class ReadLineBuffer
     private int GetCursorIndex(int cursorLeft, int cursorTop)
     {
         var index = cursorLeft - this.PromtWidth + (cursorTop * this.simpleConsole.WindowWidth);
-        return index;
+        if (index < 0)
+        {
+            return 0;
+        }
+        else if (index >= this.Width)
+        {
+            return this.Width;
+        }
+        else
+        {
+            return index;
+        }
     }
 
     private void MoveLeft(int arrayPosition)

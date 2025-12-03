@@ -96,12 +96,18 @@ internal class ReadLineInstance
     {
         // this.simpleConsole.PrepareCursor();
 
-        var buffer = this.PrepareAndFindBuffer();
+        /*var buffer = this.PrepareAndFindBuffer();
         if (buffer is null)
+        {
+            return string.Empty;
+        }*/
+
+        if (this.BufferIndex >= this.BufferList.Count)
         {
             return string.Empty;
         }
 
+        var buffer = this.BufferList[this.BufferIndex];
         if (buffer.ProcessInternal(keyInfo, charBuffer))
         {// Exit input mode and return the concatenated string.
             if (this.BufferList.Count == 0)
@@ -421,11 +427,23 @@ internal class ReadLineInstance
 
         if (buffer is null)
         {
+            if (this.simpleConsole.CursorTop < this.BufferList[0].Top)
+            {
+                buffer = this.BufferList[0];
+            }
+            else
+            {
+                buffer = this.BufferList[this.BufferList.Count - 1];
+            }
+        }
+
+        /*if (buffer is null)
+        {
             this.BufferIndex = 0;
             this.BufferPosition = 0;
             return;
         }
-        else
+        else*/
         {
             this.BufferIndex = buffer.Index;
             this.BufferPosition = buffer.GetCursorIndex();
