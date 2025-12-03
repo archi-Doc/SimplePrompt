@@ -212,7 +212,7 @@ public partial class SimpleConsole : IConsoleService
                         continue;
                     }
 
-                    this.Location.CorrectCursorTop(currentInstance);//
+                    //this.Location.CorrectCursorTop(currentInstance);//
                 }
 
 ProcessKeyInfo:
