@@ -69,12 +69,12 @@ internal class ReadLineInstance
             if (prompt.Length == 0)
             {
                 SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
-                // this.simpleConsole.CursorTop += buffer.Height - 1;
+                this.simpleConsole.AdvanceCursor(buffer.PromtWidth, false);
             }
             else
             {
                 SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
-                this.simpleConsole.CursorTop += buffer.Height;
+                this.simpleConsole.AdvanceCursor(buffer.PromtWidth, true);
             }
 
             this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
@@ -82,8 +82,6 @@ internal class ReadLineInstance
             if (prompt.Length == 0)
             {// Last buffer
                 this.EditableBufferIndex = bufferIndex - 1;
-                this.simpleConsole.AdvanceCursor(buffer.PromtWidth, false);
-                // this.simpleConsole.SetCursorPosition(this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop, CursorOperation.None);
                 break;
             }
         }

@@ -21,7 +21,7 @@ internal class ReadLineBuffer
     /// </summary>
     public int CursorLeft => this.simpleConsole.CursorLeft;
 
-    public int CursorLeftAndExtra => this.simpleConsole.CursorLeft + this.simpleConsole.CursorExtra;
+    // public int CursorLeftAndExtra => this.simpleConsole.CursorLeft + this.simpleConsole.CursorExtra;
 
     /// <summary>
     /// Gets the cursor's vertical position relative to the buffer's top edge.
@@ -265,7 +265,7 @@ internal class ReadLineBuffer
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal int GetCursorIndex()
-        => this.GetCursorIndex(this.CursorLeftAndExtra, this.CursorTop);
+        => this.GetCursorIndex(this.CursorLeft, this.CursorTop);
 
     internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
     {
@@ -696,7 +696,7 @@ internal class ReadLineBuffer
     private void MoveUpOrDown(bool up)
     {
         var buffer = this;
-        var cursorLeft = this.CursorLeftAndExtra;
+        var cursorLeft = this.CursorLeft;
         var cursorTop = this.CursorTop;
 
         if (up)

@@ -105,11 +105,11 @@ public partial class SimpleConsole : IConsoleService
 
     internal int CursorLeft { get; set; }
 
+    // sinternal int CursorExtra { get; set; }
+
     internal int CursorTop { get; set; }
 
-    internal int CursorExtra { get; set; }
-
-    internal int CursorLeftAndExtra => this.CursorLeft + this.CursorExtra;
+    // internal int CursorLeftAndExtra => this.CursorLeft + this.CursorExtra;
 
     internal SimpleLocation Location { get; }
 
@@ -130,6 +130,7 @@ public partial class SimpleConsole : IConsoleService
         this.DefaultOptions = new();
 
         this.PrepareWindow(default);
+        this.SyncCursor();
     }
 
     /// <summary>
@@ -149,7 +150,8 @@ public partial class SimpleConsole : IConsoleService
         {
             // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
             this.PrepareWindow(default);
-            (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+            this.CheckCursor();
+            // (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
             if (this.CursorLeft > 0)
             {
                 this.UnderlyingTextWriter.WriteLine();
@@ -164,6 +166,7 @@ public partial class SimpleConsole : IConsoleService
             currentInstance = this.RentInstance(options ?? this.DefaultOptions);
             this.instanceList.Add(currentInstance);
             currentInstance.Prepare();
+            this.CheckCursor();
         }
 
         try
@@ -213,7 +216,6 @@ public partial class SimpleConsole : IConsoleService
                 }
 
 ProcessKeyInfo:
-//(this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();//
                 this.Location.Invalidate();
                 if (keyInfo.KeyChar == '\n' ||
                     keyInfo.Key == ConsoleKey.Enter)
@@ -416,7 +418,7 @@ ProcessKeyInfo:
             {// Inconsisitent cursor position
                 var st = $"({this.CursorLeft}, {this.CursorTop})->({cursor.Left},{cursor.Top})";
                 this.UnderlyingTextWriter.WriteLine(st);
-                (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+                this.SyncCursor();
             }
         }
         catch
@@ -447,16 +449,15 @@ ProcessKeyInfo:
     internal void AdvanceCursor(int width, bool newLine)
     {
         this.CursorLeft += width;
-        var h = this.CursorLeft >= 0 ?
-            (this.CursorLeft / this.WindowWidth) :
-            (((this.CursorLeft - 1) / this.WindowWidth) - 1);
+        var h = this.CursorLeft >= 0 ? (this.CursorLeft / this.WindowWidth) : (((this.CursorLeft - 1) / this.WindowWidth) - 1);
         this.CursorLeft -= h * this.WindowWidth; // 0 - (WindowWidth-1)
         this.CursorTop += h;
 
-        if (newLine && this.CursorLeft > 0)
+        if (newLine)
         {
             this.CursorLeft = 0;
             this.CursorTop++;
+            // this.CursorExtra = 0;
         }
 
         // Scroll if needed.
@@ -467,7 +468,7 @@ ProcessKeyInfo:
         }
     }
 
-    internal int AdvanceCursor(ref int cursorLeft, ref int cursorTop, int width, bool newLine)
+    /*internal int AdvanceCursor(ref int cursorLeft, ref int cursorTop, int width, bool newLine)
     {
         cursorLeft += width;
         var h = cursorLeft >= 0 ?
@@ -485,7 +486,7 @@ ProcessKeyInfo:
         // Scroll if needed.
         var scroll = cursorTop - this.WindowHeight + 1;
         return scroll;
-    }
+    }*/
 
     internal void Scroll(int scroll, bool moveCursor)
     {
@@ -700,6 +701,12 @@ ProcessKeyInfo:
         }
 
         return false;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SyncCursor()
+    {
+        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
     }
 
     private void PrepareWindow(ReadLineInstance? activeInstance)
