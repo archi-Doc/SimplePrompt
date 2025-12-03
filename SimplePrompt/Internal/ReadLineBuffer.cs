@@ -67,9 +67,7 @@ internal class ReadLineBuffer
 
         this.Prompt = prompt;
         this.PromtWidth = SimplePromptHelper.GetWidth(this.Prompt);
-        this.Length = 0;
-        this.Width = 0;
-        this.Height = 1;
+        this.Reset();
     }
 
     public void Reset()
@@ -451,8 +449,7 @@ internal class ReadLineBuffer
         this.Length = this.Width;
         this.Write(0, this.Width, 0, 0);
 
-        this.Length = 0;
-        this.Width = 0;
+        this.Reset();
         this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
         // this.UpdateConsole(0, this.Length, 0, true);
     }
@@ -508,8 +505,7 @@ internal class ReadLineBuffer
                 width += w;
             }
 
-            this.Length += charBuffer.Length;
-            this.Width += width;
+            this.ChangeLengthAndWidth(charBuffer.Length, width);
             this.Write(arrayPosition, this.Length, width, 0);
         }
 
@@ -545,6 +541,14 @@ internal class ReadLineBuffer
 
             this.UpdateConsole(arrayPosition, arrayPosition + charBuffer.Length, 0);
         }*/
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void ChangeLengthAndWidth(int lengthDiff, int widthDiff)
+    {
+        this.Length += lengthDiff;
+        this.Width += widthDiff;
+        this.UpdateHeight(false);
     }
 
     private int GetArrayPosition()
@@ -591,8 +595,7 @@ internal class ReadLineBuffer
     private int RemoveAt(int index)
     {
         var w = this.widthArray[index];
-        this.Length--;
-        this.Width -= w;
+        this.ChangeLengthAndWidth(-1, -w);
         this.charArray.AsSpan(index + 1, this.Length - index).CopyTo(this.charArray.AsSpan(index));
         this.widthArray.AsSpan(index + 1, this.Length - index).CopyTo(this.widthArray.AsSpan(index));
         return w;
@@ -601,8 +604,7 @@ internal class ReadLineBuffer
     private int Remove2At(int index)
     {
         var w = this.widthArray[index] + this.widthArray[index + 1];
-        this.Length -= 2;
-        this.Width -= w;
+        this.ChangeLengthAndWidth(-2, -w);
         this.charArray.AsSpan(index + 2, this.Length - index).CopyTo(this.charArray.AsSpan(index));
         this.widthArray.AsSpan(index + 2, this.Length - index).CopyTo(this.widthArray.AsSpan(index));
         return w;
