@@ -130,8 +130,6 @@ internal class ReadLineBuffer
                         var removedWidth = this.RemoveAt(arrayPosition - 1);
                         this.Write(arrayPosition - 1, this.Length, 0, removedWidth);
                     }
-
-                    this.UpdateHeight(true);
                 }
 
                 return false;
@@ -160,7 +158,6 @@ internal class ReadLineBuffer
                     }
 
                     this.Write(arrayPosition, this.Length, 0, removedWidth);
-                    this.UpdateHeight(true);
                 }
 
                 return false;
@@ -560,7 +557,7 @@ internal class ReadLineBuffer
     {
         this.Length += lengthDiff;
         this.Width += widthDiff;
-        this.UpdateHeight(false);
+        this.UpdateHeight(true);
     }
 
     private int GetArrayPosition()
