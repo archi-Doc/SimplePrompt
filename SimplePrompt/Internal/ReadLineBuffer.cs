@@ -25,8 +25,6 @@ internal class ReadLineBuffer
     /// </summary>
     public int CursorLeft => this.simpleConsole.CursorLeft;
 
-    // public int CursorLeftAndExtra => this.simpleConsole.CursorLeft + this.simpleConsole.CursorExtra;
-
     /// <summary>
     /// Gets the cursor's vertical position relative to the buffer's top edge.
     /// </summary>

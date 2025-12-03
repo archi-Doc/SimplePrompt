@@ -106,11 +106,7 @@ public partial class SimpleConsole : IConsoleService
 
     internal int CursorLeft { get; set; }
 
-    // sinternal int CursorExtra { get; set; }
-
     internal int CursorTop { get; set; }
-
-    // internal int CursorLeftAndExtra => this.CursorLeft + this.CursorExtra;
 
     internal SimpleLocation Location { get; }
 
@@ -472,7 +468,6 @@ ProcessKeyInfo:
         {
             this.CursorLeft = 0;
             this.CursorTop++;
-            // this.CursorExtra = 0;
         }
 
         // Scroll if needed.

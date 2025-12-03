@@ -14,7 +14,6 @@ internal class SimpleLocation
     private ReadLineInstance? previousInstance;
     private int previousCursorLeft;
     private int previousCursorTop;
-    // private int previousCursorExtra;
 
     #endregion
 
@@ -27,8 +26,7 @@ internal class SimpleLocation
     public void Update(ReadLineInstance readLineInstance)
     {
         if (this.simpleConsole.CursorLeft == this.previousCursorLeft &&
-            this.simpleConsole.CursorTop == this.previousCursorTop/* &&
-            this.simpleConsole.CursorExtra == this.previousCursorExtra*/)
+            this.simpleConsole.CursorTop == this.previousCursorTop)
         {// Identical cursor position
             return;
         }
@@ -36,7 +34,6 @@ internal class SimpleLocation
         this.previousInstance = readLineInstance;
         this.previousCursorLeft = this.simpleConsole.CursorLeft;
         this.previousCursorTop = this.simpleConsole.CursorTop;
-        // this.previousCursorExtra = this.simpleConsole.CursorExtra;
         this.previousInstance.PrepareLocation();
     }
 
@@ -44,7 +41,6 @@ internal class SimpleLocation
     {
         this.previousCursorLeft = -1;
         this.previousCursorTop = -1;
-        // this.previousCursorExtra = -1;
     }
 
     /*public void Redraw()
@@ -162,7 +158,6 @@ internal class SimpleLocation
 
         this.simpleConsole.CursorLeft = newCursor.Left;
         this.simpleConsole.CursorTop = newCursor.Top;
-        // this.simpleConsole.CursorExtra = 0;
     }
 
     public void CorrectCursorTop(ReadLineInstance readLineInstance)
