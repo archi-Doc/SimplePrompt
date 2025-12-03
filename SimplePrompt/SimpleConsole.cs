@@ -301,7 +301,7 @@ ProcessKeyInfo:
                                 this.UnderlyingTextWriter.WriteLine();
                                 this.NewLineCursor();
                                 currentInstance.Reset();
-                                currentInstance.Redraw(true);
+                                currentInstance.Redraw();
                                 var buffer = currentInstance.BufferList[currentInstance.BufferList.Count - 1];
                                 var cursor = buffer.ToCursor(0);
                                 this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.None);
@@ -373,7 +373,7 @@ ProcessKeyInfo:
             activeInstance.PrepareLocation();
             activeInstance.SetCursorAtFirst(CursorOperation.Hide);
             this.WriteInternal(message, true);
-            activeInstance.Redraw(false);
+            activeInstance.Redraw();
 
             var buffer = activeInstance.BufferList[activeInstance.BufferIndex];
             var cursor = buffer.ToCursor(activeInstance.BufferPosition);
@@ -419,13 +419,6 @@ ProcessKeyInfo:
             if (cursor.Left != this.CursorLeft ||
                 cursor.Top != this.CursorTop)
             {// Inconsisitent cursor position
-                /*if (cursor.Left == (this.WindowWidth - 1) &&
-                    this.CursorLeft == 0 &&
-                    this.CursorTop == (cursor.Top + 1))
-                {// Special case: cursor wrapped to the next line
-                    return;
-                }*/
-
                 var st = $"({this.CursorLeft}, {this.CursorTop})->({cursor.Left},{cursor.Top})";
                 this.UnderlyingTextWriter.WriteLine(st);
                 this.SyncCursor();
@@ -605,6 +598,12 @@ ProcessKeyInfo:
         return true;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void SyncCursor()
+    {
+        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+    }
+
     private void RemoveInstance(ReadLineInstance target)
     {
         using (this.syncObject.EnterScope())
@@ -616,7 +615,7 @@ ProcessKeyInfo:
             {
                 activeInstance.Restore();
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
-                activeInstance.Redraw(false);
+                activeInstance.Redraw();
 
                 if (activeInstance.BufferIndex < activeInstance.EditableBufferIndex)
                 {
@@ -723,12 +722,6 @@ ProcessKeyInfo:
         }
 
         return false;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void SyncCursor()
-    {
-        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
     }
 
     private void PrepareWindow(ReadLineInstance? activeInstance)

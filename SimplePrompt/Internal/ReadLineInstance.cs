@@ -318,7 +318,7 @@ internal class ReadLineInstance
 
     public void Restore()
     {
-        (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
+        this.simpleConsole.SyncCursor();
         var y = this.simpleConsole.CursorTop;
         foreach (var x in this.BufferList)
         {
@@ -328,7 +328,7 @@ internal class ReadLineInstance
         }
     }
 
-    public void Redraw(bool resetCursor)
+    public void Redraw()
     {
         if (this.BufferList.Count == 0)
         {
@@ -337,11 +337,6 @@ internal class ReadLineInstance
 
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
-
-        if (resetCursor)
-        {
-            (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
-        }
 
         var y = this.simpleConsole.CursorTop;
         var isFirst = true;
