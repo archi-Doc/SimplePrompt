@@ -418,7 +418,6 @@ internal class ReadLineInstance
         {
             x.Top = y;
             x.UpdateHeight(false);
-            // var y2 = y + x.GetHeight2();
             y += x.Height;
             if (buffer is null &&
                 this.simpleConsole.CursorTop >= x.Top &&

@@ -352,7 +352,6 @@ ProcessKeyInfo:
                 this.WriteInternal(message, false);
 
                 this.CheckCursor();
-                return;
             }
         }
     }
