@@ -450,7 +450,7 @@ ProcessKeyInfo:
         var h = this.CursorLeft >= 0 ?
             (this.CursorLeft / this.WindowWidth) :
             (((this.CursorLeft - 1) / this.WindowWidth) - 1);
-        this.CursorLeft -= h * this.WindowWidth;
+        this.CursorLeft -= h * this.WindowWidth; // 0 - (WindowWidth-1)
         this.CursorTop += h;
 
         if (newLine && this.CursorLeft > 0)
