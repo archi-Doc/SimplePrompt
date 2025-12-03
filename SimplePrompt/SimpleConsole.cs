@@ -181,7 +181,11 @@ public partial class SimpleConsole : IConsoleService
                 if (this.Core.IsTerminated)
                 {// Terminated
                     this.UnderlyingTextWriter.WriteLine();
-                    this.CursorTop++;
+                    using (this.syncObject.EnterScope())
+                    {
+                        this.NewLineCursor();
+                    }
+
                     return new(InputResultKind.Terminated);
                 }
 
@@ -216,6 +220,7 @@ public partial class SimpleConsole : IConsoleService
                 }
 
 ProcessKeyInfo:
+                this.CheckCursor();
                 this.Location.Invalidate();
                 if (keyInfo.KeyChar == '\n' ||
                     keyInfo.Key == ConsoleKey.Enter)
@@ -295,7 +300,7 @@ ProcessKeyInfo:
                             if (result is null)
                             {// Rejected by the hook delegate.
                                 this.UnderlyingTextWriter.WriteLine();
-                                this.CursorTop++;
+                                this.NewLineCursor();
                                 currentInstance.Reset();
                                 currentInstance.Redraw(true);
                                 var buffer = currentInstance.BufferList[currentInstance.BufferList.Count - 1];
@@ -304,14 +309,14 @@ ProcessKeyInfo:
                                 continue;
                             }
                         }
-                    }
 
-                    position = 0;
-                    if (result is not null)
-                    {
-                        this.UnderlyingTextWriter.WriteLine();
-                        this.CursorTop++;
-                        return new(result);
+                        position = 0;
+                        if (result is not null)
+                        {
+                            this.UnderlyingTextWriter.WriteLine();
+                            this.NewLineCursor();
+                            return new(result);
+                        }
                     }
 
                     if (pendingKeyInfo.Key != ConsoleKey.None)
@@ -459,6 +464,19 @@ ProcessKeyInfo:
             this.CursorTop++;
             // this.CursorExtra = 0;
         }
+
+        // Scroll if needed.
+        var scroll = this.CursorTop - this.WindowHeight + 1;
+        if (scroll > 0)
+        {
+            this.Scroll(scroll, true);
+        }
+    }
+
+    internal void NewLineCursor()
+    {
+        this.CursorLeft = 0;
+        this.CursorTop++;
 
         // Scroll if needed.
         var scroll = this.CursorTop - this.WindowHeight + 1;
