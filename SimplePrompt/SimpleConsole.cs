@@ -19,6 +19,10 @@ namespace SimplePrompt;
 /// </summary>
 public partial class SimpleConsole : IConsoleService
 {
+    private const int DelayInMilliseconds = 10;
+    private const int WindowBufferSize = 32 * 1024;
+    private static SimpleConsole? _instance;
+
     /// <summary>
     /// Represents a method that handles key input events during console read operations.
     /// </summary>
@@ -38,11 +42,6 @@ public partial class SimpleConsole : IConsoleService
     /// If <see langword="null"/> is returned, the input is rejected and the user can continue editing.
     /// </returns>
     public delegate string? TextInputHook(string text);
-
-    private const int DelayInMilliseconds = 10;
-    private const int WindowBufferSize = 32 * 1024;
-
-    private static SimpleConsole? _instance;
 
     /// <summary>
     /// Gets or creates the singleton instance of <see cref="SimpleConsole"/> using thread-safe lazy initialization.
@@ -73,6 +72,8 @@ public partial class SimpleConsole : IConsoleService
 
     internal static void ReturnWindowBuffer(char[] buffer)
         => ArrayPool<char>.Shared.Return(buffer);
+
+    #region FieldAndProperty
 
     /// <summary>
     /// Gets or sets the <see cref="ThreadCoreBase"/> used for thread coordination and cancellation.<br/>
@@ -119,6 +120,8 @@ public partial class SimpleConsole : IConsoleService
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
+
+    #endregion
 
     private SimpleConsole()
     {
