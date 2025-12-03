@@ -522,9 +522,13 @@ internal class ReadLineBuffer
             }
 
             var heightChanged = this.ChangeLengthAndWidth(charBuffer.Length, width);
-            this.Write(arrayPosition, this.Length, width, 0);
-            if (heightChanged.Diff != 0)
+            if (heightChanged.Diff == 0)
             {
+                this.Write(arrayPosition, this.Length, width, 0);
+            }
+            else
+            {
+                this.Write(arrayPosition, this.Length, width, 0, true);
                 this.readLineInstance.HeightChanged(heightChanged.Index, heightChanged.Diff);
             }
         }

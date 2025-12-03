@@ -417,7 +417,7 @@ internal class ReadLineInstance
         foreach (var x in this.BufferList)
         {
             x.Top = y;
-            x.UpdateHeight();
+            // x.UpdateHeight();
             y += x.Height;
             if (buffer is null &&
                 this.simpleConsole.CursorTop >= x.Top &&
@@ -454,7 +454,7 @@ internal class ReadLineInstance
         }
     }
 
-    private ReadLineBuffer? PrepareAndFindBuffer()
+    /*private ReadLineBuffer? PrepareAndFindBuffer()
     {
         if (this.BufferList.Count == 0)
         {
@@ -479,7 +479,7 @@ internal class ReadLineInstance
 
         buffer ??= this.BufferList[0];
         return buffer;
-    }
+    }*/
 
     private void ClearLastLine(int dif)
     {
