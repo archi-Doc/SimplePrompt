@@ -117,18 +117,24 @@ internal class ReadLineBuffer
                 var arrayPosition = this.GetArrayPosition();
                 if (arrayPosition > 0)
                 {
+                    (int RemovedWidth, int Index, int Diff) r;
                     this.MoveLeft(arrayPosition);
                     if (char.IsLowSurrogate(this.charArray[arrayPosition - 1]) &&
                         (arrayPosition > 1) &&
                         char.IsHighSurrogate(this.charArray[arrayPosition - 2]))
                     {
-                        var removedWidth = this.Remove2At(arrayPosition - 2);
-                        this.Write(arrayPosition - 2, this.Length, 0, removedWidth);
+                        r = this.Remove2At(arrayPosition - 2);
+                        this.Write(arrayPosition - 2, this.Length, 0, r.RemovedWidth);
                     }
                     else
                     {
-                        var removedWidth = this.RemoveAt(arrayPosition - 1);
-                        this.Write(arrayPosition - 1, this.Length, 0, removedWidth);
+                        r = this.RemoveAt(arrayPosition - 1);
+                        this.Write(arrayPosition - 1, this.Length, 0, r.RemovedWidth);
+                    }
+
+                    if (r.Diff != 0)
+                    {
+                        this.readLineInstance.HeightChanged(r.Index, r.Diff);
                     }
                 }
 
@@ -145,19 +151,23 @@ internal class ReadLineBuffer
                 var arrayPosition = this.GetArrayPosition();
                 if (arrayPosition < this.Length)
                 {
-                    int removedWidth;
+                    (int RemovedWidth, int Index, int Diff) r;
                     if (char.IsHighSurrogate(this.charArray[arrayPosition]) &&
                         (arrayPosition + 1) < this.Length &&
                         char.IsLowSurrogate(this.charArray[arrayPosition + 1]))
                     {
-                        removedWidth = this.Remove2At(arrayPosition);
+                        r = this.Remove2At(arrayPosition);
                     }
                     else
                     {
-                        removedWidth = this.RemoveAt(arrayPosition);
+                        r = this.RemoveAt(arrayPosition);
                     }
 
-                    this.Write(arrayPosition, this.Length, 0, removedWidth);
+                    this.Write(arrayPosition, this.Length, 0, r.RemovedWidth);
+                    if (r.Diff != 0)
+                    {
+                        this.readLineInstance.HeightChanged(r.Index, r.Diff);
+                    }
                 }
 
                 return false;
@@ -230,7 +240,7 @@ internal class ReadLineBuffer
         return $"(Top:{this.Top} {textSpan}";
     }
 
-    internal void UpdateHeight(bool refresh)
+    internal (int Index, int Diff) UpdateHeight()
     {
         var previousHeight = this.Height;
         if (this.TotalWidth == 0)
@@ -242,10 +252,7 @@ internal class ReadLineBuffer
             this.Height = (this.TotalWidth - 1 + this.WindowWidth) / this.WindowWidth;
         }
 
-        if (refresh && previousHeight != this.Height)
-        {
-            this.readLineInstance.HeightChanged(this.Index, this.Height - previousHeight);
-        }
+        return (this.Index, this.Height - previousHeight);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -514,8 +521,12 @@ internal class ReadLineBuffer
                 width += w;
             }
 
-            this.ChangeLengthAndWidth(charBuffer.Length, width);
+            var heightChanged = this.ChangeLengthAndWidth(charBuffer.Length, width);
             this.Write(arrayPosition, this.Length, width, 0);
+            if (heightChanged.Diff != 0)
+            {
+                this.readLineInstance.HeightChanged(heightChanged.Index, heightChanged.Diff);
+            }
         }
 
         /*else
@@ -553,11 +564,11 @@ internal class ReadLineBuffer
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ChangeLengthAndWidth(int lengthDiff, int widthDiff)
+    private (int Index, int Diff) ChangeLengthAndWidth(int lengthDiff, int widthDiff)
     {
         this.Length += lengthDiff;
         this.Width += widthDiff;
-        this.UpdateHeight(true);
+        return this.UpdateHeight();
     }
 
     private int GetArrayPosition()
@@ -601,22 +612,22 @@ internal class ReadLineBuffer
         cursorIndex = newIndex;
     }
 
-    private int RemoveAt(int index)
+    private (int RemovedWidth, int Index, int Diff) RemoveAt(int index)
     {
         var w = this.widthArray[index];
-        this.ChangeLengthAndWidth(-1, -w);
+        var heightChanged = this.ChangeLengthAndWidth(-1, -w);
         this.charArray.AsSpan(index + 1, this.Length - index).CopyTo(this.charArray.AsSpan(index));
         this.widthArray.AsSpan(index + 1, this.Length - index).CopyTo(this.widthArray.AsSpan(index));
-        return w;
+        return (w, heightChanged.Index, heightChanged.Diff);
     }
 
-    private int Remove2At(int index)
+    private (int RemovedWidth, int Index, int Diff) Remove2At(int index)
     {
         var w = this.widthArray[index] + this.widthArray[index + 1];
-        this.ChangeLengthAndWidth(-2, -w);
+        var heightChanged = this.ChangeLengthAndWidth(-2, -w);
         this.charArray.AsSpan(index + 2, this.Length - index).CopyTo(this.charArray.AsSpan(index));
         this.widthArray.AsSpan(index + 2, this.Length - index).CopyTo(this.widthArray.AsSpan(index));
-        return w;
+        return (w, heightChanged.Index, heightChanged.Diff);
     }
 
     private int GetLeftWidth(int index)

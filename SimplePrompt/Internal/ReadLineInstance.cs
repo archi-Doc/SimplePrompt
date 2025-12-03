@@ -65,7 +65,7 @@ internal class ReadLineInstance
 
             this.BufferList.Add(buffer);
             buffer.Top = this.simpleConsole.CursorTop;
-            buffer.UpdateHeight(false);
+            buffer.UpdateHeight();
 
             windowBuffer ??= SimpleConsole.RentWindowBuffer();
             var span = windowBuffer.AsSpan();
@@ -324,7 +324,7 @@ internal class ReadLineInstance
         foreach (var x in this.BufferList)
         {
             x.Top = y;
-            x.UpdateHeight(false);
+            x.UpdateHeight();
             y += x.Height;
         }
     }
@@ -417,7 +417,7 @@ internal class ReadLineInstance
         foreach (var x in this.BufferList)
         {
             x.Top = y;
-            x.UpdateHeight(false);
+            x.UpdateHeight();
             y += x.Height;
             if (buffer is null &&
                 this.simpleConsole.CursorTop >= x.Top &&
@@ -467,7 +467,7 @@ internal class ReadLineInstance
         foreach (var x in this.BufferList)
         {
             x.Top = y;
-            x.UpdateHeight(false);
+            x.UpdateHeight();
             y += x.Height;
             if (buffer is null &&
                 this.simpleConsole.CursorTop >= x.Top &&

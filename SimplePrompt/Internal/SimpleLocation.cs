@@ -142,7 +142,7 @@ internal class SimpleLocation
             buffer.Top = newTop;
             foreach (var x in bufferList)
             {
-                x.UpdateHeight(false);
+                x.UpdateHeight();
             }
 
             for (var i = buffer.Index - 1; i >= 0; i--)
