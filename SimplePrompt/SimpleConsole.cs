@@ -471,6 +471,33 @@ ProcessKeyInfo:
         }
     }
 
+    internal void MoveCursor(int width)
+    {// 
+        this.CursorLeft += width;
+        while (this.CursorLeft < 0)
+        {
+            this.CursorLeft += this.WindowWidth;
+            this.CursorTop--;
+        }
+
+        var h = this.CursorLeft >= 0 ? (this.CursorLeft / this.WindowWidth) : (((this.CursorLeft - 1) / this.WindowWidth) - 1);
+        this.CursorLeft -= h * this.WindowWidth; // 0 - (WindowWidth-1)
+        this.CursorTop += h;
+
+        //if (newLine)
+        {
+            this.CursorLeft = 0;
+            this.CursorTop++;
+        }
+
+        // Scroll if needed.
+        var scroll = this.CursorTop - this.WindowHeight + 1;
+        if (scroll > 0)
+        {
+            this.Scroll(scroll, true);
+        }
+    }
+
     internal void NewLineCursor()
     {
         this.CursorLeft = 0;
