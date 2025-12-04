@@ -249,7 +249,7 @@ internal class ReadLineBuffer
         }
         else
         {
-            this.Height = (this.TotalWidth - 1 + this.WindowWidth) / this.WindowWidth;
+            this.Height = (this.TotalWidth - 0 + this.WindowWidth) / this.WindowWidth;
         }
 
         return (this.Index, this.Height - previousHeight);
@@ -312,9 +312,9 @@ internal class ReadLineBuffer
 
         var scroll = startCursorTop + 1 + ((startCursorLeft + totalWidth) / this.WindowWidth) - this.WindowHeight;
 
-        startCursor += cursorDif;
-        var newCursorLeft = startCursor % this.WindowWidth;
-        var newCursorTop = startCursor / this.WindowWidth;
+        var newCursor = startCursor + cursorDif;
+        var newCursorLeft = newCursor % this.WindowWidth;
+        var newCursorTop = newCursor / this.WindowWidth;
 
         ReadOnlySpan<char> span;
         var windowBuffer = SimpleConsole.RentWindowBuffer();
@@ -410,6 +410,13 @@ internal class ReadLineBuffer
 
         if (eraseLine)
         {// Erase line
+            if ((startCursor + totalWidth) % this.WindowWidth == 0)
+            {// Add one space to clear the next line (add a space and move to the next line).
+                buffer[0] = ' ';
+                written += 1;
+                buffer = buffer.Slice(1);
+            }
+
             span = ConsoleHelper.EraseToEndOfLineSpan;
             span.CopyTo(buffer);
             written += span.Length;
