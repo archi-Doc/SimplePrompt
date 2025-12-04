@@ -121,6 +121,7 @@ public partial class SimpleConsole : IConsoleService
 
     private SimpleConsole()
     {
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
         this.simpleTextWriter = new(this, Console.Out);
         this.RawConsole = new(this);
         this.Location = new(this);
@@ -695,7 +696,6 @@ ProcessKeyInfo:
 
     private void Initialize()
     {
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
         Console.SetOut(this.simpleTextWriter);
     }
 
