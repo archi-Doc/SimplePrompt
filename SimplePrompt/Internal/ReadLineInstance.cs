@@ -20,6 +20,8 @@ internal class ReadLineInstance
 
     public List<ReadLineBuffer> BufferList { get; private set; } = new();
 
+    public List<LineBuffer> BufferList2 { get; private set; } = new();
+
     public int BufferIndex { get; set; }
 
     public int BufferPosition { get; set; }
