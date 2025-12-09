@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using Arc;
 using Arc.Collections;
 
 namespace SimplePrompt;
@@ -54,7 +53,7 @@ internal class RowBuffer
     {
         if (this.charArray.Length < capacity)
         {
-            var newSize = (int)CollectionHelper.CalculatePowerOfTwoCapacity((uint)capacity);//
+            var newSize = CollectionHelper.CalculatePowerOfTwoCapacity(capacity);
 
             Array.Resize(ref this.charArray, newSize);
             Array.Resize(ref this.widthArray, newSize);
