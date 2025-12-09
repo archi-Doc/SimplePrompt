@@ -14,6 +14,10 @@ internal class ReadLineRow
 
     public short Width { get; set; }
 
+    public ReadOnlySpan<char> CharSpan => this.ReadLineBuffer.CharArray.AsSpan(this.StartIndex, this.Length);
+
+    public ReadOnlySpan<byte> WidthSpan => this.ReadLineBuffer.WidthArray.AsSpan(this.StartIndex, this.Length);
+
     public ReadLineRow(ReadLineBuffer readLineBuffer, short rowIndex)
     {
         this.ReadLineBuffer = readLineBuffer;

@@ -40,6 +40,8 @@ internal class ReadLineBuffer
 
     public int Height { get; set; }
 
+    public int Height2 => this.readLineRows.Count;
+
     public int TotalWidth => this.PromtWidth + this.Width;
 
     public int WindowWidth => this.simpleConsole.WindowWidth;
@@ -48,10 +50,16 @@ internal class ReadLineBuffer
 
     public ReadOnlySpan<char> TextSpan => this.charArray.AsSpan(0, this.Length);
 
+    internal char[] CharArray => this.charArray;
+
+    internal byte[] WidthArray => this.widthArray;
+
     private readonly SimpleConsole simpleConsole;
     private ReadLineInstance readLineInstance = default!;
     private char[] charArray = new char[BufferSize];
     private byte[] widthArray = new byte[BufferSize];
+
+    private List<ReadLineRow> readLineRows = [];
 
     #endregion
 
