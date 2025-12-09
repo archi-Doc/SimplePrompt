@@ -730,8 +730,6 @@ internal class ReadLineBuffer
         }
 
         var width = this.GetRightWidth(arrayPosition);
-        //this.simpleConsole.MoveCursor(width);
-        //this.simpleConsole.SetCursorPosition(this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop, CursorOperation.None);
         var cursorIndex = this.GetCursorIndex() + width;
         if (cursorIndex >= 0)
         {

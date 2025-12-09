@@ -471,8 +471,8 @@ ProcessKeyInfo:
         }
     }
 
-    internal void MoveCursor(int width)
-    {// 
+    /*internal void MoveCursor(int width)
+    {/
         this.CursorLeft += width;
         while (this.CursorLeft < 0)
         {
@@ -484,7 +484,7 @@ ProcessKeyInfo:
         this.CursorLeft -= h * this.WindowWidth; // 0 - (WindowWidth-1)
         this.CursorTop += h;
 
-        //if (newLine)
+        if (newLine)
         {
             this.CursorLeft = 0;
             this.CursorTop++;
@@ -496,7 +496,7 @@ ProcessKeyInfo:
         {
             this.Scroll(scroll, true);
         }
-    }
+    }*/
 
     internal void NewLineCursor()
     {
