@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using Arc;
+using Arc.Collections;
 using Arc.Unit;
 using CrossChannel;
 
@@ -9,6 +10,25 @@ namespace SimplePrompt.Internal;
 internal class ReadLineInstance
 {
     public const int CharBufferSize = 1024;
+    private const int PoolSize = 4;
+
+    #region ObjectPool
+
+    private static readonly ObjectPool<ReadLineInstance> Pool = new(() => new(), PoolSize);
+
+    public static ReadLineInstance Rent(SimpleConsole simpleConsole, ReadLineOptions options)
+    {
+        var obj = Pool.Rent();
+        obj.Initialize(simpleConsole, options);
+        return obj;
+    }
+
+    public static void Return(ReadLineInstance obj)
+    {
+        Pool.Return(obj);
+    }
+
+    #endregion
 
     #region FieldAndProperty
 
@@ -30,18 +50,19 @@ internal class ReadLineInstance
 
     public int EditableBufferIndex { get; private set; }
 
-    private readonly SimpleConsole simpleConsole;
+    private SimpleConsole simpleConsole;
     private ReadLineOptions options = new();
 
     #endregion
 
-    public ReadLineInstance(SimpleConsole simpleConsole)
+    public ReadLineInstance()
     {
-        this.simpleConsole = simpleConsole;
+        this.simpleConsole = default!;
     }
 
-    public void Initialize(ReadLineOptions options)
+    public void Initialize(SimpleConsole simpleConsole, ReadLineOptions options)
     {
+        this.simpleConsole = simpleConsole;
         GhostCopy.Copy(ref options, ref this.options);
     }
 

@@ -91,7 +91,6 @@ public partial class SimpleConsole : IConsoleService
     internal SimpleLocation Location { get; }
 
     private readonly SimpleTextWriter simpleTextWriter;
-    private readonly ObjectPool<ReadLineInstance> instancePool;
     private readonly ObjectPool<ReadLineBuffer> bufferPool;
 
     private readonly Lock syncObject = new();
@@ -105,7 +104,6 @@ public partial class SimpleConsole : IConsoleService
         this.simpleTextWriter = new(this, Console.Out);
         this.RawConsole = new(this);
         this.Location = new(this);
-        this.instancePool = new(() => new ReadLineInstance(this), 4);
         this.bufferPool = new(() => new ReadLineBuffer(this), 32);
         this.DefaultOptions = new();
 
@@ -139,7 +137,7 @@ public partial class SimpleConsole : IConsoleService
             }
 
             // Create and prepare a ReadLineInstance.
-            currentInstance = this.RentInstance(options ?? this.DefaultOptions);
+            currentInstance = ReadLineInstance.Rent(this, options ?? this.DefaultOptions);
             this.instanceList.Add(currentInstance);
             currentInstance.Prepare();
             this.CheckCursor();
@@ -308,7 +306,7 @@ ProcessKeyInfo:
         finally
         {
             this.RemoveInstance(currentInstance);
-            this.ReturnInstance(currentInstance);
+            ReadLineInstance.Return(currentInstance);
         }
 
 CancelOrTerminate:
@@ -318,16 +316,7 @@ CancelOrTerminate:
             this.NewLineCursor();
         }
 
-        return new(InputResultKind.Terminated);
-
-Terminate:
-        this.UnderlyingTextWriter.WriteLine();
-        using (this.syncObject.EnterScope())
-        {
-            this.NewLineCursor();
-        }
-
-        return new(InputResultKind.Terminated);
+        return new(inputResultKind);
     }
 
     Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
@@ -426,16 +415,6 @@ Terminate:
         }
     }
 
-    internal ReadLineInstance RentInstance(ReadLineOptions options)
-    {
-        var obj = this.instancePool.Rent();
-        obj.Initialize(options);
-        return obj;
-    }
-
-    internal void ReturnInstance(ReadLineInstance obj)
-        => this.instancePool.Return(obj);
-
     internal ReadLineBuffer RentBuffer(ReadLineInstance @instance, int index, string? prompt)
     {
         var obj = this.bufferPool.Rent();
@@ -467,33 +446,6 @@ Terminate:
         }
     }
 
-    /*internal void MoveCursor(int width)
-    {/
-        this.CursorLeft += width;
-        while (this.CursorLeft < 0)
-        {
-            this.CursorLeft += this.WindowWidth;
-            this.CursorTop--;
-        }
-
-        var h = this.CursorLeft >= 0 ? (this.CursorLeft / this.WindowWidth) : (((this.CursorLeft - 1) / this.WindowWidth) - 1);
-        this.CursorLeft -= h * this.WindowWidth; // 0 - (WindowWidth-1)
-        this.CursorTop += h;
-
-        if (newLine)
-        {
-            this.CursorLeft = 0;
-            this.CursorTop++;
-        }
-
-        // Scroll if needed.
-        var scroll = this.CursorTop - this.WindowHeight + 1;
-        if (scroll > 0)
-        {
-            this.Scroll(scroll, true);
-        }
-    }*/
-
     internal void NewLineCursor()
     {
         this.CursorLeft = 0;
@@ -506,26 +458,6 @@ Terminate:
             this.Scroll(scroll, true);
         }
     }
-
-    /*internal int AdvanceCursor(ref int cursorLeft, ref int cursorTop, int width, bool newLine)
-    {
-        cursorLeft += width;
-        var h = cursorLeft >= 0 ?
-            (cursorLeft / this.WindowWidth) :
-            (((cursorLeft - 1) / this.WindowWidth) - 1);
-        cursorLeft -= h * this.WindowWidth;
-        cursorTop += h;
-
-        if (newLine && cursorLeft > 0)
-        {
-            cursorLeft = 0;
-            cursorTop++;
-        }
-
-        // Scroll if needed.
-        var scroll = cursorTop - this.WindowHeight + 1;
-        return scroll;
-    }*/
 
     internal void Scroll(int scroll, bool moveCursor)
     {
