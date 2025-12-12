@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using Arc;
 using Arc.Collections;
 
 namespace SimplePrompt.Internal;
@@ -13,7 +14,7 @@ internal class SimpleTextLine
 
     private static readonly ObjectPool<SimpleTextLine> Pool = new(() => new(), PoolSize);
 
-    public static SimpleTextLine Rent(SimpleConsole simpleConsole, string prompt)
+    public static SimpleTextLine Rent(SimpleConsole simpleConsole, ReadOnlySpan<char> prompt)
     {
         var obj = Pool.Rent();
         obj.Initialize(simpleConsole, prompt);
@@ -35,7 +36,11 @@ internal class SimpleTextLine
     private char[] charArray = new char[InitialBufferSize];
     private byte[] widthArray = new byte[InitialBufferSize];
 
-    public string? Prompt { get; private set; }
+    internal char[] CharArray => this.charArray;
+
+    internal byte[] WidthArray => this.widthArray;
+
+    // public string? Prompt { get; private set; }
 
     #endregion
 
@@ -54,30 +59,33 @@ internal class SimpleTextLine
         }
     }
 
-    private void SetPrompt(string? prompt)
+    private void SetPrompt(ReadOnlySpan<char> prompt)
     {
-        this.Prompt = prompt;
-        if (this.Prompt is null)
-        {
-            return;
-        }
+        this.Uninitialize();
 
-        var remaining = this.Prompt.Length;
+        var remaining = prompt.Length;
         this.EnsureBuffer(remaining);
-        this.Prompt.AsSpan().CopyTo(this.charArray);
+        prompt.CopyTo(this.charArray);
         for (var i = 0; i < remaining; i++)
         {
             this.widthArray[i] = SimplePromptHelper.GetCharWidth(this.charArray[i]);
         }
 
-        var position = 0;
-
+        SimpleTextSlice slice;
         while (remaining > 0)
-        {
+        {// Immutable slice
+            var position = prompt.Length - remaining;
+
+            slice = this.NewSlice(remaining);
+            slice.Goshujin = this.slices;
         }
+
+        // Mutable slice
+        slice = SimpleTextSlice.Rent(this, true);
+        slice.Goshujin = this.slices;
     }
 
-    private void Initialize(SimpleConsole simpleConsole, string? prompt)
+    private void Initialize(SimpleConsole simpleConsole, ReadOnlySpan<char> prompt)
     {
         this.simpleConsole = simpleConsole;
         this.SetPrompt(prompt);

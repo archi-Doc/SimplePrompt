@@ -13,7 +13,7 @@ internal partial class SimpleTextSlice
     private const int PoolSize = 32;
     private static readonly ObjectPool<SimpleTextSlice> Pool = new(() => new(), PoolSize);
 
-    public static SimpleTextSlice Rent(ReadLineBuffer readLineBuffer, bool isMutable)
+    public static SimpleTextSlice Rent(SimpleTextLine readLineBuffer, bool isMutable)
     {
         var obj = Pool.Rent();
         obj.Initialize(readLineBuffer, isMutable);
@@ -30,38 +30,46 @@ internal partial class SimpleTextSlice
 
     #region FiendAndProperty
 
-    public ReadLineBuffer ReadLineBuffer { get; private set; }
+    public SimpleTextLine SimpleTextLine { get; private set; }
 
     public bool IsMutable { get; private set; }
 
-    public int StartIndex { get; set; }
+    public int Start { get; set; }
 
     public short Length { get; set; }
 
     public short Width { get; set; }
 
-    public ReadOnlySpan<char> CharSpan => this.ReadLineBuffer.CharArray.AsSpan(this.StartIndex, this.Length);
+    public ReadOnlySpan<char> CharSpan => this.SimpleTextLine.CharArray.AsSpan(this.Start, this.Length);
 
-    public ReadOnlySpan<byte> WidthSpan => this.ReadLineBuffer.WidthArray.AsSpan(this.StartIndex, this.Length);
+    public ReadOnlySpan<byte> WidthSpan => this.SimpleTextLine.WidthArray.AsSpan(this.Start, this.Length);
 
     #endregion
 
     [Link(Primary = true, Type = ChainType.LinkedList, Name = "Slice")]
     private SimpleTextSlice()
     {
-        this.ReadLineBuffer = default!;
+        this.SimpleTextLine = default!;
     }
 
-    private void Initialize(ReadLineBuffer readLineBuffer, bool isMutable)
+    public void Prepare(bool isMutable, int start, int length)
     {
-        this.ReadLineBuffer = readLineBuffer;
+        this.IsMutable = isMutable;
+        this.Start = start;
+        this.Length = (short)length;
+        this.Width = (short)SimplePromptHelper.GetWidth(this.CharSpan);
+    }
+
+    private void Initialize(SimpleTextLine simpleTextLine, bool isMutable)
+    {
+        this.SimpleTextLine = simpleTextLine;
         this.IsMutable = isMutable;
     }
 
     private void Uninitialize()
     {
         this.Goshujin = default;
-        this.ReadLineBuffer = default!;
+        this.SimpleTextLine = default!;
         this.IsMutable = false;
     }
 }

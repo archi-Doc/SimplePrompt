@@ -52,14 +52,17 @@ internal class ReadLineInstance
         {
             var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
             ReadLineBuffer buffer;
+            SimpleTextLine simpleTextLine;
             if (index < 0)
             {
                 buffer = this.simpleConsole.RentBuffer(this, bufferIndex++, prompt.ToString());
+                simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, prompt);
                 prompt = default;
             }
             else
             {
                 buffer = this.simpleConsole.RentBuffer(this, bufferIndex++, prompt.Slice(0, index).ToString());
+                simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, prompt.Slice(0, index));
                 prompt = prompt.Slice(index + newLineLength);
             }
 
