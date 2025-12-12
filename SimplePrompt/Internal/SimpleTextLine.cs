@@ -78,7 +78,7 @@ internal class SimpleTextLine
 
                 if (start < 0)
                 {
-                    if (x.IsMutable)
+                    if (x.IsInput)
                     {
                         start = x.Start;
                     }
@@ -102,14 +102,13 @@ internal class SimpleTextLine
 
     public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
-        /*if (charBuffer.Length > 0)
+        if (charBuffer.Length > 0)
         {
-            var arrayPosition = this.GetArrayPosition();
-            this.ProcessCharacterInternal(arrayPosition, charBuffer);
+            this.ProcessCharacterInternal(charBuffer);
             this.simpleConsole.CheckCursor();
         }
 
-        if (keyInfo.Key != ConsoleKey.None)
+        /*if (keyInfo.Key != ConsoleKey.None)
         {// Control
             var key = keyInfo.Key;
             if (key == ConsoleKey.Enter)
@@ -265,6 +264,55 @@ internal class SimpleTextLine
         }
 
         return (this.Index, this.Height - previousHeight);
+    }
+
+    private void ProcessCharacterInternal(int arrayPosition, Span<char> charBuffer)
+    {
+        if (!this.readLineInstance.IsLengthWithinLimit(charBuffer.Length))
+        {
+            return;
+        }
+
+        this.EnsureBuffer(this.Length + charBuffer.Length);
+
+        this.charArray.AsSpan(arrayPosition, this.Length - arrayPosition).CopyTo(this.charArray.AsSpan(arrayPosition + charBuffer.Length));
+        charBuffer.CopyTo(this.charArray.AsSpan(arrayPosition));
+        this.widthArray.AsSpan(arrayPosition, this.Length - arrayPosition).CopyTo(this.widthArray.AsSpan(arrayPosition + charBuffer.Length));
+        var width = 0;
+        for (var i = 0; i < charBuffer.Length; i++)
+        {
+            int w;
+            var c = charBuffer[i];
+            if (char.IsHighSurrogate(c) && (i + 1) < charBuffer.Length && char.IsLowSurrogate(charBuffer[i + 1]))
+            {
+                var codePoint = char.ConvertToUtf32(c, charBuffer[i + 1]);
+                w = SimplePromptHelper.GetCharWidth(codePoint);
+                this.widthArray[arrayPosition + i++] = 0;
+                this.widthArray[arrayPosition + i] = (byte)w;
+            }
+            else
+            {
+                w = SimplePromptHelper.GetCharWidth(c);
+                this.widthArray[arrayPosition + i] = (byte)w;
+            }
+
+            width += w;
+        }
+
+        var heightChanged = this.ChangeLengthAndWidth(charBuffer.Length, width);
+        if (heightChanged.Diff == 0)
+        {
+            this.Write(arrayPosition, this.Length, width, 0);//
+            /*if (this.CursorLeft == 0 && width > 0)
+            {
+                this.readLineInstance.HeightChanged(heightChanged.Index, 1);
+            }*/
+        }
+        else
+        {
+            this.Write(arrayPosition, this.Length, width, 0, true);
+            this.readLineInstance.HeightChanged(heightChanged.Index, heightChanged.Diff);
+        }
     }
 
     private int GetWidth()

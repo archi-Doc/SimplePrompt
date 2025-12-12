@@ -33,7 +33,7 @@ internal partial class SimpleTextSlice
 
     public SimpleTextLine SimpleTextLine { get; private set; }
 
-    public bool IsMutable { get; private set; }
+    public bool IsInput { get; private set; }
 
     public int Start { get; set; }
 
@@ -53,10 +53,10 @@ internal partial class SimpleTextSlice
         this.SimpleTextLine = default!;
     }
 
-    public void Prepare(SimpleTextSlice.GoshujinClass goshujin, bool isMutable, int start, int length, int width)
+    public void Prepare(SimpleTextSlice.GoshujinClass goshujin, bool isInput, int start, int length, int width)
     {
         this.Goshujin = goshujin;
-        this.IsMutable = isMutable;
+        this.IsInput = isInput;
         this.Start = start;
         this.Length = length;
         this.Width = width;
