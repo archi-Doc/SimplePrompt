@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using Arc;
 using Arc.Collections;
 using ValueLink;
 
@@ -13,10 +14,10 @@ internal partial class SimpleTextSlice
     private const int PoolSize = 32;
     private static readonly ObjectPool<SimpleTextSlice> Pool = new(() => new(), PoolSize);
 
-    public static SimpleTextSlice Rent(SimpleTextLine readLineBuffer, bool isMutable)
+    public static SimpleTextSlice Rent(SimpleTextLine readLineBuffer)
     {
         var obj = Pool.Rent();
-        obj.Initialize(readLineBuffer, isMutable);
+        obj.Initialize(readLineBuffer);
         return obj;
     }
 
@@ -52,24 +53,23 @@ internal partial class SimpleTextSlice
         this.SimpleTextLine = default!;
     }
 
-    public void Prepare(bool isMutable, int start, int length)
+    public void Prepare(SimpleTextSlice.GoshujinClass goshujin, bool isMutable, int start, int length, int width)
     {
+        this.Goshujin = goshujin;
         this.IsMutable = isMutable;
         this.Start = start;
         this.Length = (short)length;
-        this.Width = (short)SimplePromptHelper.GetWidth(this.CharSpan);
+        this.Width = (short)width;
     }
 
-    private void Initialize(SimpleTextLine simpleTextLine, bool isMutable)
+    private void Initialize(SimpleTextLine simpleTextLine)
     {
         this.SimpleTextLine = simpleTextLine;
-        this.IsMutable = isMutable;
     }
 
     private void Uninitialize()
     {
         this.Goshujin = default;
         this.SimpleTextLine = default!;
-        this.IsMutable = false;
     }
 }

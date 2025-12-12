@@ -20,6 +20,8 @@ internal class ReadLineInstance
 
     public List<ReadLineBuffer> BufferList { get; private set; } = new();
 
+    public List<SimpleTextLine> LineList { get; private set; } = new();
+
     public int BufferIndex { get; set; }
 
     public int BufferPosition { get; set; }
@@ -53,26 +55,33 @@ internal class ReadLineInstance
             var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
             ReadLineBuffer buffer;
             SimpleTextLine simpleTextLine;
+            ReadOnlySpan<char> currentPrompt;
             if (index < 0)
             {
-                buffer = this.simpleConsole.RentBuffer(this, bufferIndex++, prompt.ToString());
-                simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, prompt);
+                currentPrompt = prompt;
                 prompt = default;
             }
             else
             {
-                buffer = this.simpleConsole.RentBuffer(this, bufferIndex++, prompt.Slice(0, index).ToString());
-                simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, prompt.Slice(0, index));
+                currentPrompt = prompt.Slice(0, index);
                 prompt = prompt.Slice(index + newLineLength);
             }
+
+            buffer = this.simpleConsole.RentBuffer(this, bufferIndex, currentPrompt.ToString());
+            simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, bufferIndex, currentPrompt);
+            bufferIndex++;
 
             this.BufferList.Add(buffer);
             buffer.Top = this.simpleConsole.CursorTop;
             buffer.UpdateHeight();
 
+            this.LineList.Add(simpleTextLine);
+            simpleTextLine.Top = this.simpleConsole.CursorTop;
+            simpleTextLine.UpdateHeight();
+
             windowBuffer ??= SimpleConsole.RentWindowBuffer();
             var span = windowBuffer.AsSpan();
-            SimplePromptHelper.TryCopy(buffer.Prompt.AsSpan(), ref span);
+            SimplePromptHelper.TryCopy(currentPrompt, ref span);
             if (prompt.Length == 0)
             {
                 SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
