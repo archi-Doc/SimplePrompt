@@ -355,7 +355,7 @@ CancelOrTerminate:
                 return;
             }
 
-            this.Location.CorrectCursorTop(activeInstance);//
+            this.Location.CorrectCursorTop(activeInstance);
             activeInstance.PrepareLocation();
             activeInstance.SetCursorAtFirst(CursorOperation.Hide);
             this.WriteInternal(message, true);

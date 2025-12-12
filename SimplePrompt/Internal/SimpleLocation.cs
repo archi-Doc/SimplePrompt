@@ -175,6 +175,11 @@ internal class SimpleLocation
             x.Top += topDiff;
         }
 
+        foreach (var x in readLineInstance.LineList)
+        {
+            x.Top += topDiff;
+        }
+
         (_, this.simpleConsole.CursorTop) = newCursor;
     }
 

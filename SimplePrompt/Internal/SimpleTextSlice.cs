@@ -37,9 +37,9 @@ internal partial class SimpleTextSlice
 
     public int Start { get; set; }
 
-    public short Length { get; set; }
+    public int Length { get; set; }
 
-    public short Width { get; set; }
+    public int Width { get; set; }
 
     public ReadOnlySpan<char> CharSpan => this.SimpleTextLine.CharArray.AsSpan(this.Start, this.Length);
 
@@ -58,8 +58,8 @@ internal partial class SimpleTextSlice
         this.Goshujin = goshujin;
         this.IsMutable = isMutable;
         this.Start = start;
-        this.Length = (short)length;
-        this.Width = (short)width;
+        this.Length = length;
+        this.Width = width;
     }
 
     private void Initialize(SimpleTextLine simpleTextLine)
