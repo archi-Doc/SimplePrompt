@@ -108,16 +108,8 @@ internal class ReadLineInstance
         }
     }
 
-    public string? Flush(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
+    public string? Process(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
-        // this.simpleConsole.PrepareCursor();
-
-        /*var buffer = this.PrepareAndFindBuffer();
-        if (buffer is null)
-        {
-            return string.Empty;
-        }*/
-
         if (this.BufferIndex >= this.BufferList.Count)
         {
             return string.Empty;
@@ -311,6 +303,10 @@ internal class ReadLineInstance
         {
             this.BufferList.Remove(this.BufferList[i]);
             this.simpleConsole.ReturnBuffer(this.BufferList[i]);
+
+            var listToRemove = this.LineList[i];
+            this.LineList.RemoveAt(i);
+            SimpleTextLine.Return(listToRemove);
         }
 
         this.BufferList[this.EditableBufferIndex].Reset();

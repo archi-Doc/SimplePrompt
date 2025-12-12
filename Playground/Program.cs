@@ -120,17 +120,17 @@ internal class Program
 
         ThreadCore.Root.TerminationEvent.Set(); // The termination process is complete (#1).
 
-        bool KeyInputHook(ConsoleKeyInfo keyInfo)
+        KeyInputHookResult KeyInputHook(ConsoleKeyInfo keyInfo)
         {
             if (keyInfo.Key == ConsoleKey.F1)
             {
                 simpleConsole.WriteLine("Inserted text");
-                return true;
+                return KeyInputHookResult.Handled;
             }
             else if (keyInfo.Key == ConsoleKey.F2)
             {
                 simpleConsole.WriteLine("Text1\nText2");
-                return true;
+                return KeyInputHookResult.Handled;
             }
             else if (keyInfo.Key == ConsoleKey.F3)
             {
@@ -147,10 +147,10 @@ internal class Program
                     Console.WriteLine($"Nested: {result.Text}");
                 });
 
-                return true;
+                return KeyInputHookResult.Handled;
             }
 
-            return false;
+            return KeyInputHookResult.NotHandled;
         }
     }
 }

@@ -93,30 +93,30 @@ internal class Program
             }
         }
 
-        bool KeyInputHook(ConsoleKeyInfo keyInfo)
+        KeyInputHookResult KeyInputHook(ConsoleKeyInfo keyInfo)
         {
             if (keyInfo.Key == ConsoleKey.F1)
             {
                 simpleConsole.WriteLine("Inserted text");
-                return true;
+                return KeyInputHookResult.Handled;
             }
             else if (keyInfo.Key == ConsoleKey.F2)
             {
                 simpleConsole.WriteLine("Text1\nText2");
-                return true;
+                return KeyInputHookResult.Handled;
             }
             else if (keyInfo.Key == ConsoleKey.F3)
             {
                 _ = NestedPrompt();
-                return true;
+                return KeyInputHookResult.Handled;
             }
             else if (keyInfo.Key == ConsoleKey.F4)
             {
                 _ = YesOrNoPrompt();
-                return true;
+                return KeyInputHookResult.Handled;
             }
 
-            return false;
+            return KeyInputHookResult.NotHandled;
         }
 
         async Task NestedPrompt()
@@ -178,19 +178,19 @@ internal class Program
                     if (keyInfo.Key == ConsoleKey.F1)
                     {
                         simpleConsole.WriteLine("Inserted text");
-                        return true;
+                        return KeyInputHookResult.Handled;
                     }
                     else if (keyInfo.Key == ConsoleKey.F2)
                     {
                         simpleConsole.WriteLine("Text1\nText2");
-                        return true;
+                        return KeyInputHookResult.Handled;
                     }
                     else if (keyInfo.Key == ConsoleKey.F3)
                     {
-                        return true;
+                        return KeyInputHookResult.Handled;
                     }
 
-                    return false;
+                    return KeyInputHookResult.NotHandled;
                 },
             };
 

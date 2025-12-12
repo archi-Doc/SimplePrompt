@@ -24,26 +24,6 @@ public partial class SimpleConsole : IConsoleService
     private static SimpleConsole? _instance;
 
     /// <summary>
-    /// Represents a method that handles key input events during console read operations.
-    /// </summary>
-    /// <param name="keyInfo">The <see cref="ConsoleKeyInfo"/> containing information about the pressed key.</param>
-    /// <returns>
-    /// <see langword="true"/> to indicate the key input was handled and should not be processed further;
-    /// <see langword="false"/> to allow normal processing of the key input.
-    /// </returns>
-    public delegate bool KeyInputHook(ConsoleKeyInfo keyInfo);
-
-    /// <summary>
-    /// Represents a method that handles text input validation or transformation after the user submits input.
-    /// </summary>
-    /// <param name="text">The input text submitted by the user.</param>
-    /// <returns>
-    /// The validated or transformed text to be returned as the final result.
-    /// If <see langword="null"/> is returned, the input is rejected and the user can continue editing.
-    /// </returns>
-    public delegate string? TextInputHook(string text);
-
-    /// <summary>
     /// Gets or creates the singleton instance of <see cref="SimpleConsole"/> using thread-safe lazy initialization.
     /// If an instance already exists, it returns the existing instance; otherwise, it creates and initializes a new one.
     /// </summary>
@@ -145,6 +125,7 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
+        InputResultKind inputResultKind;
         ReadLineInstance currentInstance;
         using (this.syncObject.EnterScope())
         {
@@ -175,13 +156,8 @@ public partial class SimpleConsole : IConsoleService
                 cancellationToken.ThrowIfCancellationRequested();
                 if (this.Core.IsTerminated)
                 {// Terminated
-                    this.UnderlyingTextWriter.WriteLine();
-                    using (this.syncObject.EnterScope())
-                    {
-                        this.NewLineCursor();
-                    }
-
-                    return new(InputResultKind.Terminated);
+                    inputResultKind = InputResultKind.Terminated;
+                    goto CancelOrTerminate;
                 }
 
                 if (delayFlag)
@@ -234,19 +210,22 @@ ProcessKeyInfo:
                 else if (currentInstance.Options.CancelOnEscape &&
                     keyInfo.Key == ConsoleKey.Escape)
                 {
-                    this.UnderlyingTextWriter.WriteLine();
-                    using (this.syncObject.EnterScope())
-                    {
-                        this.NewLineCursor();
-                    }
-
-                    return new(InputResultKind.Canceled);
+                    inputResultKind = InputResultKind.Canceled;
+                    goto CancelOrTerminate;
                 }
 
-                if (currentInstance.Options.KeyInputHook is not null &&
-                    currentInstance.Options.KeyInputHook(keyInfo))
-                {// Handled by the hook delegate.
-                    continue;
+                if (currentInstance.Options.KeyInputHook is not null)
+                {
+                    var hookResult = currentInstance.Options.KeyInputHook(keyInfo);
+                    if (hookResult == KeyInputHookResult.Handled)
+                    {
+                        continue;
+                    }
+                    else if (hookResult == KeyInputHookResult.Cancel)
+                    {
+                        inputResultKind = InputResultKind.Canceled;
+                        goto CancelOrTerminate;
+                    }
                 }
 
                 /*else if (keyInfo.Key == ConsoleKey.C &&
@@ -287,11 +266,11 @@ ProcessKeyInfo:
                 }
 
                 if (flush)
-                {// Flush
+                {// Process
                     string? result;
                     using (this.syncObject.EnterScope())
                     {
-                        result = currentInstance.Flush(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
+                        result = currentInstance.Process(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
                         if (result is not null &&
                             currentInstance.Options.TextInputHook is not null)
                         {
@@ -331,6 +310,24 @@ ProcessKeyInfo:
             this.RemoveInstance(currentInstance);
             this.ReturnInstance(currentInstance);
         }
+
+CancelOrTerminate:
+        this.UnderlyingTextWriter.WriteLine();
+        using (this.syncObject.EnterScope())
+        {
+            this.NewLineCursor();
+        }
+
+        return new(InputResultKind.Terminated);
+
+Terminate:
+        this.UnderlyingTextWriter.WriteLine();
+        using (this.syncObject.EnterScope())
+        {
+            this.NewLineCursor();
+        }
+
+        return new(InputResultKind.Terminated);
     }
 
     Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
