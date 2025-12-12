@@ -14,10 +14,10 @@ internal class SimpleTextLine
 
     private static readonly ObjectPool<SimpleTextLine> Pool = new(() => new(), PoolSize);
 
-    public static SimpleTextLine Rent(SimpleConsole simpleConsole, int index, ReadOnlySpan<char> prompt)
+    public static SimpleTextLine Rent(SimpleConsole simpleConsole, ReadLineInstance readLineInstance, int index, ReadOnlySpan<char> prompt)
     {
         var obj = Pool.Rent();
-        obj.Initialize(simpleConsole, index, prompt);
+        obj.Initialize(simpleConsole, readLineInstance, index, prompt);
         return obj;
     }
 
@@ -33,6 +33,7 @@ internal class SimpleTextLine
 
     private readonly SimpleTextSlice.GoshujinClass slices = new();
     private SimpleConsole simpleConsole;
+    private ReadLineInstance readLineInstance;
     private char[] charArray = new char[InitialBufferSize];
     private byte[] widthArray = new byte[InitialBufferSize];
 
@@ -46,15 +47,208 @@ internal class SimpleTextLine
 
     public int Height { get; private set; }
 
+    public int PromptLength { get; private set; }
+
+    public int PromptWidth { get; private set; }
+
     internal char[] CharArray => this.charArray;
 
     internal byte[] WidthArray => this.widthArray;
+
+    internal bool IsEmpty => this.slices.Count == 0;
 
     #endregion
 
     private SimpleTextLine()
     {
         this.simpleConsole = default!;
+        this.readLineInstance = default!;
+    }
+
+    internal ReadOnlySpan<char> PromptSpan => this.charArray.AsSpan(0, this.PromptLength);
+
+    internal ReadOnlySpan<char> InputSpan
+    {
+        get
+        {
+            var start = -1;
+            var length = 0;
+            foreach (var x in this.slices)
+            {
+
+                if (start < 0)
+                {
+                    if (x.IsMutable)
+                    {
+                        start = x.Start;
+                    }
+                }
+                else
+                {
+                    length += x.Length;
+                }
+            }
+
+            if (start < 0)
+            {
+                return default;
+            }
+            else
+            {
+                return this.charArray.AsSpan(start, length);
+            }
+        }
+    }
+
+    public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
+    {
+        /*if (charBuffer.Length > 0)
+        {
+            var arrayPosition = this.GetArrayPosition();
+            this.ProcessCharacterInternal(arrayPosition, charBuffer);
+            this.simpleConsole.CheckCursor();
+        }
+
+        if (keyInfo.Key != ConsoleKey.None)
+        {// Control
+            var key = keyInfo.Key;
+            if (key == ConsoleKey.Enter)
+            {// Exit or Multiline """
+                if (!this.readLineInstance.Options.AllowEmptyLineInput)
+                {
+                    if (this.readLineInstance.BufferList.Count == 0 ||
+                    (this.readLineInstance.BufferList.Count == 1 &&
+                    this.readLineInstance.BufferList[0].Length == 0))
+                    {// Empty input
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+            else if (key == ConsoleKey.Backspace)
+            {
+                if (this.Length == 0)
+                {// Delete empty buffer
+                    this.readLineInstance.TryDeleteBuffer(this.Index);
+                    return false;
+                }
+
+                var arrayPosition = this.GetArrayPosition();
+                if (arrayPosition > 0)
+                {
+                    (int RemovedWidth, int Index, int Diff) r;
+                    this.MoveLeft(arrayPosition);
+                    if (char.IsLowSurrogate(this.charArray[arrayPosition - 1]) &&
+                        (arrayPosition > 1) &&
+                        char.IsHighSurrogate(this.charArray[arrayPosition - 2]))
+                    {
+                        r = this.Remove2At(arrayPosition - 2);
+                        this.Write(arrayPosition - 2, this.Length, 0, r.RemovedWidth);
+                    }
+                    else
+                    {
+                        r = this.RemoveAt(arrayPosition - 1);
+                        this.Write(arrayPosition - 1, this.Length, 0, r.RemovedWidth);
+                    }
+
+                    if (r.Diff != 0)
+                    {
+                        this.readLineInstance.HeightChanged(r.Index, r.Diff);
+                    }
+                }
+
+                return false;
+            }
+            else if (key == ConsoleKey.Delete)
+            {
+                if (this.Length == 0)
+                {// Delete empty buffer
+                    this.readLineInstance.TryDeleteBuffer(this.Index);
+                    return false;
+                }
+
+                var arrayPosition = this.GetArrayPosition();
+                if (arrayPosition < this.Length)
+                {
+                    (int RemovedWidth, int Index, int Diff) r;
+                    if (char.IsHighSurrogate(this.charArray[arrayPosition]) &&
+                        (arrayPosition + 1) < this.Length &&
+                        char.IsLowSurrogate(this.charArray[arrayPosition + 1]))
+                    {
+                        r = this.Remove2At(arrayPosition);
+                    }
+                    else
+                    {
+                        r = this.RemoveAt(arrayPosition);
+                    }
+
+                    this.Write(arrayPosition, this.Length, 0, r.RemovedWidth);
+                    if (r.Diff != 0)
+                    {
+                        this.readLineInstance.HeightChanged(r.Index, r.Diff);
+                    }
+                }
+
+                return false;
+            }
+            else if (key == ConsoleKey.U && keyInfo.Modifiers == ConsoleModifiers.Control)
+            {// Ctrl+U: Clear line
+                this.ClearLine();
+            }
+            else if (key == ConsoleKey.Home)
+            {
+                this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
+            }
+            else if (key == ConsoleKey.End)
+            {
+                var newCursor = this.ToCursor(this.Width);
+                this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
+            }
+            else if (key == ConsoleKey.LeftArrow)
+            {
+                var arrayPosition = this.GetArrayPosition();
+                this.MoveLeft(arrayPosition);
+                return false;
+            }
+            else if (key == ConsoleKey.RightArrow)
+            {
+                var arrayPosition = this.GetArrayPosition();
+                this.MoveRight(arrayPosition);
+                return false;
+            }
+            else if (key == ConsoleKey.UpArrow)
+            {// History or move line
+                if (this.readLineInstance.MultilineMode)
+                {// Up
+                    this.MoveUpOrDown(true);
+                }
+                else
+                {// History
+                }
+
+                return false;
+            }
+            else if (key == ConsoleKey.DownArrow)
+            {// History or move line
+                if (this.readLineInstance.MultilineMode)
+                {// Down
+                    this.MoveUpOrDown(false);
+                }
+                else
+                {// History
+                }
+
+                return false;
+            }
+            else if (key == ConsoleKey.Insert)
+            {// Toggle insert mode
+                // Overtype mode is not implemented yet.
+                // this.InputConsole.IsInsertMode = !this.InputConsole.IsInsertMode;
+            }
+        }*/
+
+        return false;
     }
 
     internal (int Index, int Diff) UpdateHeight()
@@ -100,10 +294,13 @@ internal class SimpleTextLine
 
         this.EnsureBuffer(prompt.Length);
         prompt.CopyTo(this.charArray);
+        this.PromptLength = prompt.Length;
         for (var i = 0; i < prompt.Length; i++)
         {
             this.widthArray[i] = SimplePromptHelper.GetCharWidth(this.charArray[i]);
         }
+
+        this.PromptWidth = (int)BaseHelper.Sum(this.widthArray.AsSpan(0, this.PromptLength));
 
         SimpleTextSlice slice;
         var start = 0;
@@ -135,15 +332,18 @@ internal class SimpleTextLine
         slice.Prepare(this.slices, true, start, 0, 0);
     }
 
-    private void Initialize(SimpleConsole simpleConsole, int index, ReadOnlySpan<char> prompt)
+    private void Initialize(SimpleConsole simpleConsole, ReadLineInstance readLineInstance, int index, ReadOnlySpan<char> prompt)
     {
         this.simpleConsole = simpleConsole;
+        this.readLineInstance = readLineInstance;
         this.Index = index;
         this.SetPrompt(prompt);
     }
 
     private void Uninitialize()
     {
+        this.simpleConsole = default!;
+        this.readLineInstance = default!;
         foreach (var x in this.slices)
         {
             SimpleTextSlice.Return(x);

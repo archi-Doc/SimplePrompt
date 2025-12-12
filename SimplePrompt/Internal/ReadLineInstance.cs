@@ -89,7 +89,7 @@ internal class ReadLineInstance
             }
 
             buffer = this.simpleConsole.RentBuffer(this, bufferIndex, currentPrompt.ToString());
-            simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, bufferIndex, currentPrompt);
+            simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, this, bufferIndex, currentPrompt);
             bufferIndex++;
 
             this.BufferList.Add(buffer);
@@ -214,6 +214,104 @@ internal class ReadLineInstance
 
                     buffers[i].TextSpan.CopyTo(span);
                     span = span.Slice(buffers[i].Length);
+                }
+            });
+
+            this.SetCursorAtEnd(CursorOperation.None);
+            return result;
+        }
+        else
+        {
+            return null;
+        }
+    }
+
+    public string? Process2(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
+    {
+        if (this.BufferIndex >= this.LineList.Count)
+        {
+            return string.Empty;
+        }
+
+        var simpleTextLine = this.LineList[this.BufferIndex];
+        if (simpleTextLine.ProcessInternal(keyInfo, charBuffer))
+        {// Exit input mode and return the concatenated string.
+            if (this.BufferList.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            if (!string.IsNullOrEmpty(this.Options.MultilineIdentifier) &&
+                (SimpleCommandLine.SimpleParserHelper.CountOccurrences(simpleTextLine.InputSpan, this.Options.MultilineIdentifier) % 2) > 0)
+            {// Multiple line
+                if (simpleTextLine.Index == this.EditableBufferIndex)
+                {// Start
+                    this.MultilineMode = true;
+                }
+                else
+                {// End
+                    this.MultilineMode = false;
+                }
+            }
+
+            if (this.MultilineMode)
+            {
+                if (simpleTextLine.Index == (this.BufferList.Count - 1))
+                {// New InputBuffer
+                    if (simpleTextLine.IsEmpty)
+                    {// Empty
+                        return null;
+                    }
+                    else if (!this.IsLengthWithinLimit(1))
+                    {// Exceeding max length
+                        return null;
+                    }
+
+                    simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, this, this.BufferList.Count, this.Options.MultilinePrompt.AsSpan());
+                    this.LineList.Add(simpleTextLine);
+                    var previousLeft = this.simpleConsole.CursorLeft;
+                    var previousTop = this.simpleConsole.CursorTop;
+                    if (this.simpleConsole.CursorLeft > 0)
+                    {
+                        this.simpleConsole.UnderlyingTextWriter.WriteLine();
+                        this.simpleConsole.NewLineCursor();
+                    }
+
+                    this.simpleConsole.UnderlyingTextWriter.Write(simpleTextLine.PromptSpan);
+                    this.simpleConsole.AdvanceCursor(simpleTextLine.PromptWidth, false);
+                    return null;
+                }
+                else
+                {// Next buffer
+                    this.simpleConsole.SetCursor(this.BufferList[simpleTextLine.Index + 1]);
+                    return null;
+                }
+            }
+
+            var length = this.BufferList[this.EditableBufferIndex].Length;
+            for (var i = this.EditableBufferIndex + 1; i < this.BufferList.Count; i++)
+            {
+                length += 1 + this.BufferList[i].Length;
+            }
+
+            var result = string.Create(length, this.LineList, (span, lines) =>
+            {
+                var isFirst = true;
+                for (var i = this.EditableBufferIndex; i < lines.Count; i++)
+                {
+                    if (!isFirst)
+                    {
+                        span[0] = '\n';
+                        span = span.Slice(1);
+                    }
+                    else
+                    {
+                        isFirst = false;
+                    }
+
+                    var inputSpan = lines[i].InputSpan;
+                    inputSpan.CopyTo(span);
+                    span = span.Slice(inputSpan.Length);
                 }
             });
 
