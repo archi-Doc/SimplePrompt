@@ -4,7 +4,8 @@ internal class Program
 {
     public static async Task Main(string[] args)
     {
-        await Log();
+        await TaskDelay();
+        // await Log();
     }
 
     private static async Task Log()
