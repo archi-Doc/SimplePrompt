@@ -151,7 +151,6 @@ public partial class SimpleConsole : IConsoleService
             // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
             this.PrepareWindow(default);
             this.CheckCursor();
-            // (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
             if (this.CursorLeft > 0)
             {
                 this.UnderlyingTextWriter.WriteLine();
