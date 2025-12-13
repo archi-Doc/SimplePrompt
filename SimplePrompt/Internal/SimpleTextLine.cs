@@ -291,10 +291,11 @@ internal class SimpleTextLine
         }
 
         this.EnsureBuffer(this.TotalLength + charBuffer.Length);
+        var arrayPosition = this.readLineInstance.BufferPosition;
 
-        this.charArray.AsSpan(arrayPosition, this.Length - arrayPosition).CopyTo(this.charArray.AsSpan(arrayPosition + charBuffer.Length));
+        this.charArray.AsSpan(arrayPosition, this.TotalLength - arrayPosition).CopyTo(this.charArray.AsSpan(arrayPosition + charBuffer.Length));
         charBuffer.CopyTo(this.charArray.AsSpan(arrayPosition));
-        this.widthArray.AsSpan(arrayPosition, this.Length - arrayPosition).CopyTo(this.widthArray.AsSpan(arrayPosition + charBuffer.Length));
+        this.widthArray.AsSpan(arrayPosition, this.TotalLength - arrayPosition).CopyTo(this.widthArray.AsSpan(arrayPosition + charBuffer.Length));
         var width = 0;
         for (var i = 0; i < charBuffer.Length; i++)
         {
@@ -315,6 +316,9 @@ internal class SimpleTextLine
 
             width += w;
         }
+
+        var line = this.FindLine();
+
 
         var heightChanged = this.ChangeLengthAndWidth(charBuffer.Length, width);
         if (heightChanged.Diff == 0)
