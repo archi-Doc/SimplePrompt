@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Collections;
 
@@ -51,6 +52,14 @@ internal class SimpleTextLine
 
     public int PromptWidth { get; private set; }
 
+    public int InputLength { get; private set; }
+
+    public int InputWidth { get; private set; } = 0;
+
+    public int TotalLength => this.PromptLength + this.InputLength;
+
+    public int TotalWidth => this.PromptWidth + this.InputWidth;
+
     internal char[] CharArray => this.charArray;
 
     internal byte[] WidthArray => this.widthArray;
@@ -63,6 +72,13 @@ internal class SimpleTextLine
     {
         this.simpleConsole = default!;
         this.readLineInstance = default!;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void ChangeInput(int lengthDiff, int widthDiff)
+    {
+        this.InputLength += lengthDiff;
+        this.InputWidth += widthDiff;
     }
 
     internal ReadOnlySpan<char> PromptSpan => this.charArray.AsSpan(0, this.PromptLength);
@@ -127,7 +143,7 @@ internal class SimpleTextLine
             }
             else if (key == ConsoleKey.Backspace)
             {
-                if (this.Length == 0)
+                if (this.InputLength == 0)
                 {// Delete empty buffer
                     this.readLineInstance.TryDeleteBuffer(this.Index);
                     return false;
@@ -245,7 +261,8 @@ internal class SimpleTextLine
                 // Overtype mode is not implemented yet.
                 // this.InputConsole.IsInsertMode = !this.InputConsole.IsInsertMode;
             }
-        }*/
+        }
+        */
 
         return false;
     }
@@ -253,7 +270,7 @@ internal class SimpleTextLine
     internal (int Index, int Diff) UpdateHeight()
     {
         var previousHeight = this.Height;
-        var totalWidth = this.GetWidth();
+        var totalWidth = this.TotalWidth;
         if (totalWidth == 0)
         {
             this.Height = 1;
@@ -266,14 +283,14 @@ internal class SimpleTextLine
         return (this.Index, this.Height - previousHeight);
     }
 
-    private void ProcessCharacterInternal(int arrayPosition, Span<char> charBuffer)
+    private void ProcessCharacterInternal(Span<char> charBuffer)
     {
         if (!this.readLineInstance.IsLengthWithinLimit(charBuffer.Length))
         {
             return;
         }
 
-        this.EnsureBuffer(this.Length + charBuffer.Length);
+        this.EnsureBuffer(this.TotalLength + charBuffer.Length);
 
         this.charArray.AsSpan(arrayPosition, this.Length - arrayPosition).CopyTo(this.charArray.AsSpan(arrayPosition + charBuffer.Length));
         charBuffer.CopyTo(this.charArray.AsSpan(arrayPosition));
@@ -313,17 +330,6 @@ internal class SimpleTextLine
             this.Write(arrayPosition, this.Length, width, 0, true);
             this.readLineInstance.HeightChanged(heightChanged.Index, heightChanged.Diff);
         }
-    }
-
-    private int GetWidth()
-    {
-        var width = 0;
-        foreach (var slice in this.slices)
-        {
-            width += slice.Width;
-        }
-
-        return width;
     }
 
     private void EnsureBuffer(int capacity)
