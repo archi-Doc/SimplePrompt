@@ -98,38 +98,7 @@ internal class SimpleTextLine
 
     internal ReadOnlySpan<char> PromptSpan => this.charArray.AsSpan(0, this.PromptLength);
 
-    internal ReadOnlySpan<char> InputSpan
-    {
-        get
-        {
-            var start = -1;
-            var length = 0;
-            foreach (var x in this.slices)
-            {
-
-                if (start < 0)
-                {
-                    if (x.IsInput)
-                    {
-                        start = x.Start;
-                    }
-                }
-                else
-                {
-                    length += x.Length;
-                }
-            }
-
-            if (start < 0)
-            {
-                return default;
-            }
-            else
-            {
-                return this.charArray.AsSpan(start, length);
-            }
-        }
-    }
+    internal ReadOnlySpan<char> InputSpan => this.charArray.AsSpan(this.PromptLength, this.InputLength);
 
     public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {

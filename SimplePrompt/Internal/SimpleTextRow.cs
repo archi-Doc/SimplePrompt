@@ -32,7 +32,9 @@ internal partial class SimpleTextRow
 
     #region FiendAndProperty
 
-    public SimpleTextLine SimpleTextLine { get; private set; }
+    private SimpleTextLine simpleTextLine;
+    private int _length;
+    private int _width;
 
     public bool IsInput => this.InputStart >= 0;
 
@@ -44,19 +46,16 @@ internal partial class SimpleTextRow
 
     public int Width => this._width;
 
-    public ReadOnlySpan<char> CharSpan => this.SimpleTextLine.CharArray.AsSpan(this.Start, this.Length);
+    public ReadOnlySpan<char> CharSpan => this.simpleTextLine.CharArray.AsSpan(this.Start, this.Length);
 
-    public ReadOnlySpan<byte> WidthSpan => this.SimpleTextLine.WidthArray.AsSpan(this.Start, this.Length);
-
-    private int _length;
-    private int _width;
+    public ReadOnlySpan<byte> WidthSpan => this.simpleTextLine.WidthArray.AsSpan(this.Start, this.Length);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ChangeInputLengthAndWidth(int lengthDiff, int widthDiff)
     {
         this._length += lengthDiff;
         this._width += widthDiff;
-        this.SimpleTextLine.ChangeInputLengthAndWidth(lengthDiff, widthDiff);
+        this.simpleTextLine.ChangeInputLengthAndWidth(lengthDiff, widthDiff);
     }
 
     #endregion
@@ -64,7 +63,7 @@ internal partial class SimpleTextRow
     [Link(Primary = true, Type = ChainType.LinkedList, Name = "Slice")]
     private SimpleTextRow()
     {
-        this.SimpleTextLine = default!;
+        this.simpleTextLine = default!;
     }
 
     public void Prepare(SimpleTextRow.GoshujinClass goshujin, int start, int inputStart, int length, int width)
@@ -74,7 +73,7 @@ internal partial class SimpleTextRow
         this.InputStart = inputStart;
         this._length = length;
         this._width = width;
-        this.SimpleTextLine.ChangeInputLengthAndWidth(length, width);
+        this.simpleTextLine.ChangeInputLengthAndWidth(length, width);
     }
 
     public override string ToString()
@@ -84,12 +83,12 @@ internal partial class SimpleTextRow
 
     private void Initialize(SimpleTextLine simpleTextLine)
     {
-        this.SimpleTextLine = simpleTextLine;
+        this.simpleTextLine = simpleTextLine;
     }
 
     private void Uninitialize()
     {
         this.Goshujin = default;
-        this.SimpleTextLine = default!;
+        this.simpleTextLine = default!;
     }
 }
