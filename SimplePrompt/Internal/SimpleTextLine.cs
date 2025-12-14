@@ -48,13 +48,13 @@ internal class SimpleTextLine
 
     public int Height { get; private set; }
 
-    public int PromptLength { get; private set; }
+    public int PromptLength => this._promptLength;
 
-    public int PromptWidth { get; private set; }
+    public int PromptWidth => this._promptWidth;
 
-    public int InputLength { get; private set; }
+    public int InputLength => this._inputLength;
 
-    public int InputWidth { get; private set; } = 0;
+    public int InputWidth => this._inputWidth;
 
     public int TotalLength => this.PromptLength + this.InputLength;
 
@@ -66,6 +66,11 @@ internal class SimpleTextLine
 
     internal bool IsEmpty => this.slices.Count == 0;
 
+    private int _promptLength;
+    private int _promptWidth;
+    private int _inputLength;
+    private int _inputWidth;
+
     #endregion
 
     private SimpleTextLine()
@@ -75,10 +80,18 @@ internal class SimpleTextLine
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal void ChangeInput(int lengthDiff, int widthDiff)
+    internal void ChangePromptLengthAndWidth(int lengthDiff, int widthDiff)
     {
-        this.InputLength += lengthDiff;
-        this.InputWidth += widthDiff;
+        this._promptLength += lengthDiff;
+        this._promptWidth += widthDiff;
+    }
+
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void ChangeInputLengthAndWidth(int lengthDiff, int widthDiff)
+    {
+        this._inputLength += lengthDiff;
+        this._inputWidth += widthDiff;
     }
 
     internal ReadOnlySpan<char> PromptSpan => this.charArray.AsSpan(0, this.PromptLength);
@@ -351,13 +364,14 @@ internal class SimpleTextLine
 
         this.EnsureBuffer(prompt.Length);
         prompt.CopyTo(this.charArray);
-        this.PromptLength = prompt.Length;
+        var promptLength = prompt.Length;
         for (var i = 0; i < prompt.Length; i++)
         {
             this.widthArray[i] = SimplePromptHelper.GetCharWidth(this.charArray[i]);
         }
 
-        this.PromptWidth = (int)BaseHelper.Sum(this.widthArray.AsSpan(0, this.PromptLength));
+        var promptWidth = (int)BaseHelper.Sum(this.widthArray.AsSpan(0, this.PromptLength));
+        this.ChangePromptLengthAndWidth(promptLength, promptWidth);
 
         SimpleTextSlice slice;
         var start = 0;

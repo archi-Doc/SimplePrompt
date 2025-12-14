@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Collections;
 using ValueLink;
@@ -39,13 +40,24 @@ internal partial class SimpleTextSlice
 
     public int InputStart { get; private set; }
 
-    public int Length { get; private set; }
+    public int Length => this._length;
 
-    public int Width { get; private set; }
+    public int Width => this._width;
 
     public ReadOnlySpan<char> CharSpan => this.SimpleTextLine.CharArray.AsSpan(this.Start, this.Length);
 
     public ReadOnlySpan<byte> WidthSpan => this.SimpleTextLine.WidthArray.AsSpan(this.Start, this.Length);
+
+    private int _length;
+    private int _width;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ChangeInputLengthAndWidth(int lengthDiff, int widthDiff)
+    {
+        this._length += lengthDiff;
+        this._width += widthDiff;
+        this.SimpleTextLine.ChangeInputLengthAndWidth(lengthDiff, widthDiff);
+    }
 
     #endregion
 
@@ -60,8 +72,9 @@ internal partial class SimpleTextSlice
         this.Goshujin = goshujin;
         this.Start = start;
         this.InputStart = inputStart;
-        this.Length = length;
-        this.Width = width;
+        this._length = length;
+        this._width = width;
+        this.SimpleTextLine.ChangeInputLengthAndWidth(length, width);
     }
 
     public override string ToString()
