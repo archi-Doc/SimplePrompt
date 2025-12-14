@@ -30,7 +30,7 @@ internal class ReadLineBuffer
 
     public string? Prompt { get; private set; }
 
-    public int PromtWidth { get; private set; }
+    public int PromptWidth { get; private set; }
 
     public int Length { get; set; }
 
@@ -38,7 +38,7 @@ internal class ReadLineBuffer
 
     public int Height { get; set; }
 
-    public int TotalWidth => this.PromtWidth + this.Width;
+    public int TotalWidth => this.PromptWidth + this.Width;
 
     public int WindowWidth => this.simpleConsole.WindowWidth;
 
@@ -72,7 +72,7 @@ internal class ReadLineBuffer
         }
 
         this.Prompt = prompt;
-        this.PromtWidth = SimplePromptHelper.GetWidth(this.Prompt);
+        this.PromptWidth = SimplePromptHelper.GetWidth(this.Prompt);
         this.Reset();
     }
 
@@ -181,7 +181,7 @@ internal class ReadLineBuffer
             }
             else if (key == ConsoleKey.Home)
             {
-                this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
+                this.SetCursorPosition(this.PromptWidth, 0, CursorOperation.None);
             }
             else if (key == ConsoleKey.End)
             {
@@ -266,7 +266,7 @@ internal class ReadLineBuffer
 
     internal (int Left, int Top) ToCursor(int cursorIndex)
     {
-        cursorIndex += this.PromtWidth;
+        cursorIndex += this.PromptWidth;
         var top = cursorIndex / this.simpleConsole.WindowWidth;
         var left = cursorIndex - (top * this.simpleConsole.WindowWidth);
         return (left, top);
@@ -298,7 +298,7 @@ internal class ReadLineBuffer
         var length = endIndex < 0 ? this.Length : endIndex - startIndex;
         var widthSpan = this.widthArray.AsSpan(startIndex, length);
         var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
-        var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
+        var startPosition = endIndex < 0 ? 0 : this.PromptWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
 
         var startCursor = (this.Top * this.WindowWidth) + startPosition;
         var windowRemaining = (this.WindowWidth * this.WindowHeight) - startCursor;
@@ -476,7 +476,7 @@ internal class ReadLineBuffer
         this.Write(0, this.Width, 0, 0);
 
         this.Reset();
-        this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
+        this.SetCursorPosition(this.PromptWidth, 0, CursorOperation.None);
         // this.UpdateConsole(0, this.Length, 0, true);
     }
 
@@ -689,7 +689,7 @@ internal class ReadLineBuffer
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int GetCursorIndex(int cursorLeft, int cursorTop)
     {
-        var index = cursorLeft - this.PromtWidth + (cursorTop * this.simpleConsole.WindowWidth);
+        var index = cursorLeft - this.PromptWidth + (cursorTop * this.simpleConsole.WindowWidth);
         if (index < 0)
         {
             return 0;

@@ -477,7 +477,7 @@ CancelOrTerminate:
 
     internal void SetCursor(ReadLineBuffer buffer)
     {
-        var cursorLeft = buffer.PromtWidth;
+        var cursorLeft = buffer.PromptWidth;
         var cursorTop = buffer.Top;
         this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.None);
     }

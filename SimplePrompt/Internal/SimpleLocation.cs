@@ -122,7 +122,7 @@ internal class SimpleLocation
             return;
         }
 
-        var position = newCursor.Left + (newCursor.Top * this.simpleConsole.WindowWidth) - this.previousInstance.BufferPosition - buffer.PromtWidth;
+        var position = newCursor.Left + (newCursor.Top * this.simpleConsole.WindowWidth) - this.previousInstance.BufferPosition - buffer.PromptWidth;
         if (position < 0)
         {// Invalid position
             return;

@@ -198,7 +198,7 @@ internal class SimpleTextLine
             }
             else if (key == ConsoleKey.Home)
             {
-                this.SetCursorPosition(this.PromtWidth, 0, CursorOperation.None);
+                this.SetCursorPosition(this.PromptWidth, 0, CursorOperation.None);
             }
             else if (key == ConsoleKey.End)
             {
@@ -286,7 +286,7 @@ internal class SimpleTextLine
         var length = endIndex < 0 ? this.TotalLength : endIndex - startIndex;
         var widthSpan = this.widthArray.AsSpan(startIndex, length);
         var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
-        var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
+        var startPosition = endIndex < 0 ? 0 : this.PromptWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
 
         var startCursor = (this.Top * this.WindowWidth) + startPosition;
         var windowRemaining = (this.WindowWidth * this.WindowHeight) - startCursor;
@@ -341,9 +341,9 @@ internal class SimpleTextLine
             written += 1;
         }
 
-        if (endIndex < 0 && this.Prompt is not null)
+        if (endIndex < 0 && this.PromptLength > 0)
         {// Prompt
-            span = this.Prompt.AsSpan();
+            span = this.CharArray.AsSpan(0, this.PromptLength);
             span.CopyTo(buffer);
             written += span.Length;
             buffer = buffer.Slice(span.Length);
@@ -512,7 +512,7 @@ internal class SimpleTextLine
 
         row.AddInput(charBuffer.Length, width);
 
-        this.Write(arrayPosition, this.Length, width, 0);
+        this.Write(arrayPosition, this.TotalLength, width, 0);
 
         /*var line = this.FindLine();
 
