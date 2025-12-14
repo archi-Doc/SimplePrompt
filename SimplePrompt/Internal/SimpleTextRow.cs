@@ -80,7 +80,7 @@ internal partial class SimpleTextRow
     public bool AddInput(int length, int width)
     {
         this.ChangeInputLengthAndWidth(length, width);
-        return this.AdjustRow();
+        return this.Arrange();
     }
 
     public override string ToString()
@@ -88,30 +88,37 @@ internal partial class SimpleTextRow
         return this.CharSpan.ToString();
     }
 
-    private bool AdjustRow()
+    private bool Arrange()
     {
+        // This is the core functionality of SimpleTextRow.
+        // If a row is too short, it pulls data from the next row; if it is too long, it pushes excess data to the next row, maintaining the correct line/ row structure.
         var nextRow = this.SliceLink.Next;
         if (this.Width < this.simpleTextLine.WindowWidth)
-        {
+        {// The width is within WindowWidth. If necessary, the array is moved starting from the next row.
             if (nextRow is null)
-            {
+            {// There is no next row, so nothing to move.
                 return false;
             }
             else
-            {
-                var widthToMove = this.simpleTextLine.WindowWidth - this.Width;
+            {// Move from the next row if there is extra space.
+                var width = this.simpleTextLine.WindowWidth - this.Width;
                 var index = this.End;
                 var end = this.simpleTextLine.TotalLength;
                 while (index < end &&
-                    widthToMove >= this.simpleTextLine.WidthArray[index])
+                    width >= this.simpleTextLine.WidthArray[index])
                 {
-                    widthToMove -= this.simpleTextLine.WidthArray[index];
+                    width -= this.simpleTextLine.WidthArray[index];
                     index++;
                 }
+
+                this._length += index - this.End;
+                this._width += this.simpleTextLine.WindowWidth - this.Width - width;
+                nextRow.Arrange();
+                return true;
             }
         }
-        else
-        {
+        else if (this.Width > this.simpleTextLine.WindowWidth)
+        {// The width exceeds WindowWidth.
             var index = this.Start + this.Length - 1;
             var width = this.Width;
             while (width > this.simpleTextLine.WindowWidth)
@@ -125,19 +132,24 @@ internal partial class SimpleTextRow
             this._length = index;
             this._width = width;
 
-
             var nextStart = this.Start + this.Length;
             if (nextRow is null)
             {
                 nextRow = SimpleTextRow.Rent(this.simpleTextLine);
                 nextRow.Prepare(nextStart, nextStart, lengthDiff, widthDiff);
-                nextRow.AdjustRow();
+                nextRow.Arrange();
             }
             else
             {
                 nextRow.ChangeStartPosition(nextStart, lengthDiff, widthDiff);
-                nextRow.AdjustRow();
+                nextRow.Arrange();
             }
+
+            return true;
+        }
+        else
+        {// The width is exactly equal to WindowWidth.
+            return false;
         }
     }
 

@@ -10,6 +10,8 @@ internal static class SimplePromptHelper
     public static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
     public static readonly ConsoleKeyInfo SpaceKeyInfo = new(' ', ConsoleKey.Spacebar, false, false, false);
 
+    public static ReadOnlySpan<char> ForceNewLineCursor => " \e[1D";
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
     {

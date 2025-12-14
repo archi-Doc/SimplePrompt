@@ -12,8 +12,6 @@ internal class ReadLineBuffer
     private const int BufferMargin = 32;
     private const int MaxPromptWidth = 1_024;
 
-    public static ReadOnlySpan<char> ForceNewLineCursor => " \e[1D";
-
     #region FieldAndProperty
 
     public int Index { get; set; }
@@ -387,7 +385,7 @@ internal class ReadLineBuffer
 
         if (newCursorLeft == 0 && cursorDif > 0)
         {// New line at the end
-            span = ForceNewLineCursor;
+            span = SimplePromptHelper.ForceNewLineCursor;
             span.CopyTo(buffer);
             written += span.Length;
             buffer = buffer.Slice(span.Length);

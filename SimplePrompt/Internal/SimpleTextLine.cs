@@ -3,6 +3,7 @@
 using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Collections;
+using Arc.Unit;
 
 namespace SimplePrompt.Internal;
 
@@ -263,7 +264,6 @@ internal class SimpleTextLine
         }
     }
 
-
     internal (int Index, int Diff) UpdateHeight()
     {
         var previousHeight = this.Height;
@@ -278,6 +278,182 @@ internal class SimpleTextLine
         }
 
         return (this.Index, this.Height - previousHeight);
+    }
+
+    internal void Write(int startIndex, int endIndex, int cursorDif, int removedWidth, bool eraseLine = false)
+    {
+        int x, y, w;
+        var length = endIndex < 0 ? this.TotalLength : endIndex - startIndex;
+        var widthSpan = this.widthArray.AsSpan(startIndex, length);
+        var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
+        var startPosition = endIndex < 0 ? 0 : this.PromtWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
+
+        var startCursor = (this.Top * this.WindowWidth) + startPosition;
+        var windowRemaining = (this.WindowWidth * this.WindowHeight) - startCursor;
+        if (totalWidth > windowRemaining)
+        {
+        }
+
+        var startCursorLeft = startCursor % this.WindowWidth;
+        var startCursorTop = startCursor / this.WindowWidth;
+        if (startCursorTop < 0)
+        {
+            return;
+        }
+
+        var scroll = startCursorTop + 1 + ((startCursorLeft + totalWidth) / this.WindowWidth) - this.WindowHeight;
+
+        var newCursor = startCursor + cursorDif;
+        var newCursorLeft = newCursor % this.WindowWidth;
+        var newCursorTop = newCursor / this.WindowWidth;
+
+        ReadOnlySpan<char> span;
+        var windowBuffer = SimpleConsole.RentWindowBuffer();
+        var buffer = windowBuffer.AsSpan();
+        var written = 0;
+
+        // Hide cursor
+        span = ConsoleHelper.HideCursorSpan;
+        span.CopyTo(buffer);
+        written += span.Length;
+        buffer = buffer.Slice(span.Length);
+
+        if (startCursorLeft != this.simpleConsole.CursorLeft || startCursorTop != (this.Top + this.simpleConsole.CursorTop))
+        {// Move cursor
+            span = ConsoleHelper.SetCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
+
+            x = newCursorTop + 1;
+            y = newCursorLeft + 1;
+            x.TryFormat(buffer, out w);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = ';';
+            buffer = buffer.Slice(1);
+            written += 1;
+            y.TryFormat(buffer, out w);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = 'H';
+            buffer = buffer.Slice(1);
+            written += 1;
+        }
+
+        if (endIndex < 0 && this.Prompt is not null)
+        {// Prompt
+            span = this.Prompt.AsSpan();
+            span.CopyTo(buffer);
+            written += span.Length;
+            buffer = buffer.Slice(span.Length);
+        }
+
+        // Input color
+        span = ConsoleHelper.GetForegroundColorEscapeCode(this.readLineInstance.Options.InputColor).AsSpan();
+        span.CopyTo(buffer);
+        written += span.Length;
+        buffer = buffer.Slice(span.Length);
+
+        // Characters
+        var maskingCharacter = this.readLineInstance.Options.MaskingCharacter;
+        if (maskingCharacter == default)
+        {// Plain
+            span = this.charArray.AsSpan(startIndex, length);
+            span.CopyTo(buffer);
+            written += span.Length;
+            buffer = buffer.Slice(span.Length);
+        }
+        else
+        {// Masked
+            buffer.Slice(0, totalWidth).Fill(maskingCharacter);
+            written += totalWidth;
+            buffer = buffer.Slice(totalWidth);
+        }
+
+        if (newCursorLeft == 0 && cursorDif > 0)
+        {// New line at the end
+            span = SimplePromptHelper.ForceNewLineCursor;
+            span.CopyTo(buffer);
+            written += span.Length;
+            buffer = buffer.Slice(span.Length);
+        }
+
+        // Reset color
+        span = ConsoleHelper.ResetSpan;
+        span.CopyTo(buffer);
+        written += span.Length;
+        buffer = buffer.Slice(span.Length);
+
+        if (removedWidth == 1)
+        {
+            buffer[0] = ' ';
+            written += 1;
+            buffer = buffer.Slice(1);
+        }
+        else if (removedWidth == 2)
+        {
+            buffer[0] = ' ';
+            buffer[1] = ' ';
+            written += 2;
+            buffer = buffer.Slice(2);
+        }
+
+        if (eraseLine)
+        {// Erase line
+            if ((startCursor + totalWidth) % this.WindowWidth == 0)
+            {// Add one space to clear the next line (add a space and move to the next line).
+                buffer[0] = ' ';
+                written += 1;
+                buffer = buffer.Slice(1);
+            }
+
+            span = ConsoleHelper.EraseToEndOfLineSpan;
+            span.CopyTo(buffer);
+            written += span.Length;
+            buffer = buffer.Slice(span.Length);
+        }
+
+        if (cursorDif != totalWidth || cursorDif == 0)
+        {
+            // Set cursor
+            span = ConsoleHelper.SetCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
+
+            x = newCursorTop + 1;
+            y = newCursorLeft + 1;
+            x.TryFormat(buffer, out w);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = ';';
+            buffer = buffer.Slice(1);
+            written += 1;
+            y.TryFormat(buffer, out w);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = 'H';
+            buffer = buffer.Slice(1);
+            written += 1;
+        }
+
+        // Show cursor
+        span = ConsoleHelper.ShowCursorSpan;
+        span.CopyTo(buffer);
+        buffer = buffer.Slice(span.Length);
+        written += span.Length;
+
+        if (scroll > 0)
+        {
+            this.simpleConsole.Scroll(scroll, true);
+            newCursorTop -= scroll;
+        }
+
+        this.simpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        SimpleConsole.ReturnWindowBuffer(windowBuffer);
+        this.simpleConsole.CursorLeft = newCursorLeft;
+        this.simpleConsole.CursorTop = newCursorTop;
     }
 
     private (int ArrayPosition, SimpleTextRow Row) GetArrayPosition()
@@ -335,6 +511,8 @@ internal class SimpleTextLine
         }
 
         row.AddInput(charBuffer.Length, width);
+
+        this.Write(arrayPosition, this.Length, width, 0);
 
         /*var line = this.FindLine();
 
