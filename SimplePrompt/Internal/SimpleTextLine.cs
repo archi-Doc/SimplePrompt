@@ -286,7 +286,7 @@ internal class SimpleTextLine
         var length = endIndex < 0 ? this.TotalLength : endIndex - startIndex;
         var widthSpan = this.widthArray.AsSpan(startIndex, length);
         var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
-        var startPosition = endIndex < 0 ? 0 : this.PromptWidth + (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
+        var startPosition = endIndex < 0 ? 0 : (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
 
         var startCursor = (this.Top * this.WindowWidth) + startPosition;
         var windowRemaining = (this.WindowWidth * this.WindowHeight) - startCursor;
@@ -318,7 +318,7 @@ internal class SimpleTextLine
         written += span.Length;
         buffer = buffer.Slice(span.Length);
 
-        if (startCursorLeft != this.simpleConsole.CursorLeft || startCursorTop != (this.Top + this.simpleConsole.CursorTop))
+        if (startCursorLeft != this.simpleConsole.CursorLeft || startCursorTop != this.simpleConsole.CursorTop)
         {// Move cursor
             span = ConsoleHelper.SetCursorSpan;
             span.CopyTo(buffer);
@@ -454,6 +454,8 @@ internal class SimpleTextLine
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
         this.simpleConsole.CursorLeft = newCursorLeft;
         this.simpleConsole.CursorTop = newCursorTop;
+
+        this.readLineInstance.BufferPosition = endIndex;
     }
 
     private (int ArrayPosition, SimpleTextRow Row) GetArrayPosition()

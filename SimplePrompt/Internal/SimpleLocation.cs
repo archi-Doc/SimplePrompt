@@ -34,7 +34,7 @@ internal class SimpleLocation
         this.previousInstance = readLineInstance;
         this.previousCursorLeft = this.simpleConsole.CursorLeft;
         this.previousCursorTop = this.simpleConsole.CursorTop;
-        this.previousInstance.PrepareLocation();
+        // this.previousInstance.PrepareLocation();
     }
 
     public void Invalidate()

@@ -539,7 +539,6 @@ internal class ReadLineInstance
         foreach (var x in this.BufferList)
         {
             x.Top = y;
-            // x.UpdateHeight();
             y += x.Height;
             if (buffer is null &&
                 this.simpleConsole.CursorTop >= x.Top &&
@@ -562,18 +561,9 @@ internal class ReadLineInstance
             }
         }
 
-        /*if (buffer is null)
-        {
-            this.BufferIndex = 0;
-            this.BufferPosition = 0;
-            return;
-        }
-        else*/
-        {
-            this.BufferIndex = buffer.Index;
-            this.BufferPosition = buffer.GetCursorIndex();
-            return;
-        }
+        this.BufferIndex = buffer.Index;
+        this.BufferPosition = buffer.GetCursorIndex();
+        return;
     }
 
     /*private ReadLineBuffer? PrepareAndFindBuffer()
