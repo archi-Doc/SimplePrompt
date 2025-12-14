@@ -406,8 +406,9 @@ internal class SimpleTextLine
                 inputStart = -1;
             }
 
+            var length = end - start;
             slice = SimpleTextRow.Rent(this);
-            slice.Prepare(start, inputStart, end - start, width);
+            slice.Prepare(start, inputStart, length, width);
             this.ChangePromptLengthAndWidth(length, width);
             start = end;
         }

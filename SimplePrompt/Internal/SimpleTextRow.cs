@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Collections;
@@ -76,10 +77,10 @@ internal partial class SimpleTextRow
         this._width = width;
     }
 
-    public void AddInput(int length, int width)
+    public bool AddInput(int length, int width)
     {
         this.ChangeInputLengthAndWidth(length, width);
-        this.AdjustRow();
+        return this.AdjustRow();
     }
 
     public override string ToString()
@@ -87,9 +88,29 @@ internal partial class SimpleTextRow
         return this.CharSpan.ToString();
     }
 
-    private void AdjustRow()
+    private bool AdjustRow()
     {
-        if (this.Width >= this.simpleTextLine.WindowWidth)
+        var nextRow = this.SliceLink.Next;
+        if (this.Width < this.simpleTextLine.WindowWidth)
+        {
+            if (nextRow is null)
+            {
+                return false;
+            }
+            else
+            {
+                var widthToMove = this.simpleTextLine.WindowWidth - this.Width;
+                var index = this.End;
+                var end = this.simpleTextLine.TotalLength;
+                while (index < end &&
+                    widthToMove >= this.simpleTextLine.WidthArray[index])
+                {
+                    widthToMove -= this.simpleTextLine.WidthArray[index];
+                    index++;
+                }
+            }
+        }
+        else
         {
             var index = this.Start + this.Length - 1;
             var width = this.Width;
@@ -104,7 +125,7 @@ internal partial class SimpleTextRow
             this._length = index;
             this._width = width;
 
-            var nextRow = this.SliceLink.Next;
+
             var nextStart = this.Start + this.Length;
             if (nextRow is null)
             {
@@ -114,9 +135,19 @@ internal partial class SimpleTextRow
             }
             else
             {
-                nextRow.SetStartPosition(nextStart, lengthDiff, widthDiff);
+                nextRow.ChangeStartPosition(nextStart, lengthDiff, widthDiff);
+                nextRow.AdjustRow();
             }
         }
+    }
+
+    private void ChangeStartPosition(int newStart, int lengthDiff, int widthDiff)
+    {
+        Debug.Assert(lengthDiff == (this.Start - newStart));
+
+        this.Start = newStart;
+        this._length += lengthDiff;
+        this._width += widthDiff;
     }
 
     private void Initialize(SimpleTextLine simpleTextLine)
