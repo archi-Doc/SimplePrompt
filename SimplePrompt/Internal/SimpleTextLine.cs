@@ -15,10 +15,10 @@ internal class SimpleTextLine
 
     private static readonly ObjectPool<SimpleTextLine> Pool = new(() => new(), PoolSize);
 
-    public static SimpleTextLine Rent(SimpleConsole simpleConsole, ReadLineInstance readLineInstance, int index, ReadOnlySpan<char> prompt)
+    public static SimpleTextLine Rent(SimpleConsole simpleConsole, ReadLineInstance readLineInstance, int index, ReadOnlySpan<char> prompt, bool isInput)
     {
         var obj = Pool.Rent();
-        obj.Initialize(simpleConsole, readLineInstance, index, prompt);
+        obj.Initialize(simpleConsole, readLineInstance, index, prompt, isInput);
         return obj;
     }
 
@@ -317,23 +317,22 @@ internal class SimpleTextLine
             width += w;
         }
 
-        var line = this.FindLine();
-
+        /*var line = this.FindLine();
 
         var heightChanged = this.ChangeLengthAndWidth(charBuffer.Length, width);
         if (heightChanged.Diff == 0)
         {
             this.Write(arrayPosition, this.Length, width, 0);//
-            /*if (this.CursorLeft == 0 && width > 0)
-            {
-                this.readLineInstance.HeightChanged(heightChanged.Index, 1);
-            }*/
+            // if (this.CursorLeft == 0 && width > 0)
+            // {
+            //     this.readLineInstance.HeightChanged(heightChanged.Index, 1);
+            // }
         }
         else
         {
             this.Write(arrayPosition, this.Length, width, 0, true);
             this.readLineInstance.HeightChanged(heightChanged.Index, heightChanged.Diff);
-        }
+        }*/
     }
 
     private void EnsureBuffer(int capacity)
@@ -346,7 +345,7 @@ internal class SimpleTextLine
         }
     }
 
-    private void SetPrompt(ReadOnlySpan<char> prompt)
+    private void SetPrompt(ReadOnlySpan<char> prompt, bool isInput)
     {
         // this.Uninitialize();
 
@@ -364,38 +363,42 @@ internal class SimpleTextLine
         var start = 0;
         var windowWidth = this.simpleConsole.WindowWidth;
         while (start < prompt.Length)
-        {// Immutable slices
+        {// Prepare slices
             var width = 0;
             var end = start;
+            var inputStart = start;
             while (end < prompt.Length)
             {
                 if (width + this.widthArray[end] > windowWidth)
-                {
+                {// Immutable slice
+                    inputStart = -1;
                     break;
                 }
                 else
-                {
+                {// Mutable slice
                     width += this.widthArray[end];
                     end++;
+                    inputStart = end;
                 }
             }
 
+            if (!isInput)
+            {
+                inputStart = -1;
+            }
+
             slice = SimpleTextSlice.Rent(this);
-            slice.Prepare(this.slices, false, start, end - start, width);
+            slice.Prepare(this.slices, start, inputStart, end - start, width);
             start = end;
         }
-
-        // Mutable slice
-        slice = SimpleTextSlice.Rent(this);
-        slice.Prepare(this.slices, true, start, 0, 0);
     }
 
-    private void Initialize(SimpleConsole simpleConsole, ReadLineInstance readLineInstance, int index, ReadOnlySpan<char> prompt)
+    private void Initialize(SimpleConsole simpleConsole, ReadLineInstance readLineInstance, int index, ReadOnlySpan<char> prompt, bool isInput)
     {
         this.simpleConsole = simpleConsole;
         this.readLineInstance = readLineInstance;
         this.Index = index;
-        this.SetPrompt(prompt);
+        this.SetPrompt(prompt, isInput);
     }
 
     private void Uninitialize()

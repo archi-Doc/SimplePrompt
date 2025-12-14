@@ -1,7 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
-using System.Threading;
 using Arc;
 using Arc.Threading;
 using Arc.Unit;
@@ -53,6 +51,7 @@ internal class Program
         var simpleConsole = SimpleConsole.GetOrCreate();
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {
+            Prompt = "Prompt\n> ",
             InputColor = ConsoleColor.Yellow,
             MultilineIdentifier = "|",
             CancelOnEscape = true,

@@ -33,13 +33,15 @@ internal partial class SimpleTextSlice
 
     public SimpleTextLine SimpleTextLine { get; private set; }
 
-    public bool IsInput { get; private set; }
+    public bool IsInput => this.InputStart >= 0;
 
-    public int Start { get; set; }
+    public int Start { get; private set; }
 
-    public int Length { get; set; }
+    public int InputStart { get; private set; }
 
-    public int Width { get; set; }
+    public int Length { get; private set; }
+
+    public int Width { get; private set; }
 
     public ReadOnlySpan<char> CharSpan => this.SimpleTextLine.CharArray.AsSpan(this.Start, this.Length);
 
@@ -53,13 +55,18 @@ internal partial class SimpleTextSlice
         this.SimpleTextLine = default!;
     }
 
-    public void Prepare(SimpleTextSlice.GoshujinClass goshujin, bool isInput, int start, int length, int width)
+    public void Prepare(SimpleTextSlice.GoshujinClass goshujin, int start, int inputStart, int length, int width)
     {
         this.Goshujin = goshujin;
-        this.IsInput = isInput;
         this.Start = start;
+        this.InputStart = inputStart;
         this.Length = length;
         this.Width = width;
+    }
+
+    public override string ToString()
+    {
+        return this.CharSpan.ToString();
     }
 
     private void Initialize(SimpleTextLine simpleTextLine)

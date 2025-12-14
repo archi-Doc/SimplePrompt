@@ -77,10 +77,11 @@ internal class ReadLineInstance
             ReadLineBuffer buffer;
             SimpleTextLine simpleTextLine;
             ReadOnlySpan<char> currentPrompt;
+            var isInput = false;
             if (index < 0)
             {
                 currentPrompt = prompt;
-                prompt = default;
+                isInput = true;
             }
             else
             {
@@ -89,7 +90,7 @@ internal class ReadLineInstance
             }
 
             buffer = this.simpleConsole.RentBuffer(this, bufferIndex, currentPrompt.ToString());
-            simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, this, bufferIndex, currentPrompt);
+            simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, this, bufferIndex, currentPrompt, isInput);
             bufferIndex++;
 
             this.BufferList.Add(buffer);
@@ -103,7 +104,7 @@ internal class ReadLineInstance
             windowBuffer ??= SimpleConsole.RentWindowBuffer();
             var span = windowBuffer.AsSpan();
             SimplePromptHelper.TryCopy(currentPrompt, ref span);
-            if (prompt.Length == 0)
+            if (isInput)
             {
                 SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
                 this.simpleConsole.AdvanceCursor(buffer.PromtWidth, false);
@@ -116,8 +117,8 @@ internal class ReadLineInstance
 
             this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
 
-            if (prompt.Length == 0)
-            {// Last buffer
+            if (isInput)
+            {// Input
                 this.EditableBufferIndex = bufferIndex - 1;
                 break;
             }
@@ -267,7 +268,7 @@ internal class ReadLineInstance
                         return null;
                     }
 
-                    simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, this, this.BufferList.Count, this.Options.MultilinePrompt.AsSpan());
+                    simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, this, this.BufferList.Count, this.Options.MultilinePrompt.AsSpan(), true);
                     this.LineList.Add(simpleTextLine);
                     var previousLeft = this.simpleConsole.CursorLeft;
                     var previousTop = this.simpleConsole.CursorTop;
