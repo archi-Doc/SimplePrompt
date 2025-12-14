@@ -15,10 +15,10 @@ internal partial class SimpleTextRow
     private const int PoolSize = 32;
     private static readonly ObjectPool<SimpleTextRow> Pool = new(() => new(), PoolSize);
 
-    public static SimpleTextRow Rent(SimpleTextLine readLineBuffer)
+    public static SimpleTextRow Rent(SimpleTextLine simpleTextLine)
     {
         var obj = Pool.Rent();
-        obj.Initialize(readLineBuffer);
+        obj.Initialize(simpleTextLine);
         return obj;
     }
 
@@ -39,6 +39,8 @@ internal partial class SimpleTextRow
     public bool IsInput => this.InputStart >= 0;
 
     public int Start { get; private set; }
+
+    public int End => this.Start + this.Length;
 
     public int InputStart { get; private set; }
 
@@ -66,14 +68,18 @@ internal partial class SimpleTextRow
         this.simpleTextLine = default!;
     }
 
-    public void Prepare(SimpleTextRow.GoshujinClass goshujin, int start, int inputStart, int length, int width)
+    public void Prepare(int start, int inputStart, int length, int width)
     {
-        this.Goshujin = goshujin;
         this.Start = start;
         this.InputStart = inputStart;
         this._length = length;
         this._width = width;
-        this.simpleTextLine.ChangeInputLengthAndWidth(length, width);
+    }
+
+    public void AddInput(int length, int width)
+    {
+        this.ChangeInputLengthAndWidth(length, width);
+        this.AdjustRow();
     }
 
     public override string ToString()
@@ -81,14 +87,47 @@ internal partial class SimpleTextRow
         return this.CharSpan.ToString();
     }
 
+    private void AdjustRow()
+    {
+        if (this.Width >= this.simpleTextLine.WindowWidth)
+        {
+            var index = this.Start + this.Length - 1;
+            var width = this.Width;
+            while (width > this.simpleTextLine.WindowWidth)
+            {
+                width -= this.simpleTextLine.WidthArray[index];
+                index--;
+            }
+
+            var lengthDiff = this.Start + this.Length - 1 - index;
+            var widthDiff = this.Width - width;
+            this._length = index;
+            this._width = width;
+
+            var nextRow = this.SliceLink.Next;
+            var nextStart = this.Start + this.Length;
+            if (nextRow is null)
+            {
+                nextRow = SimpleTextRow.Rent(this.simpleTextLine);
+                nextRow.Prepare(nextStart, nextStart, lengthDiff, widthDiff);
+                nextRow.AdjustRow();
+            }
+            else
+            {
+                nextRow.SetStartPosition(nextStart, lengthDiff, widthDiff);
+            }
+        }
+    }
+
     private void Initialize(SimpleTextLine simpleTextLine)
     {
         this.simpleTextLine = simpleTextLine;
+        this.Goshujin = simpleTextLine.Slices;
     }
 
     private void Uninitialize()
     {
-        this.Goshujin = default;
         this.simpleTextLine = default!;
+        this.Goshujin = default;
     }
 }

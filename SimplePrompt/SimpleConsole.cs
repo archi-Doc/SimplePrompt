@@ -268,7 +268,7 @@ ProcessKeyInfo:
                     string? result;
                     using (this.syncObject.EnterScope())
                     {
-                        result = currentInstance.Process(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
+                        result = currentInstance.Process2(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
                         if (result is not null &&
                             currentInstance.Options.TextInputHook is not null)
                         {

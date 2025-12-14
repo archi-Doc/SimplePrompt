@@ -37,6 +37,10 @@ internal class SimpleTextLine
     private ReadLineInstance readLineInstance;
     private char[] charArray = new char[InitialBufferSize];
     private byte[] widthArray = new byte[InitialBufferSize];
+    private int _promptLength;
+    private int _promptWidth;
+    private int _inputLength;
+    private int _inputWidth;
 
     public int WindowWidth => this.simpleConsole.WindowWidth;
 
@@ -62,16 +66,13 @@ internal class SimpleTextLine
 
     public int TotalWidth => this.PromptWidth + this.InputWidth;
 
+    internal SimpleTextRow.GoshujinClass Slices => this.slices;
+
     internal char[] CharArray => this.charArray;
 
     internal byte[] WidthArray => this.widthArray;
 
     internal bool IsEmpty => this.slices.Count == 0;
-
-    private int _promptLength;
-    private int _promptWidth;
-    private int _inputLength;
-    private int _inputWidth;
 
     #endregion
 
@@ -87,7 +88,6 @@ internal class SimpleTextLine
         this._promptLength += lengthDiff;
         this._promptWidth += widthDiff;
     }
-
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void ChangeInputLengthAndWidth(int lengthDiff, int widthDiff)
@@ -251,6 +251,19 @@ internal class SimpleTextLine
         return false;
     }
 
+    public override string ToString()
+    {
+        if (this.slices.Count == 0)
+        {
+            return string.Empty;
+        }
+        else
+        {
+            return $"{this.slices.Count} lines: {this.slices.SliceChain.First?.ToString()}";
+        }
+    }
+
+
     internal (int Index, int Diff) UpdateHeight()
     {
         var previousHeight = this.Height;
@@ -267,6 +280,26 @@ internal class SimpleTextLine
         return (this.Index, this.Height - previousHeight);
     }
 
+    private (int ArrayPosition, SimpleTextRow Row) GetArrayPosition()
+    {
+        var position = Math.Max(this.PromptLength, this.readLineInstance.BufferPosition);
+        if (position > this.TotalLength)
+        {
+            position = this.TotalLength;
+        }
+
+        foreach (var x in this.slices)
+        {
+            if (x.Start <= position &&
+                position <= x.End)
+            {
+                return (position, x);
+            }
+        }
+
+        throw new Exception();
+    }
+
     private void ProcessCharacterInternal(Span<char> charBuffer)
     {
         if (!this.readLineInstance.IsLengthWithinLimit(charBuffer.Length))
@@ -275,7 +308,7 @@ internal class SimpleTextLine
         }
 
         this.EnsureBuffer(this.TotalLength + charBuffer.Length);
-        var arrayPosition = this.readLineInstance.BufferPosition;
+        (var arrayPosition, var row) = this.GetArrayPosition();
 
         this.charArray.AsSpan(arrayPosition, this.TotalLength - arrayPosition).CopyTo(this.charArray.AsSpan(arrayPosition + charBuffer.Length));
         charBuffer.CopyTo(this.charArray.AsSpan(arrayPosition));
@@ -300,6 +333,8 @@ internal class SimpleTextLine
 
             width += w;
         }
+
+        row.AddInput(charBuffer.Length, width);
 
         /*var line = this.FindLine();
 
@@ -342,7 +377,6 @@ internal class SimpleTextLine
         }
 
         var promptWidth = (int)BaseHelper.Sum(this.widthArray.AsSpan(0, this.PromptLength));
-        this.ChangePromptLengthAndWidth(promptLength, promptWidth);
 
         SimpleTextRow slice;
         var start = 0;
@@ -373,7 +407,8 @@ internal class SimpleTextLine
             }
 
             slice = SimpleTextRow.Rent(this);
-            slice.Prepare(this.slices, start, inputStart, end - start, width);
+            slice.Prepare(start, inputStart, end - start, width);
+            this.ChangePromptLengthAndWidth(length, width);
             start = end;
         }
     }

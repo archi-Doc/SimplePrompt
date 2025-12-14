@@ -373,7 +373,7 @@ internal class ReadLineInstance
     {
         var length = 0;
         var isFirst = true;
-        for (var i = this.EditableBufferIndex; i < this.BufferList.Count; i++)
+        for (var i = this.EditableBufferIndex; i < this.LineList.Count; i++)
         {
             if (isFirst)
             {
@@ -384,7 +384,7 @@ internal class ReadLineInstance
                 length += 1; // New line
             }
 
-            length += this.BufferList[i].Length;
+            length += this.LineList[i].InputLength;
         }
 
         return length + dif <= this.Options.MaxInputLength;
