@@ -8,21 +8,21 @@ using ValueLink;
 namespace SimplePrompt.Internal;
 
 [ValueLinkObject]
-internal partial class SimpleTextSlice
+internal partial class SimpleTextRow
 {
     #region ObjectPool
 
     private const int PoolSize = 32;
-    private static readonly ObjectPool<SimpleTextSlice> Pool = new(() => new(), PoolSize);
+    private static readonly ObjectPool<SimpleTextRow> Pool = new(() => new(), PoolSize);
 
-    public static SimpleTextSlice Rent(SimpleTextLine readLineBuffer)
+    public static SimpleTextRow Rent(SimpleTextLine readLineBuffer)
     {
         var obj = Pool.Rent();
         obj.Initialize(readLineBuffer);
         return obj;
     }
 
-    public static void Return(SimpleTextSlice obj)
+    public static void Return(SimpleTextRow obj)
     {
         obj.Uninitialize();
         Pool.Return(obj);
@@ -62,12 +62,12 @@ internal partial class SimpleTextSlice
     #endregion
 
     [Link(Primary = true, Type = ChainType.LinkedList, Name = "Slice")]
-    private SimpleTextSlice()
+    private SimpleTextRow()
     {
         this.SimpleTextLine = default!;
     }
 
-    public void Prepare(SimpleTextSlice.GoshujinClass goshujin, int start, int inputStart, int length, int width)
+    public void Prepare(SimpleTextRow.GoshujinClass goshujin, int start, int inputStart, int length, int width)
     {
         this.Goshujin = goshujin;
         this.Start = start;

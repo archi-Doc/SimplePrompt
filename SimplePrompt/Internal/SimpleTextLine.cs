@@ -32,7 +32,7 @@ internal class SimpleTextLine
 
     #region FiendAndProperty
 
-    private readonly SimpleTextSlice.GoshujinClass slices = new();
+    private readonly SimpleTextRow.GoshujinClass slices = new();
     private SimpleConsole simpleConsole;
     private ReadLineInstance readLineInstance;
     private char[] charArray = new char[InitialBufferSize];
@@ -43,6 +43,8 @@ internal class SimpleTextLine
     public int WindowHeight => this.simpleConsole.WindowHeight;
 
     public int Index { get; private set; }
+
+    public bool IsInput { get; private set; }
 
     public int Top { get; set; }
 
@@ -358,7 +360,7 @@ internal class SimpleTextLine
         }
     }
 
-    private void SetPrompt(ReadOnlySpan<char> prompt, bool isInput)
+    private void SetPrompt(ReadOnlySpan<char> prompt)
     {
         // this.Uninitialize();
 
@@ -373,7 +375,7 @@ internal class SimpleTextLine
         var promptWidth = (int)BaseHelper.Sum(this.widthArray.AsSpan(0, this.PromptLength));
         this.ChangePromptLengthAndWidth(promptLength, promptWidth);
 
-        SimpleTextSlice slice;
+        SimpleTextRow slice;
         var start = 0;
         var windowWidth = this.simpleConsole.WindowWidth;
         while (start < prompt.Length)
@@ -396,12 +398,12 @@ internal class SimpleTextLine
                 }
             }
 
-            if (!isInput)
+            if (!this.IsInput)
             {
                 inputStart = -1;
             }
 
-            slice = SimpleTextSlice.Rent(this);
+            slice = SimpleTextRow.Rent(this);
             slice.Prepare(this.slices, start, inputStart, end - start, width);
             start = end;
         }
@@ -412,7 +414,8 @@ internal class SimpleTextLine
         this.simpleConsole = simpleConsole;
         this.readLineInstance = readLineInstance;
         this.Index = index;
-        this.SetPrompt(prompt, isInput);
+        this.IsInput = isInput;
+        this.SetPrompt(prompt);
     }
 
     private void Uninitialize()
@@ -421,7 +424,7 @@ internal class SimpleTextLine
         this.readLineInstance = default!;
         foreach (var x in this.slices)
         {
-            SimpleTextSlice.Return(x);
+            SimpleTextRow.Return(x);
         }
     }
 }
