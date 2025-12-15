@@ -77,7 +77,7 @@ internal class SimpleTextLine
 
     public int TotalWidth => this.PromptWidth + this.InputWidth;
 
-    internal SimpleTextRow.GoshujinClass Slices => this.rows;
+    internal SimpleTextRow.GoshujinClass Rows => this.rows;
 
     internal char[] CharArray => this.charArray;
 

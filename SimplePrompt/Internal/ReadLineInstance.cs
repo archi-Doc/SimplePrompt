@@ -25,6 +25,7 @@ internal class ReadLineInstance
 
     public static void Return(ReadLineInstance obj)
     {
+        obj.Uninitialize();
         Pool.Return(obj);
     }
 
@@ -41,6 +42,8 @@ internal class ReadLineInstance
     public List<ReadLineBuffer> BufferList { get; private set; } = new();
 
     public List<SimpleTextLine> LineList { get; private set; } = new();
+
+    public SimpleTextLocation CurrentLocation { get; private set; } = new();
 
     public int LineIndex { get; set; }
 
@@ -63,7 +66,14 @@ internal class ReadLineInstance
     public void Initialize(SimpleConsole simpleConsole, ReadLineOptions options)
     {
         this.simpleConsole = simpleConsole;
+        this.CurrentLocation.Initialize(simpleConsole, this);
         GhostCopy.Copy(ref options, ref this.options);
+    }
+
+    public void Uninitialize()
+    {
+        this.simpleConsole = default!;
+        this.CurrentLocation.Uninitialize();
     }
 
     public void Prepare()
@@ -129,20 +139,7 @@ internal class ReadLineInstance
             SimpleConsole.ReturnWindowBuffer(windowBuffer);
         }
 
-        this.ResetLocation();
-    }
-
-    public void ResetLocation()
-    {
-        foreach (var x in this.LineList)
-        {
-            if (x.IsInput)
-            {
-                this.LineIndex = x.Index;
-                this.LinePosition = x.PromptLength;
-                return;
-            }
-        }
+        this.CurrentLocation.Reset();
     }
 
     public string? Process(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
@@ -429,6 +426,16 @@ internal class ReadLineInstance
         var newCursor = buffer.ToCursor(buffer.Width);
         newCursor.Top += buffer.Top;
         this.simpleConsole.SetCursorPosition(newCursor.Left, newCursor.Top, cursorOperation);
+    }
+
+    public void SetCursorAtLocation()
+    {
+        if (this.LineIndex >= this.LineList.Count)
+        {
+            return;
+        }
+
+        var line = this.LineList[this.LineIndex];
     }
 
     public void Reset()

@@ -472,6 +472,11 @@ CancelOrTerminate:
             {
                 y.Top -= scroll;
             }
+
+            foreach (var y in activeInstance.LineList)
+            {
+                y.Top -= scroll;
+            }
         }
     }
 

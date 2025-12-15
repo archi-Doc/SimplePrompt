@@ -165,7 +165,7 @@ internal partial class SimpleTextRow
     private void Initialize(SimpleTextLine simpleTextLine)
     {
         this.simpleTextLine = simpleTextLine;
-        this.Goshujin = simpleTextLine.Slices;
+        this.Goshujin = simpleTextLine.Rows;
     }
 
     private void Uninitialize()
