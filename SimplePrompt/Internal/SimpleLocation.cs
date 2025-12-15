@@ -111,18 +111,18 @@ internal class SimpleLocation
         }
 
         var bufferList = this.previousInstance.BufferList;
-        if (this.previousInstance.BufferIndex >= bufferList.Count)
+        if (this.previousInstance.LineIndex >= bufferList.Count)
         {// Invalid buffer index
             return;
         }
 
-        var buffer = bufferList[this.previousInstance.BufferIndex];
-        if (this.previousInstance.BufferPosition > buffer.Width)
+        var buffer = bufferList[this.previousInstance.LineIndex];
+        if (this.previousInstance.LinePosition > buffer.Width)
         {// Invalid buffer position
             return;
         }
 
-        var position = newCursor.Left + (newCursor.Top * this.simpleConsole.WindowWidth) - this.previousInstance.BufferPosition - buffer.PromptWidth;
+        var position = newCursor.Left + (newCursor.Top * this.simpleConsole.WindowWidth) - this.previousInstance.LinePosition - buffer.PromptWidth;
         if (position < 0)
         {// Invalid position
             return;

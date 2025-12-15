@@ -455,12 +455,12 @@ internal class SimpleTextLine
         this.simpleConsole.CursorLeft = newCursorLeft;
         this.simpleConsole.CursorTop = newCursorTop;
 
-        this.readLineInstance.BufferPosition = endIndex;
+        this.readLineInstance.LinePosition = endIndex;
     }
 
     private (int ArrayPosition, SimpleTextRow Row) GetArrayPosition()
     {
-        var position = Math.Max(this.PromptLength, this.readLineInstance.BufferPosition);
+        var position = Math.Max(this.PromptLength, this.readLineInstance.LinePosition);
         if (position > this.TotalLength)
         {
             position = this.TotalLength;

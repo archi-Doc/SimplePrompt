@@ -42,9 +42,9 @@ internal class ReadLineInstance
 
     public List<SimpleTextLine> LineList { get; private set; } = new();
 
-    public int BufferIndex { get; set; }
+    public int LineIndex { get; set; }
 
-    public int BufferPosition { get; set; }
+    public int LinePosition { get; set; }
 
     public bool MultilineMode { get; private set; }
 
@@ -138,8 +138,8 @@ internal class ReadLineInstance
         {
             if (x.IsInput)
             {
-                this.BufferIndex = x.Index;
-                this.BufferPosition = x.PromptLength;
+                this.LineIndex = x.Index;
+                this.LinePosition = x.PromptLength;
                 return;
             }
         }
@@ -147,12 +147,12 @@ internal class ReadLineInstance
 
     public string? Process(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
-        if (this.BufferIndex >= this.BufferList.Count)
+        if (this.LineIndex >= this.BufferList.Count)
         {
             return string.Empty;
         }
 
-        var buffer = this.BufferList[this.BufferIndex];
+        var buffer = this.BufferList[this.LineIndex];
         if (buffer.ProcessInternal(keyInfo, charBuffer))
         {// Exit input mode and return the concatenated string.
             if (this.BufferList.Count == 0)
@@ -244,12 +244,12 @@ internal class ReadLineInstance
 
     public string? Process2(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
-        if (this.BufferIndex >= this.LineList.Count)
+        if (this.LineIndex >= this.LineList.Count)
         {
             return string.Empty;
         }
 
-        var simpleTextLine = this.LineList[this.BufferIndex];
+        var simpleTextLine = this.LineList[this.LineIndex];
         if (simpleTextLine.ProcessInternal(keyInfo, charBuffer))
         {// Exit input mode and return the concatenated string.
             if (this.BufferList.Count == 0)
@@ -544,8 +544,8 @@ internal class ReadLineInstance
     {
         if (this.BufferList.Count == 0)
         {
-            this.BufferIndex = 0;
-            this.BufferPosition = 0;
+            this.LineIndex = 0;
+            this.LinePosition = 0;
             return;
         }
 
@@ -576,8 +576,8 @@ internal class ReadLineInstance
             }
         }
 
-        this.BufferIndex = buffer.Index;
-        this.BufferPosition = buffer.GetCursorIndex();
+        this.LineIndex = buffer.Index;
+        this.LinePosition = buffer.GetCursorIndex();
         return;
     }
 

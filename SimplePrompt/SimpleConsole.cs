@@ -361,8 +361,8 @@ CancelOrTerminate:
             this.WriteInternal(message, true);
             activeInstance.Redraw();
 
-            var buffer = activeInstance.BufferList[activeInstance.BufferIndex];
-            var cursor = buffer.ToCursor(activeInstance.BufferPosition);
+            var buffer = activeInstance.BufferList[activeInstance.LineIndex];
+            var cursor = buffer.ToCursor(activeInstance.LinePosition);
             this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
 
             this.CheckCursor();
@@ -573,19 +573,19 @@ CancelOrTerminate:
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
                 activeInstance.Redraw();
 
-                if (activeInstance.BufferIndex < activeInstance.EditableBufferIndex)
+                if (activeInstance.LineIndex < activeInstance.EditableBufferIndex)
                 {
-                    activeInstance.BufferIndex = activeInstance.EditableBufferIndex;
-                    activeInstance.BufferPosition = 0;
+                    activeInstance.LineIndex = activeInstance.EditableBufferIndex;
+                    activeInstance.LinePosition = 0;
                 }
 
-                if (activeInstance.BufferPosition > activeInstance.BufferList[activeInstance.BufferIndex].Width)
+                if (activeInstance.LinePosition > activeInstance.BufferList[activeInstance.LineIndex].Width)
                 {
-                    activeInstance.BufferPosition = activeInstance.BufferList[activeInstance.BufferIndex].Width;
+                    activeInstance.LinePosition = activeInstance.BufferList[activeInstance.LineIndex].Width;
                 }
 
-                var buffer = activeInstance.BufferList[activeInstance.BufferIndex];
-                var cursor = buffer.ToCursor(activeInstance.BufferPosition);
+                var buffer = activeInstance.BufferList[activeInstance.LineIndex];
+                var cursor = buffer.ToCursor(activeInstance.LinePosition);
                 this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
             }
         }
