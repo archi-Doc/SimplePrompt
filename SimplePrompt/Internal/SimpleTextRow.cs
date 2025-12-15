@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Collections;
+using Arc.Unit;
 using ValueLink;
 
 namespace SimplePrompt.Internal;

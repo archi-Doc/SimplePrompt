@@ -34,8 +34,6 @@ internal class SimpleTextLine
     #region FiendAndProperty
 
     private readonly SimpleTextRow.GoshujinClass rows = new();
-    private SimpleConsole simpleConsole;
-    private ReadLineInstance readLineInstance;
     private char[] charArray = new char[InitialBufferSize];
     private byte[] widthArray = new byte[InitialBufferSize];
     private int _promptLength;
@@ -43,9 +41,13 @@ internal class SimpleTextLine
     private int _inputLength;
     private int _inputWidth;
 
-    public int WindowWidth => this.simpleConsole.WindowWidth;
+    public SimpleConsole SimpleConsole { get; private set; }
 
-    public int WindowHeight => this.simpleConsole.WindowHeight;
+    public ReadLineInstance ReadLineInstance { get; private set; }
+
+    public int WindowWidth => this.SimpleConsole.WindowWidth;
+
+    public int WindowHeight => this.SimpleConsole.WindowHeight;
 
     public int Index { get; private set; }
 
@@ -56,12 +58,12 @@ internal class SimpleTextLine
     /// <summary>
     /// Gets the cursor's horizontal position relative to the line's left edge.
     /// </summary>
-    public int CursorLeft => this.simpleConsole.CursorLeft;
+    public int CursorLeft => this.SimpleConsole.CursorLeft;
 
     /// <summary>
     /// Gets the cursor's vertical position relative to the line's top edge.
     /// </summary>
-    public int CursorTop => this.simpleConsole.CursorTop - this.Top;
+    public int CursorTop => this.SimpleConsole.CursorTop - this.Top;
 
     public int Height => this.rows.Count;
 
@@ -89,8 +91,8 @@ internal class SimpleTextLine
 
     private SimpleTextLine()
     {
-        this.simpleConsole = default!;
-        this.readLineInstance = default!;
+        this.SimpleConsole = default!;
+        this.ReadLineInstance = default!;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -116,7 +118,7 @@ internal class SimpleTextLine
         if (charBuffer.Length > 0)
         {
             this.ProcessCharacterInternal(charBuffer);
-            this.simpleConsole.CheckCursor();
+            this.SimpleConsole.CheckCursor();
         }
 
         if (keyInfo.Key != ConsoleKey.None)
@@ -218,17 +220,17 @@ internal class SimpleTextLine
             }
             else if (key == ConsoleKey.LeftArrow)
             {
-                this.readLineInstance.CurrentLocation.MoveLeft();
+                this.ReadLineInstance.CurrentLocation.MoveLeft();
                 return false;
             }
             else if (key == ConsoleKey.RightArrow)
             {
-                this.readLineInstance.CurrentLocation.MoveRight();
+                this.ReadLineInstance.CurrentLocation.MoveRight();
                 return false;
             }
             else if (key == ConsoleKey.UpArrow)
             {// History or move line
-                if (this.readLineInstance.MultilineMode)
+                if (this.ReadLineInstance.MultilineMode)
                 {// Up
                     this.MoveUpOrDown(true);
                 }
@@ -240,7 +242,7 @@ internal class SimpleTextLine
             }
             else if (key == ConsoleKey.DownArrow)
             {// History or move line
-                if (this.readLineInstance.MultilineMode)
+                if (this.ReadLineInstance.MultilineMode)
                 {// Down
                     this.MoveUpOrDown(false);
                 }
@@ -310,7 +312,7 @@ internal class SimpleTextLine
         written += span.Length;
         buffer = buffer.Slice(span.Length);
 
-        if (startCursorLeft != this.simpleConsole.CursorLeft || startCursorTop != this.simpleConsole.CursorTop)
+        if (startCursorLeft != this.SimpleConsole.CursorLeft || startCursorTop != this.SimpleConsole.CursorTop)
         {// Move cursor
             span = ConsoleHelper.SetCursorSpan;
             span.CopyTo(buffer);
@@ -342,13 +344,13 @@ internal class SimpleTextLine
         }
 
         // Input color
-        span = ConsoleHelper.GetForegroundColorEscapeCode(this.readLineInstance.Options.InputColor).AsSpan();
+        span = ConsoleHelper.GetForegroundColorEscapeCode(this.ReadLineInstance.Options.InputColor).AsSpan();
         span.CopyTo(buffer);
         written += span.Length;
         buffer = buffer.Slice(span.Length);
 
         // Characters
-        var maskingCharacter = this.readLineInstance.Options.MaskingCharacter;
+        var maskingCharacter = this.ReadLineInstance.Options.MaskingCharacter;
         if (maskingCharacter == default)
         {// Plain
             span = this.charArray.AsSpan(startIndex, length);
@@ -438,22 +440,22 @@ internal class SimpleTextLine
 
         if (scroll > 0)
         {
-            this.simpleConsole.Scroll(scroll, true);
+            this.SimpleConsole.Scroll(scroll, true);
             newCursorTop -= scroll;
         }
 
-        this.simpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        this.SimpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
-        this.simpleConsole.CursorLeft = newCursorLeft;
-        this.simpleConsole.CursorTop = newCursorTop;
+        this.SimpleConsole.CursorLeft = newCursorLeft;
+        this.SimpleConsole.CursorTop = newCursorTop;
 
-        this.readLineInstance.LinePosition = endIndex;
+        this.ReadLineInstance.LinePosition = endIndex;
     }
 
     internal (int Left, int Top) ToCursor(int cursorIndex)
     {
-        var top = cursorIndex / this.simpleConsole.WindowWidth;
-        var left = cursorIndex - (top * this.simpleConsole.WindowWidth);
+        var top = cursorIndex / this.SimpleConsole.WindowWidth;
+        var left = cursorIndex - (top * this.SimpleConsole.WindowWidth);
         return (left, top);
     }
 
@@ -469,7 +471,7 @@ internal class SimpleTextLine
                 cursorLeft != this.CursorLeft ||
                 cursorTop != this.CursorTop)
             {
-                this.simpleConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
+                this.SimpleConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
             }
         }
         catch
@@ -490,7 +492,7 @@ internal class SimpleTextLine
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int GetCursorIndex(int cursorLeft, int cursorTop)
     {
-        var index = cursorLeft + (cursorTop * this.simpleConsole.WindowWidth);
+        var index = cursorLeft + (cursorTop * this.SimpleConsole.WindowWidth);
         if (index < 0)
         {
             return 0;
@@ -515,12 +517,12 @@ internal class SimpleTextLine
         {// Up arrow
             if (cursorTop <= 0)
             {// Previous buffer
-                if (this.Index <= this.readLineInstance.EditableBufferIndex)
+                if (this.Index <= this.ReadLineInstance.EditableBufferIndex)
                 {
                     return;
                 }
 
-                line = this.readLineInstance.LineList[this.Index - 1];
+                line = this.ReadLineInstance.LineList[this.Index - 1];
                 cursorTop = line.Height - 1;
             }
             else
@@ -533,12 +535,12 @@ internal class SimpleTextLine
             if (cursorTop + 1 >= this.Height)
             {// Next buffer
                 var idx = this.Index + 1;
-                if (idx >= this.readLineInstance.BufferList.Count)
+                if (idx >= this.ReadLineInstance.BufferList.Count)
                 {
                     return;
                 }
 
-                line = this.readLineInstance.LineList[this.Index + 1];
+                line = this.ReadLineInstance.LineList[this.Index + 1];
                 cursorTop = 0;
             }
             else
@@ -585,18 +587,18 @@ internal class SimpleTextLine
 
     private void ProcessCharacterInternal(Span<char> charBuffer)
     {
-        if (!this.readLineInstance.IsLengthWithinLimit(charBuffer.Length))
+        if (!this.ReadLineInstance.IsLengthWithinLimit(charBuffer.Length))
         {
             return;
         }
 
         this.EnsureBuffer(this.TotalLength + charBuffer.Length);
-        if (!this.readLineInstance.CurrentLocation.TryGetLineAndRow(out var line, out var row))
+        if (!this.ReadLineInstance.CurrentLocation.TryGetLineAndRow(out var line, out var row))
         {
             return;
         }
 
-        var position = this.readLineInstance.CurrentLocation.ArrayPosition;
+        var position = this.ReadLineInstance.CurrentLocation.ArrayPosition;
         this.charArray.AsSpan(position, this.TotalLength - position).CopyTo(this.charArray.AsSpan(position + charBuffer.Length));
         charBuffer.CopyTo(this.charArray.AsSpan(position));
         this.widthArray.AsSpan(position, this.TotalLength - position).CopyTo(this.widthArray.AsSpan(position + charBuffer.Length));
@@ -624,7 +626,7 @@ internal class SimpleTextLine
         row.AddInput(charBuffer.Length, width);
 
         this.Write(position, position + line.InputLength, width, 0);
-        this.readLineInstance.CurrentLocation.Move(charBuffer.Length, width);
+        this.ReadLineInstance.CurrentLocation.Move(charBuffer.Length, width);
 
         /*var line = this.FindLine();
 
@@ -670,7 +672,7 @@ internal class SimpleTextLine
 
         SimpleTextRow slice;
         var start = 0;
-        var windowWidth = this.simpleConsole.WindowWidth;
+        var windowWidth = this.SimpleConsole.WindowWidth;
         while (start < prompt.Length)
         {// Prepare slices
             var width = 0;
@@ -706,8 +708,8 @@ internal class SimpleTextLine
 
     private void Initialize(SimpleConsole simpleConsole, ReadLineInstance readLineInstance, int index, ReadOnlySpan<char> prompt, bool isInput)
     {
-        this.simpleConsole = simpleConsole;
-        this.readLineInstance = readLineInstance;
+        this.SimpleConsole = simpleConsole;
+        this.ReadLineInstance = readLineInstance;
         this.Index = index;
         this.IsInput = isInput;
         this.SetPrompt(prompt);
@@ -715,8 +717,8 @@ internal class SimpleTextLine
 
     private void Uninitialize()
     {
-        this.simpleConsole = default!;
-        this.readLineInstance = default!;
+        this.SimpleConsole = default!;
+        this.ReadLineInstance = default!;
         foreach (var x in this.rows)
         {
             SimpleTextRow.Return(x);

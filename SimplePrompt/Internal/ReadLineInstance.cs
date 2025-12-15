@@ -246,7 +246,7 @@ internal class ReadLineInstance
             return string.Empty;
         }
 
-        var simpleTextLine = this.LineList[this.LineIndex];
+        var simpleTextLine = this.LineList[this.CurrentLocation.LineIndex];
         if (simpleTextLine.ProcessInternal(keyInfo, charBuffer))
         {// Exit input mode and return the concatenated string.
             if (this.BufferList.Count == 0)

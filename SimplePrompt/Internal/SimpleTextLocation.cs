@@ -39,26 +39,6 @@ internal record class SimpleTextLocation
         return row is not null;
     }
 
-    public bool TryGetRow([MaybeNullWhen(false)] out SimpleTextRow row)
-    {
-        if (this.LineIndex >= this.readLineInstance.LineList.Count)
-        {
-            row = default;
-            return false;
-        }
-
-        var line = this.readLineInstance.LineList[this.LineIndex];
-        var count = this.RowIndex;
-        row = line.Rows.SliceChain.First;
-        while (count > 0 && row is not null)
-        {
-            row = row.SliceLink.Next;
-            count--;
-        }
-
-        return row is not null;
-    }
-
     public void Reset()
     {
         foreach (var x in this.readLineInstance.LineList)
@@ -114,7 +94,7 @@ internal record class SimpleTextLocation
             return;
         }
 
-        if (this.ArrayPosition < 1)
+        if (this.ArrayPosition <= line.PromptLength)
         {
             return;
         }
