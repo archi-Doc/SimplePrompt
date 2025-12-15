@@ -33,7 +33,7 @@ internal class SimpleTextLine
 
     #region FiendAndProperty
 
-    private readonly SimpleTextRow.GoshujinClass slices = new();
+    private readonly SimpleTextRow.GoshujinClass rows = new();
     private SimpleConsole simpleConsole;
     private ReadLineInstance readLineInstance;
     private char[] charArray = new char[InitialBufferSize];
@@ -63,7 +63,7 @@ internal class SimpleTextLine
     /// </summary>
     public int CursorTop => this.simpleConsole.CursorTop - this.Top;
 
-    public int Height { get; private set; }
+    public int Height => this.rows.Count;
 
     public int PromptLength => this._promptLength;
 
@@ -77,13 +77,13 @@ internal class SimpleTextLine
 
     public int TotalWidth => this.PromptWidth + this.InputWidth;
 
-    internal SimpleTextRow.GoshujinClass Slices => this.slices;
+    internal SimpleTextRow.GoshujinClass Slices => this.rows;
 
     internal char[] CharArray => this.charArray;
 
     internal byte[] WidthArray => this.widthArray;
 
-    internal bool IsEmpty => this.slices.Count == 0;
+    internal bool IsEmpty => this.rows.Count == 0;
 
     #endregion
 
@@ -264,20 +264,20 @@ internal class SimpleTextLine
 
     public override string ToString()
     {
-        if (this.slices.Count == 0)
+        if (this.rows.Count == 0)
         {
             return string.Empty;
         }
         else
         {
-            return $"{this.slices.Count} lines: {this.slices.SliceChain.First?.ToString()}";
+            return $"{this.rows.Count} lines: {this.rows.SliceChain.First?.ToString()}";
         }
     }
 
     internal (int Index, int Diff) UpdateHeight()
     {
         var previousHeight = this.Height;
-        var totalWidth = this.TotalWidth;
+        /*var totalWidth = this.TotalWidth;
         if (totalWidth == 0)
         {
             this.Height = 1;
@@ -285,7 +285,7 @@ internal class SimpleTextLine
         else
         {
             this.Height = (totalWidth - 0 + this.WindowWidth) / this.WindowWidth;
-        }
+        }*/
 
         return (this.Index, this.Height - previousHeight);
     }
@@ -496,21 +496,13 @@ internal class SimpleTextLine
         }
     }
 
-    public void Reset()
-    {
-        this.InputLength = 0;
-        this.Width = 0;
-        this.Height = 1;
-    }
-
     private void ClearLine()
     {
         Array.Fill<char>(this.charArray, ' ', this.PromptWidth, this.InputWidth);
         Array.Fill<byte>(this.widthArray, 1, this.PromptWidth, this.InputWidth);
-        this.Length = this.InputWidth;
         this.Write(this.PromptWidth, this.TotalWidth, 0, 0);
 
-        this.Reset();
+        this.ChangeInputLengthAndWidth(-this.InputLength, -this.InputWidth);
         this.SetCursorPosition(this.PromptWidth, 0, CursorOperation.None);
     }
 
@@ -522,7 +514,7 @@ internal class SimpleTextLine
             position = this.TotalLength;
         }
 
-        foreach (var x in this.slices)
+        foreach (var x in this.rows)
         {
             if (x.Start <= position &&
                 position <= x.End)
@@ -684,6 +676,29 @@ internal class SimpleTextLine
         }
     }
 
+    private void TrimCursorIndex(ref int cursorIndex)
+    {
+        if (cursorIndex <= 0)
+        {
+            cursorIndex = 0;
+            return;
+        }
+
+        var newIndex = 0;
+        for (var arrayPosition = 0; arrayPosition < this.Length; arrayPosition++)
+        {
+            var width = this.widthArray[arrayPosition];
+            cursorIndex -= width;
+            newIndex += width;
+            if (cursorIndex <= 0)
+            {
+                break;
+            }
+        }
+
+        cursorIndex = newIndex;
+    }
+
     private void ProcessCharacterInternal(Span<char> charBuffer)
     {
         if (!this.readLineInstance.IsLengthWithinLimit(charBuffer.Length))
@@ -813,7 +828,7 @@ internal class SimpleTextLine
     {
         this.simpleConsole = default!;
         this.readLineInstance = default!;
-        foreach (var x in this.slices)
+        foreach (var x in this.rows)
         {
             SimpleTextRow.Return(x);
         }
