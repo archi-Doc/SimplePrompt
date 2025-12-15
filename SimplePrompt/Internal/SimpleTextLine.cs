@@ -53,6 +53,16 @@ internal class SimpleTextLine
 
     public int Top { get; set; }
 
+    /// <summary>
+    /// Gets the cursor's horizontal position relative to the line's left edge.
+    /// </summary>
+    public int CursorLeft => this.simpleConsole.CursorLeft;
+
+    /// <summary>
+    /// Gets the cursor's vertical position relative to the line's top edge.
+    /// </summary>
+    public int CursorTop => this.simpleConsole.CursorTop - this.Top;
+
     public int Height { get; private set; }
 
     public int PromptLength => this._promptLength;
@@ -109,16 +119,16 @@ internal class SimpleTextLine
             this.simpleConsole.CheckCursor();
         }
 
-        /*if (keyInfo.Key != ConsoleKey.None)
+        if (keyInfo.Key != ConsoleKey.None)
         {// Control
             var key = keyInfo.Key;
-            if (key == ConsoleKey.Enter)
+            /*if (key == ConsoleKey.Enter)
             {// Exit or Multiline """
                 if (!this.readLineInstance.Options.AllowEmptyLineInput)
                 {
-                    if (this.readLineInstance.BufferList.Count == 0 ||
-                    (this.readLineInstance.BufferList.Count == 1 &&
-                    this.readLineInstance.BufferList[0].Length == 0))
+                    if (this.readLineInstance.LineList.Count == 0 ||
+                    (this.readLineInstance.LineList.Count == 1 &&
+                    this.readLineInstance.LineList[0].InputLength == 0))
                     {// Empty input
                         return false;
                     }
@@ -134,22 +144,22 @@ internal class SimpleTextLine
                     return false;
                 }
 
-                var arrayPosition = this.GetArrayPosition();
-                if (arrayPosition > 0)
+                var location = this.GetArrayPosition();
+                if (location.Position > 0)
                 {
                     (int RemovedWidth, int Index, int Diff) r;
-                    this.MoveLeft(arrayPosition);
-                    if (char.IsLowSurrogate(this.charArray[arrayPosition - 1]) &&
-                        (arrayPosition > 1) &&
-                        char.IsHighSurrogate(this.charArray[arrayPosition - 2]))
+                    this.MoveLeft(location.Position);
+                    if (char.IsLowSurrogate(this.charArray[location.Position - 1]) &&
+                        (location.Position > 1) &&
+                        char.IsHighSurrogate(this.charArray[location.Position - 2]))
                     {
-                        r = this.Remove2At(arrayPosition - 2);
-                        this.Write(arrayPosition - 2, this.Length, 0, r.RemovedWidth);
+                        r = this.Remove2At(location.Position - 2);
+                        this.Write(location.Position - 2, this.Length, 0, r.RemovedWidth);
                     }
                     else
                     {
-                        r = this.RemoveAt(arrayPosition - 1);
-                        this.Write(arrayPosition - 1, this.Length, 0, r.RemovedWidth);
+                        r = this.RemoveAt(location.Position - 1);
+                        this.Write(location.Position - 1, this.Length, 0, r.RemovedWidth);
                     }
 
                     if (r.Diff != 0)
@@ -168,22 +178,22 @@ internal class SimpleTextLine
                     return false;
                 }
 
-                var arrayPosition = this.GetArrayPosition();
-                if (arrayPosition < this.Length)
+                var location = this.GetArrayPosition();
+                if (location.Position < this.Length)
                 {
                     (int RemovedWidth, int Index, int Diff) r;
-                    if (char.IsHighSurrogate(this.charArray[arrayPosition]) &&
-                        (arrayPosition + 1) < this.Length &&
-                        char.IsLowSurrogate(this.charArray[arrayPosition + 1]))
+                    if (char.IsHighSurrogate(this.charArray[location.Position]) &&
+                        (location.Position + 1) < this.Length &&
+                        char.IsLowSurrogate(this.charArray[location.Position + 1]))
                     {
-                        r = this.Remove2At(arrayPosition);
+                        r = this.Remove2At(location.Position);
                     }
                     else
                     {
-                        r = this.RemoveAt(arrayPosition);
+                        r = this.RemoveAt(location.Position);
                     }
 
-                    this.Write(arrayPosition, this.Length, 0, r.RemovedWidth);
+                    this.Write(location.Position, this.Length, 0, r.RemovedWidth);
                     if (r.Diff != 0)
                     {
                         this.readLineInstance.HeightChanged(r.Index, r.Diff);
@@ -192,7 +202,8 @@ internal class SimpleTextLine
 
                 return false;
             }
-            else if (key == ConsoleKey.U && keyInfo.Modifiers == ConsoleModifiers.Control)
+            else */
+            if (key == ConsoleKey.U && keyInfo.Modifiers == ConsoleModifiers.Control)
             {// Ctrl+U: Clear line
                 this.ClearLine();
             }
@@ -202,19 +213,19 @@ internal class SimpleTextLine
             }
             else if (key == ConsoleKey.End)
             {
-                var newCursor = this.ToCursor(this.Width);
+                var newCursor = this.ToCursor(this.TotalWidth);
                 this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
             }
             else if (key == ConsoleKey.LeftArrow)
             {
-                var arrayPosition = this.GetArrayPosition();
-                this.MoveLeft(arrayPosition);
+                var location = this.GetArrayPosition();
+                this.MoveLeft(location.Position);
                 return false;
             }
             else if (key == ConsoleKey.RightArrow)
             {
-                var arrayPosition = this.GetArrayPosition();
-                this.MoveRight(arrayPosition);
+                var location = this.GetArrayPosition();
+                this.MoveRight(location.Position);
                 return false;
             }
             else if (key == ConsoleKey.UpArrow)
@@ -247,7 +258,6 @@ internal class SimpleTextLine
                 // this.InputConsole.IsInsertMode = !this.InputConsole.IsInsertMode;
             }
         }
-        */
 
         return false;
     }
@@ -458,7 +468,47 @@ internal class SimpleTextLine
         this.readLineInstance.LinePosition = endIndex;
     }
 
-    private (int ArrayPosition, SimpleTextRow Row) GetArrayPosition()
+    internal (int Left, int Top) ToCursor(int cursorIndex)
+    {
+        cursorIndex += this.PromptWidth;
+        var top = cursorIndex / this.simpleConsole.WindowWidth;
+        var left = cursorIndex - (top * this.simpleConsole.WindowWidth);
+        return (left, top);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal int GetCursorIndex()
+        => this.GetCursorIndex(this.CursorLeft, this.CursorTop);
+
+    internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
+    {
+        try
+        {
+            if (cursorOperation == CursorOperation.Show ||
+                cursorLeft != this.CursorLeft ||
+                cursorTop != this.CursorTop)
+            {
+                this.simpleConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private void ClearLine()
+    {
+        Array.Fill<char>(this.charArray, ' ', 0, this.Width);
+        Array.Fill<byte>(this.widthArray, 1, 0, this.Width);
+        this.Length = this.Width;
+        this.Write(0, this.Width, 0, 0);
+
+        this.Reset();
+        this.SetCursorPosition(this.PromptWidth, 0, CursorOperation.None);
+        // this.UpdateConsole(0, this.Length, 0, true);
+    }
+
+    private (SimpleTextRow Row, int Position) GetArrayPosition()
     {
         var position = Math.Max(this.PromptLength, this.readLineInstance.LinePosition);
         if (position > this.TotalLength)
@@ -471,11 +521,161 @@ internal class SimpleTextLine
             if (x.Start <= position &&
                 position <= x.End)
             {
-                return (position, x);
+                return (x, position);
             }
         }
 
         throw new Exception();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private int GetCursorIndex(int cursorLeft, int cursorTop)
+    {
+        var index = cursorLeft + (cursorTop * this.simpleConsole.WindowWidth);
+        if (index < 0)
+        {
+            return 0;
+        }
+        else if (index >= this.TotalWidth)
+        {
+            return this.TotalWidth;
+        }
+        else
+        {
+            return index;
+        }
+    }
+
+    private int GetLeftWidth(int index)
+    {
+        if (index < 1)
+        {
+            return 0;
+        }
+
+        if (char.IsLowSurrogate(this.charArray[index - 1]) &&
+            index > 1 &&
+            char.IsHighSurrogate(this.charArray[index - 2]))
+        {
+            return this.widthArray[index - 1] + this.widthArray[index - 2];
+        }
+        else
+        {
+            return this.widthArray[index - 1];
+        }
+    }
+
+    private int GetRightWidth(int index)
+    {
+        if (index >= this.TotalLength)
+        {
+            return 0;
+        }
+
+        if (char.IsHighSurrogate(this.charArray[index]) &&
+            (index + 1) < this.TotalLength &&
+            char.IsLowSurrogate(this.charArray[index + 1]))
+        {
+            return this.widthArray[index] + this.widthArray[index + 1];
+        }
+        else
+        {
+            return this.widthArray[index];
+        }
+    }
+
+    private void MoveLeft(int arrayPosition)
+    {
+        if (arrayPosition == 0)
+        {
+            return;
+        }
+
+        var width = this.GetLeftWidth(arrayPosition);
+        var cursorIndex = this.GetCursorIndex() - width;
+        if (cursorIndex >= 0)
+        {
+            var newCursor = this.ToCursor(cursorIndex);
+            if (this.CursorLeft != newCursor.Left ||
+                this.CursorTop != newCursor.Top)
+            {
+                this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
+            }
+        }
+    }
+
+    private void MoveRight(int arrayPosition)
+    {
+        if (arrayPosition >= this.TotalLength)
+        {
+            return;
+        }
+
+        var width = this.GetRightWidth(arrayPosition);
+        var cursorIndex = this.GetCursorIndex() + width;
+        if (cursorIndex >= 0)
+        {
+            var newCursor = this.ToCursor(cursorIndex);
+            if (this.CursorLeft != newCursor.Left ||
+                this.CursorTop != newCursor.Top)
+            {
+                this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
+            }
+        }
+    }
+
+    private void MoveUpOrDown(bool up)
+    {
+        var line = this;
+        var cursorLeft = this.CursorLeft;
+        var cursorTop = this.CursorTop;
+
+        if (up)
+        {// Up arrow
+            if (cursorTop <= 0)
+            {// Previous buffer
+                if (this.Index <= this.readLineInstance.EditableBufferIndex)
+                {
+                    return;
+                }
+
+                line = this.readLineInstance.LineList[this.Index - 1];
+                cursorTop = line.Height - 1;
+            }
+            else
+            {// Current buffer (move upward)
+                cursorTop--;
+            }
+        }
+        else
+        {// Down arrow
+            if (cursorTop + 1 >= this.Height)
+            {// Next buffer
+                var idx = this.Index + 1;
+                if (idx >= this.readLineInstance.BufferList.Count)
+                {
+                    return;
+                }
+
+                line = this.readLineInstance.LineList[this.Index + 1];
+                cursorTop = 0;
+            }
+            else
+            {// Current buffer (move downward)
+                cursorTop++;
+            }
+        }
+
+        var cursorIndex = line.GetCursorIndex(cursorLeft, cursorTop);
+        line.TrimCursorIndex(ref cursorIndex);
+
+        var newCursor = line.ToCursor(cursorIndex);
+        if (line.CursorLeft != newCursor.Left ||
+            line.CursorTop != newCursor.Top ||
+            line != this)
+        {
+            line.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
+        }
     }
 
     private void ProcessCharacterInternal(Span<char> charBuffer)
@@ -486,11 +686,11 @@ internal class SimpleTextLine
         }
 
         this.EnsureBuffer(this.TotalLength + charBuffer.Length);
-        (var arrayPosition, var row) = this.GetArrayPosition();
+        (var row, var position) = this.GetArrayPosition();
 
-        this.charArray.AsSpan(arrayPosition, this.TotalLength - arrayPosition).CopyTo(this.charArray.AsSpan(arrayPosition + charBuffer.Length));
-        charBuffer.CopyTo(this.charArray.AsSpan(arrayPosition));
-        this.widthArray.AsSpan(arrayPosition, this.TotalLength - arrayPosition).CopyTo(this.widthArray.AsSpan(arrayPosition + charBuffer.Length));
+        this.charArray.AsSpan(position, this.TotalLength - position).CopyTo(this.charArray.AsSpan(position + charBuffer.Length));
+        charBuffer.CopyTo(this.charArray.AsSpan(position));
+        this.widthArray.AsSpan(position, this.TotalLength - position).CopyTo(this.widthArray.AsSpan(position + charBuffer.Length));
         var width = 0;
         for (var i = 0; i < charBuffer.Length; i++)
         {
@@ -500,13 +700,13 @@ internal class SimpleTextLine
             {
                 var codePoint = char.ConvertToUtf32(c, charBuffer[i + 1]);
                 w = SimplePromptHelper.GetCharWidth(codePoint);
-                this.widthArray[arrayPosition + i++] = 0;
-                this.widthArray[arrayPosition + i] = (byte)w;
+                this.widthArray[position + i++] = 0;
+                this.widthArray[position + i] = (byte)w;
             }
             else
             {
                 w = SimplePromptHelper.GetCharWidth(c);
-                this.widthArray[arrayPosition + i] = (byte)w;
+                this.widthArray[position + i] = (byte)w;
             }
 
             width += w;
@@ -514,7 +714,7 @@ internal class SimpleTextLine
 
         row.AddInput(charBuffer.Length, width);
 
-        this.Write(arrayPosition, this.TotalLength, width, 0);
+        this.Write(position, this.TotalLength, width, 0);
 
         /*var line = this.FindLine();
 
