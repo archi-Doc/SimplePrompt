@@ -470,7 +470,6 @@ internal class SimpleTextLine
 
     internal (int Left, int Top) ToCursor(int cursorIndex)
     {
-        cursorIndex += this.PromptWidth;
         var top = cursorIndex / this.simpleConsole.WindowWidth;
         var left = cursorIndex - (top * this.simpleConsole.WindowWidth);
         return (left, top);
@@ -593,6 +592,7 @@ internal class SimpleTextLine
         var cursorIndex = this.GetCursorIndex() - width;
         if (cursorIndex >= 0)
         {
+            this.readLineInstance.LinePosition -= width;
             var newCursor = this.ToCursor(cursorIndex);
             if (this.CursorLeft != newCursor.Left ||
                 this.CursorTop != newCursor.Top)
@@ -613,6 +613,7 @@ internal class SimpleTextLine
         var cursorIndex = this.GetCursorIndex() + width;
         if (cursorIndex >= 0)
         {
+            this.readLineInstance.LinePosition += width;
             var newCursor = this.ToCursor(cursorIndex);
             if (this.CursorLeft != newCursor.Left ||
                 this.CursorTop != newCursor.Top)
@@ -678,16 +679,17 @@ internal class SimpleTextLine
 
     private void TrimCursorIndex(ref int cursorIndex)
     {
-        if (cursorIndex <= 0)
+        if (cursorIndex <= this.PromptWidth)
         {
-            cursorIndex = 0;
+            cursorIndex = this.PromptWidth;
             return;
         }
 
         var newIndex = 0;
-        for (var arrayPosition = 0; arrayPosition < this.Length; arrayPosition++)
+        var totalLength = this.TotalLength;
+        for (var i = this.PromptLength; i < totalLength; i++)
         {
-            var width = this.widthArray[arrayPosition];
+            var width = this.widthArray[i];
             cursorIndex -= width;
             newIndex += width;
             if (cursorIndex <= 0)
