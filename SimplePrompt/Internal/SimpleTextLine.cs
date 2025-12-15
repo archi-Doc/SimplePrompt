@@ -218,14 +218,12 @@ internal class SimpleTextLine
             }
             else if (key == ConsoleKey.LeftArrow)
             {
-                var location = this.GetArrayPosition();
-                this.MoveLeft(location.Position);
+                this.readLineInstance.CurrentLocation.MoveLeft();
                 return false;
             }
             else if (key == ConsoleKey.RightArrow)
             {
-                var location = this.GetArrayPosition();
-                this.MoveRight(location.Position);
+                this.readLineInstance.CurrentLocation.MoveRight();
                 return false;
             }
             else if (key == ConsoleKey.UpArrow)
@@ -507,86 +505,6 @@ internal class SimpleTextLine
         }
     }
 
-    private int GetLeftWidth(int index)
-    {
-        if (index < 1)
-        {
-            return 0;
-        }
-
-        if (char.IsLowSurrogate(this.charArray[index - 1]) &&
-            index > 1 &&
-            char.IsHighSurrogate(this.charArray[index - 2]))
-        {
-            return this.widthArray[index - 1] + this.widthArray[index - 2];
-        }
-        else
-        {
-            return this.widthArray[index - 1];
-        }
-    }
-
-    private int GetRightWidth(int index)
-    {
-        if (index >= this.TotalLength)
-        {
-            return 0;
-        }
-
-        if (char.IsHighSurrogate(this.charArray[index]) &&
-            (index + 1) < this.TotalLength &&
-            char.IsLowSurrogate(this.charArray[index + 1]))
-        {
-            return this.widthArray[index] + this.widthArray[index + 1];
-        }
-        else
-        {
-            return this.widthArray[index];
-        }
-    }
-
-    private void MoveLeft(int arrayPosition)
-    {
-        if (arrayPosition == 0)
-        {
-            return;
-        }
-
-        var width = this.GetLeftWidth(arrayPosition);
-        var cursorIndex = this.GetCursorIndex() - width;
-        if (cursorIndex >= 0)
-        {
-            this.readLineInstance.LinePosition -= width;
-            var newCursor = this.ToCursor(cursorIndex);
-            if (this.CursorLeft != newCursor.Left ||
-                this.CursorTop != newCursor.Top)
-            {
-                this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
-            }
-        }
-    }
-
-    private void MoveRight(int arrayPosition)
-    {
-        if (arrayPosition >= this.TotalLength)
-        {
-            return;
-        }
-
-        var width = this.GetRightWidth(arrayPosition);
-        var cursorIndex = this.GetCursorIndex() + width;
-        if (cursorIndex >= 0)
-        {
-            this.readLineInstance.LinePosition += width;
-            var newCursor = this.ToCursor(cursorIndex);
-            if (this.CursorLeft != newCursor.Left ||
-                this.CursorTop != newCursor.Top)
-            {
-                this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
-            }
-        }
-    }
-
     private void MoveUpOrDown(bool up)
     {
         var line = this;
@@ -673,7 +591,7 @@ internal class SimpleTextLine
         }
 
         this.EnsureBuffer(this.TotalLength + charBuffer.Length);
-        if (!this.readLineInstance.CurrentLocation.TryGetRow(out var row))
+        if (!this.readLineInstance.CurrentLocation.TryGetLineAndRow(out var line, out var row))
         {
             return;
         }
@@ -705,9 +623,8 @@ internal class SimpleTextLine
 
         row.AddInput(charBuffer.Length, width);
 
-        this.Write(position, this.TotalLength, width, 0);
+        this.Write(position, position + line.InputLength, width, 0);
         this.readLineInstance.CurrentLocation.Move(charBuffer.Length, width);
-
 
         /*var line = this.FindLine();
 

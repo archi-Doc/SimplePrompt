@@ -18,16 +18,25 @@ internal record class SimpleTextLocation
 
     public int CursorPosition { get; set; }
 
-    public bool TryGetLine([MaybeNullWhen(false)] out SimpleTextLine line)
+    public bool TryGetLineAndRow([MaybeNullWhen(false)] out SimpleTextLine line, [MaybeNullWhen(false)] out SimpleTextRow row)
     {
         if (this.LineIndex >= this.readLineInstance.LineList.Count)
         {
             line = default;
+            row = default;
             return false;
         }
 
         line = this.readLineInstance.LineList[this.LineIndex];
-        return true;
+        var count = this.RowIndex;
+        row = line.Rows.SliceChain.First;
+        while (count > 0 && row is not null)
+        {
+            row = row.SliceLink.Next;
+            count--;
+        }
+
+        return row is not null;
     }
 
     public bool TryGetRow([MaybeNullWhen(false)] out SimpleTextRow row)
@@ -98,6 +107,99 @@ internal record class SimpleTextLocation
         this.SetCursor(row);
     }
 
+    public void MoveLeft()
+    {
+        if (!this.TryGetLineAndRow(out var line, out var row))
+        {
+            return;
+        }
+
+        if (this.ArrayPosition < 1)
+        {
+            return;
+        }
+
+        int length, width;
+        if (char.IsLowSurrogate(line.CharArray[this.ArrayPosition - 1]) &&
+            this.ArrayPosition > 1 &&
+            char.IsHighSurrogate(line.CharArray[this.ArrayPosition - 2]))
+        {
+            length = 2;
+            width = line.WidthArray[this.ArrayPosition - 1] + line.WidthArray[this.ArrayPosition - 2];
+        }
+        else
+        {
+            length = 1;
+            width = line.WidthArray[this.ArrayPosition - 1];
+        }
+
+        if (this.CursorPosition == 0)
+        {
+            if (row.SliceLink.Previous is { } previousRow)
+            {
+                this.RowIndex--;
+                this.ArrayPosition -= length;
+                this.CursorPosition = row.Width;
+            }
+        }
+        else
+        {
+            this.ArrayPosition -= length;
+            this.CursorPosition -= width;
+        }
+
+        this.SetCursor(row);
+    }
+
+    public void MoveRight()
+    {
+        if (!this.TryGetLineAndRow(out var line, out var row))
+        {
+            return;
+        }
+
+        if (this.ArrayPosition >= line.TotalLength)
+        {
+            return;
+        }
+
+        int length, width;
+        if (char.IsHighSurrogate(line.CharArray[this.ArrayPosition]) &&
+            (this.ArrayPosition + 1) < line.TotalLength &&
+            char.IsLowSurrogate(line.CharArray[this.ArrayPosition + 1]))
+        {
+            length = 2;
+            width = line.WidthArray[this.ArrayPosition] + line.WidthArray[this.ArrayPosition + 1];
+        }
+        else
+        {
+            length = 1;
+            width = line.WidthArray[this.ArrayPosition];
+        }
+
+        this.ArrayPosition += length;
+        if (this.ArrayPosition > line.TotalLength)
+        {
+            this.ArrayPosition = line.TotalLength;
+        }
+
+        this.CursorPosition += width;
+        if (this.CursorPosition >= row.Width)
+        {
+            if (row.SliceLink.Next is { } nextRow)
+            {
+                this.RowIndex++;
+                this.CursorPosition -= row.Width;
+            }
+            else
+            {
+                this.CursorPosition = row.Width;
+            }
+        }
+
+        this.SetCursor(row);
+    }
+
     public void Move(int lengthDiff, int widthDiff)
     {
         this.ArrayPosition += lengthDiff;
@@ -149,16 +251,3 @@ internal record class SimpleTextLocation
         this.CursorPosition = 0;
     }
 }
-
-/*internal readonly record struct SimpleTextLocation
-{
-    public readonly int LineIndex;
-
-    public readonly int LinePosition;
-
-    public SimpleTextLocation(int lineIndex, int linePosition)
-    {
-        this.LineIndex = lineIndex;
-        this.LinePosition = linePosition;
-    }
-}*/
