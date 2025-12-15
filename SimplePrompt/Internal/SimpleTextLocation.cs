@@ -1,7 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using Arc;
 
 namespace SimplePrompt.Internal;
 
@@ -17,6 +17,38 @@ internal record class SimpleTextLocation
     public int ArrayPosition { get; set; }
 
     public int CursorPosition { get; set; }
+
+    public bool TryGetLine([MaybeNullWhen(false)] out SimpleTextLine line)
+    {
+        if (this.LineIndex >= this.readLineInstance.LineList.Count)
+        {
+            line = default;
+            return false;
+        }
+
+        line = this.readLineInstance.LineList[this.LineIndex];
+        return true;
+    }
+
+    public bool TryGetRow([MaybeNullWhen(false)] out SimpleTextRow row)
+    {
+        if (this.LineIndex >= this.readLineInstance.LineList.Count)
+        {
+            row = default;
+            return false;
+        }
+
+        var line = this.readLineInstance.LineList[this.LineIndex];
+        var count = this.RowIndex;
+        row = line.Rows.SliceChain.First;
+        while (count > 0 && row is not null)
+        {
+            row = row.SliceLink.Next;
+            count--;
+        }
+
+        return row is not null;
+    }
 
     public void Reset()
     {
@@ -66,6 +98,12 @@ internal record class SimpleTextLocation
         this.SetCursor(row);
     }
 
+    public void Move(int lengthDiff, int widthDiff)
+    {
+        this.ArrayPosition += lengthDiff;
+        this.CursorPosition += widthDiff;
+    }
+
     public void Initialize(SimpleConsole simpleConsole, ReadLineInstance readLineInstance)
     {
         this.simpleConsole = simpleConsole;
@@ -92,7 +130,7 @@ internal record class SimpleTextLocation
         top = top >= this.simpleConsole.WindowHeight ? this.simpleConsole.WindowHeight - 1 : top;
 
         var left = this.CursorPosition;
-        left = left < 0 ? 0 : left;
+        // left = left < 0 ? 0 : left;
         left = left >= this.simpleConsole.WindowWidth ? this.simpleConsole.WindowWidth - 1 : left;
 
         if (this.simpleConsole.CursorTop != top ||

@@ -83,6 +83,7 @@ internal class ReadLineInstance
         char[]? windowBuffer = null;
         while (prompt.Length >= 0)
         {
+            // For a multi-line prompt, multiple SimpleTextLine instances are created and each line is assigned accordingly.
             var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
             ReadLineBuffer buffer;
             SimpleTextLine simpleTextLine;
@@ -109,7 +110,6 @@ internal class ReadLineInstance
 
             this.LineList.Add(simpleTextLine);
             simpleTextLine.Top = this.simpleConsole.CursorTop;
-            simpleTextLine.UpdateHeight();
 
             windowBuffer ??= SimpleConsole.RentWindowBuffer();
             var span = windowBuffer.AsSpan();

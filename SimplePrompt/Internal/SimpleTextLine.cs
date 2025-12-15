@@ -274,22 +274,6 @@ internal class SimpleTextLine
         }
     }
 
-    internal (int Index, int Diff) UpdateHeight()
-    {
-        var previousHeight = this.Height;
-        /*var totalWidth = this.TotalWidth;
-        if (totalWidth == 0)
-        {
-            this.Height = 1;
-        }
-        else
-        {
-            this.Height = (totalWidth - 0 + this.WindowWidth) / this.WindowWidth;
-        }*/
-
-        return (this.Index, this.Height - previousHeight);
-    }
-
     internal void Write(int startIndex, int endIndex, int cursorDif, int removedWidth, bool eraseLine = false)
     {
         int x, y, w;
@@ -505,26 +489,6 @@ internal class SimpleTextLine
         this.SetCursorPosition(this.PromptWidth, 0, CursorOperation.None);
     }
 
-    private (SimpleTextRow Row, int Position) GetArrayPosition()
-    {
-        var position = Math.Max(this.PromptLength, this.readLineInstance.LinePosition);
-        if (position > this.TotalLength)
-        {
-            position = this.TotalLength;
-        }
-
-        foreach (var x in this.rows)
-        {
-            if (x.Start <= position &&
-                position <= x.End)
-            {
-                return (x, position);
-            }
-        }
-
-        throw new Exception();
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private int GetCursorIndex(int cursorLeft, int cursorTop)
     {
@@ -709,8 +673,12 @@ internal class SimpleTextLine
         }
 
         this.EnsureBuffer(this.TotalLength + charBuffer.Length);
-        (var row, var position) = this.GetArrayPosition();
+        if (!this.readLineInstance.CurrentLocation.TryGetRow(out var row))
+        {
+            return;
+        }
 
+        var position = this.readLineInstance.CurrentLocation.ArrayPosition;
         this.charArray.AsSpan(position, this.TotalLength - position).CopyTo(this.charArray.AsSpan(position + charBuffer.Length));
         charBuffer.CopyTo(this.charArray.AsSpan(position));
         this.widthArray.AsSpan(position, this.TotalLength - position).CopyTo(this.widthArray.AsSpan(position + charBuffer.Length));
@@ -738,6 +706,8 @@ internal class SimpleTextLine
         row.AddInput(charBuffer.Length, width);
 
         this.Write(position, this.TotalLength, width, 0);
+        this.readLineInstance.CurrentLocation.Move(charBuffer.Length, width);
+
 
         /*var line = this.FindLine();
 
