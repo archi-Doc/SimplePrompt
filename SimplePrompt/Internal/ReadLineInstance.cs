@@ -128,6 +128,21 @@ internal class ReadLineInstance
         {
             SimpleConsole.ReturnWindowBuffer(windowBuffer);
         }
+
+        this.ResetLocation();
+    }
+
+    public void ResetLocation()
+    {
+        foreach (var x in this.LineList)
+        {
+            if (x.IsInput)
+            {
+                this.BufferIndex = x.Index;
+                this.BufferPosition = x.PromptLength;
+                return;
+            }
+        }
     }
 
     public string? Process(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
