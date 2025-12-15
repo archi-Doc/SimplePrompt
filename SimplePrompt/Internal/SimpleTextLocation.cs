@@ -29,7 +29,7 @@ internal record class SimpleTextLocation
 
         line = this.readLineInstance.LineList[this.LineIndex];
         var count = this.RowIndex;
-        row = line.Rows.SliceChain.First;
+        row = line.Rows[this.RowIndex];
         while (count > 0 && row is not null)
         {
             row = row.SliceLink.Next;

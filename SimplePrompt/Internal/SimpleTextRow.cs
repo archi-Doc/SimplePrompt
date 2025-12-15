@@ -65,7 +65,7 @@ internal partial class SimpleTextRow
 
     #endregion
 
-    [Link(Primary = true, Type = ChainType.LinkedList, Name = "Slice")]
+    [Link(Primary = true, Type = ChainType.List, Name = "List")]
     private SimpleTextRow()
     {
         this.Line = default!;
