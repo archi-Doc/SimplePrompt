@@ -496,16 +496,22 @@ internal class SimpleTextLine
         }
     }
 
+    public void Reset()
+    {
+        this.InputLength = 0;
+        this.Width = 0;
+        this.Height = 1;
+    }
+
     private void ClearLine()
     {
-        Array.Fill<char>(this.charArray, ' ', 0, this.Width);
-        Array.Fill<byte>(this.widthArray, 1, 0, this.Width);
-        this.Length = this.Width;
-        this.Write(0, this.Width, 0, 0);
+        Array.Fill<char>(this.charArray, ' ', this.PromptWidth, this.InputWidth);
+        Array.Fill<byte>(this.widthArray, 1, this.PromptWidth, this.InputWidth);
+        this.Length = this.InputWidth;
+        this.Write(this.PromptWidth, this.TotalWidth, 0, 0);
 
         this.Reset();
         this.SetCursorPosition(this.PromptWidth, 0, CursorOperation.None);
-        // this.UpdateConsole(0, this.Length, 0, true);
     }
 
     private (SimpleTextRow Row, int Position) GetArrayPosition()
