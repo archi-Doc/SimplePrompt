@@ -14,18 +14,21 @@ internal record class SimpleTextLocation
 
     public int RowIndex { get; set; }
 
-    public int Position { get; set; }
+    public int ArrayPosition { get; set; }
+
+    public int CursorPosition { get; set; }
 
     public void Reset()
     {
         foreach (var x in this.readLineInstance.LineList)
         {
-            if (x.IsInput)
+            if (x.IsInput && x.Rows.SliceChain.First is { } row)
             {
                 this.LineIndex = x.Index;
                 this.RowIndex = 0;
-                this.Position = x.PromptLength;
-                this.SetCursor();
+                this.ArrayPosition = x.PromptLength;
+                this.CursorPosition = x.PromptWidth;
+                this.SetCursor(row);
                 return;
             }
         }
@@ -60,21 +63,7 @@ internal record class SimpleTextLocation
             return;
         }
 
-        if (this.Position < row.Start ||
-            row.End < this.Position)
-        {
-            this.ResetInternal();
-            return;
-        }
-
-        var top = line.Top + this.RowIndex;
-        var left = (int)BaseHelper.Sum(line.WidthArray.AsSpan(0, this.Position));//
-
-        if (this.simpleConsole.CursorTop != top ||
-            this.simpleConsole.CursorLeft != left)
-        {
-            this.simpleConsole.SetCursorPosition(left, top, CursorOperation.None);
-        }
+        this.SetCursor(row);
     }
 
     public void Initialize(SimpleConsole simpleConsole, ReadLineInstance readLineInstance)
@@ -89,12 +78,37 @@ internal record class SimpleTextLocation
         this.readLineInstance = default!;
     }
 
+    private void SetCursor(SimpleTextRow row)
+    {
+        if (this.ArrayPosition < row.Start ||
+            row.End < this.ArrayPosition)
+        {
+            this.ResetInternal();
+            return;
+        }
+
+        var top = row.Line.Top + this.RowIndex;
+        top = top < 0 ? 0 : top;
+        top = top >= this.simpleConsole.WindowHeight ? this.simpleConsole.WindowHeight - 1 : top;
+
+        var left = this.CursorPosition;
+        left = left < 0 ? 0 : left;
+        left = left >= this.simpleConsole.WindowWidth ? this.simpleConsole.WindowWidth - 1 : left;
+
+        if (this.simpleConsole.CursorTop != top ||
+            this.simpleConsole.CursorLeft != left)
+        {
+            this.simpleConsole.SetCursorPosition(left, top, CursorOperation.None);
+        }
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ResetInternal()
     {
         this.LineIndex = 0;
         this.RowIndex = 0;
-        this.Position = 0;
+        this.ArrayPosition = 0;
+        this.CursorPosition = 0;
     }
 }
 

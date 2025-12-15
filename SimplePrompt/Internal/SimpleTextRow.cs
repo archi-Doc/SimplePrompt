@@ -33,9 +33,10 @@ internal partial class SimpleTextRow
 
     #region FiendAndProperty
 
-    private SimpleTextLine simpleTextLine;
     private int _length;
     private int _width;
+
+    public SimpleTextLine Line { get; private set; }
 
     public bool IsInput => this.InputStart >= 0;
 
@@ -49,16 +50,16 @@ internal partial class SimpleTextRow
 
     public int Width => this._width;
 
-    public ReadOnlySpan<char> CharSpan => this.simpleTextLine.CharArray.AsSpan(this.Start, this.Length);
+    public ReadOnlySpan<char> CharSpan => this.Line.CharArray.AsSpan(this.Start, this.Length);
 
-    public ReadOnlySpan<byte> WidthSpan => this.simpleTextLine.WidthArray.AsSpan(this.Start, this.Length);
+    public ReadOnlySpan<byte> WidthSpan => this.Line.WidthArray.AsSpan(this.Start, this.Length);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ChangeInputLengthAndWidth(int lengthDiff, int widthDiff)
     {
         this._length += lengthDiff;
         this._width += widthDiff;
-        this.simpleTextLine.ChangeInputLengthAndWidth(lengthDiff, widthDiff);
+        this.Line.ChangeInputLengthAndWidth(lengthDiff, widthDiff);
     }
 
     #endregion
@@ -66,7 +67,7 @@ internal partial class SimpleTextRow
     [Link(Primary = true, Type = ChainType.LinkedList, Name = "Slice")]
     private SimpleTextRow()
     {
-        this.simpleTextLine = default!;
+        this.Line = default!;
     }
 
     public void Prepare(int start, int inputStart, int length, int width)
@@ -93,7 +94,7 @@ internal partial class SimpleTextRow
         // This is the core functionality of SimpleTextRow.
         // If a row is too short, it pulls data from the next row; if it is too long, it pushes excess data to the next row, maintaining the correct line/ row structure.
         var nextRow = this.SliceLink.Next;
-        if (this.Width < this.simpleTextLine.WindowWidth)
+        if (this.Width < this.Line.WindowWidth)
         {// The width is within WindowWidth. If necessary, the array is moved starting from the next row.
             if (nextRow is null)
             {// There is no next row, so nothing to move.
@@ -101,29 +102,29 @@ internal partial class SimpleTextRow
             }
             else
             {// Move from the next row if there is extra space.
-                var width = this.simpleTextLine.WindowWidth - this.Width;
+                var width = this.Line.WindowWidth - this.Width;
                 var index = this.End;
-                var end = this.simpleTextLine.TotalLength;
+                var end = this.Line.TotalLength;
                 while (index < end &&
-                    width >= this.simpleTextLine.WidthArray[index])
+                    width >= this.Line.WidthArray[index])
                 {
-                    width -= this.simpleTextLine.WidthArray[index];
+                    width -= this.Line.WidthArray[index];
                     index++;
                 }
 
                 this._length += index - this.End;
-                this._width += this.simpleTextLine.WindowWidth - this.Width - width;
+                this._width += this.Line.WindowWidth - this.Width - width;
                 nextRow.Arrange();
                 return true;
             }
         }
-        else if (this.Width > this.simpleTextLine.WindowWidth)
+        else if (this.Width > this.Line.WindowWidth)
         {// The width exceeds WindowWidth.
             var index = this.Start + this.Length - 1;
             var width = this.Width;
-            while (width > this.simpleTextLine.WindowWidth)
+            while (width > this.Line.WindowWidth)
             {
-                width -= this.simpleTextLine.WidthArray[index];
+                width -= this.Line.WidthArray[index];
                 index--;
             }
 
@@ -135,7 +136,7 @@ internal partial class SimpleTextRow
             var nextStart = this.Start + this.Length;
             if (nextRow is null)
             {
-                nextRow = SimpleTextRow.Rent(this.simpleTextLine);
+                nextRow = SimpleTextRow.Rent(this.Line);
                 nextRow.Prepare(nextStart, nextStart, lengthDiff, widthDiff);
                 nextRow.Arrange();
             }
@@ -164,13 +165,13 @@ internal partial class SimpleTextRow
 
     private void Initialize(SimpleTextLine simpleTextLine)
     {
-        this.simpleTextLine = simpleTextLine;
+        this.Line = simpleTextLine;
         this.Goshujin = simpleTextLine.Rows;
     }
 
     private void Uninitialize()
     {
-        this.simpleTextLine = default!;
+        this.Line = default!;
         this.Goshujin = default;
     }
 }
