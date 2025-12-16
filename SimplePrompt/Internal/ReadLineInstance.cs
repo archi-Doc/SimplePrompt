@@ -51,7 +51,7 @@ internal class ReadLineInstance
 
     public bool MultilineMode { get; private set; }
 
-    public int EditableBufferIndex { get; private set; }
+    public int FirstInputIndex { get; private set; }
 
     private SimpleConsole simpleConsole;
     private ReadLineOptions options = new();
@@ -151,7 +151,7 @@ internal class ReadLineInstance
 
             if (isInput)
             {// Input
-                this.EditableBufferIndex = bufferIndex - 1;
+                this.FirstInputIndex = bufferIndex - 1;
                 break;
             }
         }
@@ -164,103 +164,6 @@ internal class ReadLineInstance
         this.CurrentLocation.Reset();
     }
 
-    /*public string? Process(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
-    {
-        if (this.LineIndex >= this.BufferList.Count)
-        {
-            return string.Empty;
-        }
-
-        var buffer = this.BufferList[this.LineIndex];
-        if (buffer.ProcessInternal(keyInfo, charBuffer))
-        {// Exit input mode and return the concatenated string.
-            if (this.BufferList.Count == 0)
-            {
-                return string.Empty;
-            }
-
-            if (!string.IsNullOrEmpty(this.Options.MultilineIdentifier) &&
-                (SimpleCommandLine.SimpleParserHelper.CountOccurrences(buffer.TextSpan, this.Options.MultilineIdentifier) % 2) > 0)
-            {// Multiple line
-                if (buffer.Index == this.EditableBufferIndex)
-                {// Start
-                    this.MultilineMode = true;
-                }
-                else
-                {// End
-                    this.MultilineMode = false;
-                }
-            }
-
-            if (this.MultilineMode)
-            {
-                if (buffer.Index == (this.BufferList.Count - 1))
-                {// New InputBuffer
-                    if (buffer.Length == 0)
-                    {// Empty
-                        return null;
-                    }
-                    else if (!this.IsLengthWithinLimit(1))
-                    {// Exceeding max length
-                        return null;
-                    }
-
-                    buffer = this.simpleConsole.RentBuffer(this, this.BufferList.Count, this.Options.MultilinePrompt);
-                    this.BufferList.Add(buffer);
-                    var previousLeft = this.simpleConsole.CursorLeft;
-                    var previousTop = this.simpleConsole.CursorTop;
-                    if (this.simpleConsole.CursorLeft > 0)
-                    {
-                        this.simpleConsole.UnderlyingTextWriter.WriteLine();
-                        this.simpleConsole.NewLineCursor();
-                    }
-
-                    this.simpleConsole.UnderlyingTextWriter.Write(buffer.Prompt);
-                    this.simpleConsole.AdvanceCursor(buffer.PromptWidth, false);
-                    return null;
-                }
-                else
-                {// Next buffer
-                    this.simpleConsole.SetCursor(this.BufferList[buffer.Index + 1]);
-                    return null;
-                }
-            }
-
-            var length = this.BufferList[this.EditableBufferIndex].Length;
-            for (var i = this.EditableBufferIndex + 1; i < this.BufferList.Count; i++)
-            {
-                length += 1 + this.BufferList[i].Length;
-            }
-
-            var result = string.Create(length, this.BufferList, (span, buffers) =>
-            {
-                var isFirst = true;
-                for (var i = this.EditableBufferIndex; i < buffers.Count; i++)
-                {
-                    if (!isFirst)
-                    {
-                        span[0] = '\n';
-                        span = span.Slice(1);
-                    }
-                    else
-                    {
-                        isFirst = false;
-                    }
-
-                    buffers[i].TextSpan.CopyTo(span);
-                    span = span.Slice(buffers[i].Length);
-                }
-            });
-
-            this.SetCursorAtEnd(CursorOperation.None);
-            return result;
-        }
-        else
-        {
-            return null;
-        }
-    }*/
-
     public string? Process(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
         if (this.LineIndex >= this.LineList.Count)
@@ -271,7 +174,7 @@ internal class ReadLineInstance
         var simpleTextLine = this.LineList[this.CurrentLocation.LineIndex];
         if (simpleTextLine.ProcessInternal(keyInfo, charBuffer))
         {// Exit input mode and return the concatenated string.
-            if (this.BufferList.Count == 0)
+            if (this.LineList.Count == 0)
             {
                 return string.Empty;
             }
@@ -279,7 +182,7 @@ internal class ReadLineInstance
             if (!string.IsNullOrEmpty(this.Options.MultilineIdentifier) &&
                 (SimpleCommandLine.SimpleParserHelper.CountOccurrences(simpleTextLine.InputSpan, this.Options.MultilineIdentifier) % 2) > 0)
             {// Multiple line
-                if (simpleTextLine.Index == this.EditableBufferIndex)
+                if (simpleTextLine.Index == this.FirstInputIndex)
                 {// Start
                     this.MultilineMode = true;
                 }
@@ -291,7 +194,7 @@ internal class ReadLineInstance
 
             if (this.MultilineMode)
             {
-                if (simpleTextLine.Index == (this.BufferList.Count - 1))
+                if (simpleTextLine.Index == (this.LineList.Count - 1))
                 {// New InputBuffer
                     if (simpleTextLine.IsEmpty)
                     {// Empty
@@ -302,7 +205,7 @@ internal class ReadLineInstance
                         return null;
                     }
 
-                    simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, this, this.BufferList.Count, this.Options.MultilinePrompt.AsSpan(), true);
+                    simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, this, this.LineList.Count, this.Options.MultilinePrompt.AsSpan(), true);
                     this.LineList.Add(simpleTextLine);
                     var previousLeft = this.simpleConsole.CursorLeft;
                     var previousTop = this.simpleConsole.CursorTop;
@@ -323,16 +226,16 @@ internal class ReadLineInstance
                 }
             }
 
-            var length = this.BufferList[this.EditableBufferIndex].Length;
-            for (var i = this.EditableBufferIndex + 1; i < this.BufferList.Count; i++)
+            var length = this.LineList[this.FirstInputIndex].InputLength;
+            for (var i = this.FirstInputIndex + 1; i < this.LineList.Count; i++)
             {
-                length += 1 + this.BufferList[i].Length;
+                length += 1 + this.LineList[i].InputLength;
             }
 
             var result = string.Create(length, this.LineList, (span, lines) =>
             {
                 var isFirst = true;
-                for (var i = this.EditableBufferIndex; i < lines.Count; i++)
+                for (var i = this.FirstInputIndex; i < lines.Count; i++)
                 {
                     if (!isFirst)
                     {
@@ -468,7 +371,7 @@ internal class ReadLineInstance
     public void Reset()
     {
         this.MultilineMode = false;
-        for (var i = this.EditableBufferIndex + 1; i < this.BufferList.Count; i++)
+        for (var i = this.FirstInputIndex + 1; i < this.BufferList.Count; i++)
         {
             this.BufferList.Remove(this.BufferList[i]);
             this.simpleConsole.ReturnBuffer(this.BufferList[i]);
@@ -478,13 +381,16 @@ internal class ReadLineInstance
             SimpleTextLine.Return(listToRemove);
         }
 
-        this.BufferList[this.EditableBufferIndex].Reset();
+        this.BufferList[this.FirstInputIndex].Reset();
     }
 
     public void Clear()
     {
         this.MultilineMode = false;
-        this.EditableBufferIndex = 0;
+        this.FirstInputIndex = 0;
+
+        this.ReleaseLines();
+
         foreach (var buffer in this.BufferList)
         {
             this.simpleConsole.ReturnBuffer(buffer);
@@ -641,6 +547,22 @@ internal class ReadLineInstance
         buffer ??= this.BufferList[0];
         return buffer;
     }*/
+
+    private void ReleaseLines()
+    {
+        TemporaryList<SimpleTextLine> list = default;
+        foreach (var x in this.LineList)
+        {
+            list.Add(x);
+        }
+
+        foreach (var x in list)
+        {
+            SimpleTextLine.Return(x);
+        }
+
+        this.LineList.Clear();
+    }
 
     private void ClearLastLine(int dif)
     {

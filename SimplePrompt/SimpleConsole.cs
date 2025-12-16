@@ -185,7 +185,7 @@ public partial class SimpleConsole : IConsoleService
                         continue;
                     }
 
-                    //this.Location.CorrectCursorTop(currentInstance);//
+                    // this.Location.CorrectCursorTop(currentInstance);
                 }
 
 ProcessKeyInfo:
@@ -578,9 +578,9 @@ CancelOrTerminate:
                 activeInstance.SetCursorAtFirst(CursorOperation.Hide);
                 activeInstance.Redraw();
 
-                if (activeInstance.LineIndex < activeInstance.EditableBufferIndex)
+                if (activeInstance.LineIndex < activeInstance.FirstInputIndex)
                 {
-                    activeInstance.LineIndex = activeInstance.EditableBufferIndex;
+                    activeInstance.LineIndex = activeInstance.FirstInputIndex;
                     activeInstance.LinePosition = 0;
                 }
 

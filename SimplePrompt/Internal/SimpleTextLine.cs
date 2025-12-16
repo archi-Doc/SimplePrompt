@@ -565,7 +565,7 @@ internal class SimpleTextLine
         {// Up arrow
             if (cursorTop <= 0)
             {// Previous buffer
-                if (this.Index <= this.ReadLineInstance.EditableBufferIndex)
+                if (this.Index <= this.ReadLineInstance.FirstInputIndex)
                 {
                     return;
                 }
@@ -723,6 +723,10 @@ internal class SimpleTextLine
 
     private void Initialize(SimpleConsole simpleConsole, ReadLineInstance readLineInstance, int index, ReadOnlySpan<char> prompt, bool isInput)
     {
+        this._promptLength = 0;
+        this._promptWidth = 0;
+        this._inputLength = 0;
+        this._inputWidth = 0;
         this.SimpleConsole = simpleConsole;
         this.ReadLineInstance = readLineInstance;
         this.Index = index;
