@@ -28,28 +28,28 @@ internal record class SimpleTextLocation
         }
 
         line = this.readLineInstance.LineList[this.LineIndex];
-        var count = this.RowIndex;
-        row = line.Rows[this.RowIndex];
-        while (count > 0 && row is not null)
+        if (this.RowIndex >= line.Rows.ListChain.Count)
         {
-            row = row.SliceLink.Next;
-            count--;
+            line = default;
+            row = default;
+            return false;
         }
 
-        return row is not null;
+        row = line.Rows.ListChain[this.RowIndex];
+        return true;
     }
 
     public void Reset()
     {
         foreach (var x in this.readLineInstance.LineList)
         {
-            if (x.IsInput && x.Rows.SliceChain.First is { } row)
+            if (x.IsInput && x.Rows.Count > 0)
             {
                 this.LineIndex = x.Index;
                 this.RowIndex = 0;
                 this.ArrayPosition = x.PromptLength;
                 this.CursorPosition = x.PromptWidth;
-                this.SetCursor(row);
+                this.SetCursor(x.Rows.ListChain[0]);
                 return;
             }
         }
@@ -72,18 +72,7 @@ internal record class SimpleTextLocation
             return;
         }
 
-        var row = line.Rows.SliceChain.First;
-        for (var i = 0; i < this.RowIndex; i++)
-        {
-            row = row?.SliceLink.Next;
-        }
-
-        if (row is null)
-        {
-            this.ResetInternal();
-            return;
-        }
-
+        var row = line.Rows.ListChain[this.RowIndex];
         this.SetCursor(row);
     }
 
@@ -115,11 +104,11 @@ internal record class SimpleTextLocation
 
         if (this.CursorPosition == 0)
         {
-            if (row.SliceLink.Previous is { } previousRow)
+            if (this.RowIndex > 0)
             {
                 this.RowIndex--;
                 this.ArrayPosition -= length;
-                this.CursorPosition = row.Width;
+                this.CursorPosition = line.Rows.ListChain[this.RowIndex].Width;
             }
         }
         else
@@ -166,7 +155,7 @@ internal record class SimpleTextLocation
         this.CursorPosition += width;
         if (this.CursorPosition >= row.Width)
         {
-            if (row.SliceLink.Next is { } nextRow)
+            if (this.RowIndex < line.Rows.Count)
             {
                 this.RowIndex++;
                 this.CursorPosition -= row.Width;

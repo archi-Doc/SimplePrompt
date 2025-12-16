@@ -270,7 +270,14 @@ internal class SimpleTextLine
         }
         else
         {
-            return $"{this.rows.Count} lines: {this.rows.SliceChain.First?.ToString()}";
+            if (this.rows.Count == 0)
+            {
+                return $"{this.rows.Count} lines";
+            }
+            else
+            {
+                return $"{this.rows.Count} lines: {this.rows.ListChain[0].ToString()}";
+            }
         }
     }
 

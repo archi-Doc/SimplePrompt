@@ -94,7 +94,14 @@ internal partial class SimpleTextRow
     {
         // This is the core functionality of SimpleTextRow.
         // If a row is too short, it pulls data from the next row; if it is too long, it pushes excess data to the next row, maintaining the correct line/ row structure.
-        var nextRow = this.SliceLink.Next;
+        var chain = this.Line.Rows.ListChain;
+        if (chain is null)
+        {
+            return false;
+        }
+
+        var nextIndex = this.ListLink.Index + 1;
+        var nextRow = nextIndex >= chain.Count ? null : chain[nextIndex];
         if (this.Width < this.Line.WindowWidth)
         {// The width is within WindowWidth. If necessary, the array is moved starting from the next row.
             if (nextRow is null)
