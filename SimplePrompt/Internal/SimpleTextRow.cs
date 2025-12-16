@@ -138,7 +138,7 @@ internal partial class SimpleTextRow
 
             var lengthDiff = this.Start + this.Length - 1 - index;
             var widthDiff = this.Width - width;
-            this._length = index;
+            this._length = index + 1;
             this._width = width;
 
             var nextStart = this.Start + this.Length;

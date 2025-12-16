@@ -155,9 +155,10 @@ internal record class SimpleTextLocation
         this.CursorPosition += width;
         if (this.CursorPosition >= row.Width)
         {
-            if (this.RowIndex < line.Rows.Count)
+            var nextRowIndex = this.RowIndex + 1;
+            if (nextRowIndex < line.Rows.Count)
             {
-                this.RowIndex++;
+                this.RowIndex = nextRowIndex;
                 this.CursorPosition -= row.Width;
             }
             else
@@ -173,6 +174,17 @@ internal record class SimpleTextLocation
     {
         this.ArrayPosition += lengthDiff;
         this.CursorPosition += widthDiff;
+        if (this.CursorPosition > this.simpleConsole.WindowWidth)
+        {
+            var line = this.readLineInstance.LineList[this.LineIndex];
+            do
+            {
+                var row = line.Rows.ListChain[this.RowIndex];
+                this.CursorPosition -= row.Width;
+                this.RowIndex++;
+            }
+            while (this.CursorPosition > this.simpleConsole.WindowWidth);
+        }
     }
 
     public void Initialize(SimpleConsole simpleConsole, ReadLineInstance readLineInstance)
