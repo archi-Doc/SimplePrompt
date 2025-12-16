@@ -191,6 +191,7 @@ public partial class SimpleConsole : IConsoleService
 ProcessKeyInfo:
                 this.CheckCursor();
                 this.Location.Invalidate();
+
                 if (keyInfo.KeyChar == '\n' ||
                     keyInfo.Key == ConsoleKey.Enter)
                 {
@@ -198,8 +199,7 @@ ProcessKeyInfo:
                 }
                 else if (keyInfo.KeyChar == '\t' ||
                     keyInfo.Key == ConsoleKey.Tab)
-                {// Tab -> Space; in the future, input completion.
-                 // keyInfo = SimplePromptHelper.SpaceKeyInfo;
+                {// Tab; in the future, input completion.
                 }
                 else if (keyInfo.KeyChar == '\r')
                 {// CrLf -> Lf
@@ -233,7 +233,7 @@ ProcessKeyInfo:
                     return null;
                 }*/
 
-                bool flush = true;
+                bool processInput = true;
                 if (IsControl(keyInfo))
                 {// Control
                 }
@@ -242,17 +242,17 @@ ProcessKeyInfo:
                     currentInstance.CharBuffer[position++] = keyInfo.KeyChar;
                     if (this.RawConsole.TryRead(out keyInfo))
                     {
-                        flush = false;
+                        processInput = false;
                         if (position >= (ReadLineInstance.CharBufferSize - 2))
                         {
                             if (position >= ReadLineInstance.CharBufferSize ||
                                 char.IsLowSurrogate(keyInfo.KeyChar))
                             {
-                                flush = true;
+                                processInput = true;
                             }
                         }
 
-                        if (flush)
+                        if (processInput)
                         {
                             pendingKeyInfo = keyInfo;
                         }
@@ -263,12 +263,12 @@ ProcessKeyInfo:
                     }
                 }
 
-                if (flush)
-                {// Process
+                if (processInput)
+                {// Process input
                     string? result;
                     using (this.syncObject.EnterScope())
                     {
-                        result = currentInstance.Process(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
+                        result = currentInstance.ProcessInput(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
                         if (result is not null &&
                             currentInstance.Options.TextInputHook is not null)
                         {

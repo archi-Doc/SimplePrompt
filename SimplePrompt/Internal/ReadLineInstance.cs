@@ -164,25 +164,20 @@ internal class ReadLineInstance
         this.CurrentLocation.Reset();
     }
 
-    public string? Process(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
+    public string? ProcessInput(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
-        if (this.LineIndex >= this.LineList.Count)
+        if (this.CurrentLocation.LineIndex >= this.LineList.Count)
         {
             return string.Empty;
         }
 
-        var simpleTextLine = this.LineList[this.CurrentLocation.LineIndex];
-        if (simpleTextLine.ProcessInternal(keyInfo, charBuffer))
+        var line = this.LineList[this.CurrentLocation.LineIndex];
+        if (line.ProcessInternal(keyInfo, charBuffer))
         {// Exit input mode and return the concatenated string.
-            if (this.LineList.Count == 0)
-            {
-                return string.Empty;
-            }
-
             if (!string.IsNullOrEmpty(this.Options.MultilineIdentifier) &&
-                (SimpleCommandLine.SimpleParserHelper.CountOccurrences(simpleTextLine.InputSpan, this.Options.MultilineIdentifier) % 2) > 0)
+                (SimpleCommandLine.SimpleParserHelper.CountOccurrences(line.InputSpan, this.Options.MultilineIdentifier) % 2) > 0)
             {// Multiple line
-                if (simpleTextLine.Index == this.FirstInputIndex)
+                if (line.Index == this.FirstInputIndex)
                 {// Start
                     this.MultilineMode = true;
                 }
@@ -194,9 +189,9 @@ internal class ReadLineInstance
 
             if (this.MultilineMode)
             {
-                if (simpleTextLine.Index == (this.LineList.Count - 1))
+                if (line.Index == (this.LineList.Count - 1))
                 {// New InputBuffer
-                    if (simpleTextLine.IsEmpty)
+                    if (line.IsEmpty)
                     {// Empty
                         return null;
                     }
@@ -205,8 +200,8 @@ internal class ReadLineInstance
                         return null;
                     }
 
-                    simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, this, this.LineList.Count, this.Options.MultilinePrompt.AsSpan(), true);
-                    this.LineList.Add(simpleTextLine);
+                    line = SimpleTextLine.Rent(this.simpleConsole, this, this.LineList.Count, this.Options.MultilinePrompt.AsSpan(), true);
+                    this.LineList.Add(line);
                     var previousLeft = this.simpleConsole.CursorLeft;
                     var previousTop = this.simpleConsole.CursorTop;
                     if (this.simpleConsole.CursorLeft > 0)
@@ -215,13 +210,13 @@ internal class ReadLineInstance
                         this.simpleConsole.NewLineCursor();
                     }
 
-                    this.simpleConsole.UnderlyingTextWriter.Write(simpleTextLine.PromptSpan);
-                    this.simpleConsole.AdvanceCursor(simpleTextLine.PromptWidth, false);
+                    this.simpleConsole.UnderlyingTextWriter.Write(line.PromptSpan);
+                    this.simpleConsole.AdvanceCursor(line.PromptWidth, false);
                     return null;
                 }
                 else
                 {// Next buffer
-                    this.simpleConsole.SetCursor(this.BufferList[simpleTextLine.Index + 1]);
+                    this.simpleConsole.SetCursor(this.BufferList[line.Index + 1]);
                     return null;
                 }
             }
