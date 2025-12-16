@@ -97,13 +97,6 @@ internal class SimpleTextLine
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal void ChangePromptLengthAndWidth(int lengthDiff, int widthDiff)
-    {
-        this._promptLength += lengthDiff;
-        this._promptWidth += widthDiff;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void ChangeInputLengthAndWidth(int lengthDiff, int widthDiff)
     {
         this._inputLength += lengthDiff;

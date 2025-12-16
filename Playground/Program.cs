@@ -51,6 +51,7 @@ internal class Program
         var simpleConsole = SimpleConsole.GetOrCreate();
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {
+            // MaxInputLength = 4,
             Prompt = "Prompt\n> ",
             InputColor = ConsoleColor.Yellow,
             MultilineIdentifier = "|",
