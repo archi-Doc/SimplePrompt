@@ -126,7 +126,7 @@ internal partial class SimpleTextRow
                 return true;
             }
         }
-        else if (this.Width > this.Line.WindowWidth)
+        else if (this.Width >= this.Line.WindowWidth)
         {// The width exceeds WindowWidth.
             var index = this.Start + this.Length - 1;
             var width = this.Width;

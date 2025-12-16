@@ -174,12 +174,22 @@ internal record class SimpleTextLocation
     {
         this.ArrayPosition += lengthDiff;
         this.CursorPosition += widthDiff;
-        if (this.CursorPosition > this.simpleConsole.WindowWidth)
+
+        if (this.CursorPosition >= this.simpleConsole.WindowWidth)
         {
             var line = this.readLineInstance.LineList[this.LineIndex];
+            var chain = line.Rows.ListChain;
+
             do
             {
-                var row = line.Rows.ListChain[this.RowIndex];
+                var row = chain[this.RowIndex];
+                if (this.RowIndex + 1 >= chain.Count)
+                {
+                    this.ArrayPosition = row.End;
+                    this.CursorPosition = row.Width;
+                    break;
+                }
+
                 this.CursorPosition -= row.Width;
                 this.RowIndex++;
             }
