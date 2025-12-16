@@ -130,11 +130,11 @@ internal class SimpleTextLine
 
                 return true;
             }
-            /*else if (key == ConsoleKey.Backspace)
+            else if (key == ConsoleKey.Backspace)
             {
                 if (this.InputLength == 0)
                 {// Delete empty buffer
-                    this.readLineInstance.TryDeleteBuffer(this.Index);
+                    this.ReadLineInstance.TryDeleteBuffer(this.Index);
                     return false;
                 }
 
@@ -166,9 +166,9 @@ internal class SimpleTextLine
             }
             else if (key == ConsoleKey.Delete)
             {
-                if (this.Length == 0)
+                if (this.InputLength == 0)
                 {// Delete empty buffer
-                    this.readLineInstance.TryDeleteBuffer(this.Index);
+                    this.ReadLineInstance.TryDeleteBuffer(this.Index);
                     return false;
                 }
 
@@ -195,7 +195,7 @@ internal class SimpleTextLine
                 }
 
                 return false;
-            }*/
+            }
             else if (key == ConsoleKey.U && keyInfo.Modifiers == ConsoleModifiers.Control)
             {// Ctrl+U: Clear line
                 this.ClearLine();
