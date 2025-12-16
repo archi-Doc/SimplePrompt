@@ -2,9 +2,7 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using Arc;
 using Arc.Collections;
-using Arc.Unit;
 using ValueLink;
 
 namespace SimplePrompt.Internal;
@@ -138,7 +136,7 @@ internal partial class SimpleTextRow
 
             var lengthDiff = this.Start + this.Length - 1 - index;
             var widthDiff = this.Width - width;
-            this._length = index + 1;
+            this._length = index + 1 - this.Start;
             this._width = width;
 
             var nextStart = this.Start + this.Length;
@@ -164,8 +162,6 @@ internal partial class SimpleTextRow
 
     private void ChangeStartPosition(int newStart, int lengthDiff, int widthDiff)
     {
-        Debug.Assert(lengthDiff == (this.Start - newStart));
-
         this.Start = newStart;
         this._length += lengthDiff;
         this._width += widthDiff;

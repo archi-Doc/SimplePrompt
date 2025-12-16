@@ -211,22 +211,19 @@ internal class SimpleTextLine
             }
             else if (key == ConsoleKey.Home)
             {
-                this.SetCursorPosition(this.PromptWidth, 0, CursorOperation.None);
+                this.ReadLineInstance.CurrentLocation.MoveFirst();
             }
             else if (key == ConsoleKey.End)
             {
-                var newCursor = this.ToCursor(this.TotalWidth);
-                this.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
+                this.ReadLineInstance.CurrentLocation.MoveLast();
             }
             else if (key == ConsoleKey.LeftArrow)
             {
                 this.ReadLineInstance.CurrentLocation.MoveLeft();
-                return false;
             }
             else if (key == ConsoleKey.RightArrow)
             {
                 this.ReadLineInstance.CurrentLocation.MoveRight();
-                return false;
             }
             else if (key == ConsoleKey.UpArrow)
             {// History or move line

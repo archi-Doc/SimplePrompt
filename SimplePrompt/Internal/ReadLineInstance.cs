@@ -142,7 +142,7 @@ internal class ReadLineInstance
         this.CurrentLocation.Reset();
     }
 
-    public string? Process(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
+    /*public string? Process(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
         if (this.LineIndex >= this.BufferList.Count)
         {
@@ -237,9 +237,9 @@ internal class ReadLineInstance
         {
             return null;
         }
-    }
+    }*/
 
-    public string? Process2(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
+    public string? Process(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
         if (this.LineIndex >= this.LineList.Count)
         {
@@ -385,8 +385,13 @@ internal class ReadLineInstance
     {
         var length = 0;
         var isFirst = true;
-        for (var i = this.EditableBufferIndex; i < this.LineList.Count; i++)
+        for (var i = 0; i < this.LineList.Count; i++)
         {
+            if (!this.LineList[i].IsInput)
+            {
+                continue;
+            }
+
             if (isFirst)
             {
                 isFirst = false;

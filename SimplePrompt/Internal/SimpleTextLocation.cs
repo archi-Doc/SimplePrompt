@@ -18,6 +18,18 @@ internal record class SimpleTextLocation
 
     public int CursorPosition { get; set; }
 
+    public bool TryGetLine([MaybeNullWhen(false)] out SimpleTextLine line)
+    {
+        if (this.LineIndex >= this.readLineInstance.LineList.Count)
+        {
+            line = default;
+            return false;
+        }
+
+        line = this.readLineInstance.LineList[this.LineIndex];
+        return true;
+    }
+
     public bool TryGetLineAndRow([MaybeNullWhen(false)] out SimpleTextLine line, [MaybeNullWhen(false)] out SimpleTextRow row)
     {
         if (this.LineIndex >= this.readLineInstance.LineList.Count)
@@ -54,25 +66,59 @@ internal record class SimpleTextLocation
             }
         }
 
-        this.ResetInternal();
+        this.ResetZero();
     }
 
     public void SetCursor()
     {
         if (this.LineIndex >= this.readLineInstance.LineList.Count)
         {
-            this.ResetInternal();
+            this.Reset();
             return;
         }
 
         var line = this.readLineInstance.LineList[this.LineIndex];
         if (this.RowIndex >= line.Rows.Count)
         {
-            this.ResetInternal();
+            this.Reset();
             return;
         }
 
         var row = line.Rows.ListChain[this.RowIndex];
+        this.SetCursor(row);
+    }
+
+    public void MoveFirst()
+    {
+        this.RowIndex = 0;
+        if (!this.TryGetLineAndRow(out var line, out var row))
+        {
+            return;
+        }
+
+        this.ArrayPosition = 0;
+        this.CursorPosition = line.PromptWidth;
+
+        this.SetCursor(row);
+    }
+
+    public void MoveLast()
+    {
+        if (!this.TryGetLine(out var line))
+        {
+            return;
+        }
+
+        if (line.Rows.Count == 0)
+        {
+            return;
+        }
+
+        this.RowIndex = line.Rows.Count - 1;
+        var row = line.Rows.ListChain[this.RowIndex];
+        this.ArrayPosition = line.TotalLength;
+        this.CursorPosition = row.Width;
+
         this.SetCursor(row);
     }
 
@@ -107,8 +153,9 @@ internal record class SimpleTextLocation
             if (this.RowIndex > 0)
             {
                 this.RowIndex--;
+                row = line.Rows.ListChain[this.RowIndex];
                 this.ArrayPosition -= length;
-                this.CursorPosition = line.Rows.ListChain[this.RowIndex].Width;
+                this.CursorPosition = line.Rows.ListChain[this.RowIndex].Width - width;
             }
         }
         else
@@ -183,7 +230,7 @@ internal record class SimpleTextLocation
             do
             {
                 var row = chain[this.RowIndex];
-                if (this.RowIndex + 1 >= chain.Count)
+                if (this.RowIndex >= (chain.Count - 1))
                 {
                     this.ArrayPosition = row.End;
                     this.CursorPosition = row.Width;
@@ -214,7 +261,7 @@ internal record class SimpleTextLocation
         if (this.ArrayPosition < row.Start ||
             row.End < this.ArrayPosition)
         {
-            this.ResetInternal();
+            this.Reset();
             return;
         }
 
@@ -234,7 +281,7 @@ internal record class SimpleTextLocation
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void ResetInternal()
+    private void ResetZero()
     {
         this.LineIndex = 0;
         this.RowIndex = 0;
