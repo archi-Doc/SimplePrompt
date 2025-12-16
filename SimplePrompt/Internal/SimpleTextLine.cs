@@ -629,7 +629,7 @@ internal class SimpleTextLine
 
         row.AddInput(charBuffer.Length, width);
 
-        this.Write(position, position + line.InputLength, width, 0);
+        this.Write(position, this.TotalLength, width, 0);
         this.ReadLineInstance.CurrentLocation.Move(charBuffer.Length, width);
 
         /*var line = this.FindLine();

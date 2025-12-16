@@ -124,7 +124,7 @@ internal partial class SimpleTextRow
                 return true;
             }
         }
-        else if (this.Width >= this.Line.WindowWidth)
+        else if (this.Width > this.Line.WindowWidth)
         {// The width exceeds WindowWidth.
             var index = this.Start + this.Length - 1;
             var width = this.Width;
@@ -139,16 +139,15 @@ internal partial class SimpleTextRow
             this._length = index + 1 - this.Start;
             this._width = width;
 
-            var nextStart = this.Start + this.Length;
             if (nextRow is null)
             {
                 nextRow = SimpleTextRow.Rent(this.Line);
-                nextRow.Prepare(nextStart, nextStart, lengthDiff, widthDiff);
+                nextRow.Prepare(this.End, this.End, lengthDiff, widthDiff);
                 nextRow.Arrange();
             }
             else
             {
-                nextRow.ChangeStartPosition(nextStart, lengthDiff, widthDiff);
+                nextRow.ChangeStartPosition(this.End, lengthDiff, widthDiff);
                 nextRow.Arrange();
             }
 
@@ -156,7 +155,17 @@ internal partial class SimpleTextRow
         }
         else
         {// The width is exactly equal to WindowWidth.
-            return false;
+            if (nextRow is null)
+            {
+                nextRow = SimpleTextRow.Rent(this.Line);
+                nextRow.Prepare(this.End, this.End, 0, 0);
+                nextRow.Arrange();
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
     }
 

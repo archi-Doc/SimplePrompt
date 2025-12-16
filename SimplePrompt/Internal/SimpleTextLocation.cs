@@ -96,7 +96,7 @@ internal record class SimpleTextLocation
             return;
         }
 
-        this.ArrayPosition = 0;
+        this.ArrayPosition = line.PromptLength;
         this.CursorPosition = line.PromptWidth;
 
         this.SetCursor(row);
