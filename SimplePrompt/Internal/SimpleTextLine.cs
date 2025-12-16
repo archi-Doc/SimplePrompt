@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Collections;
 using Arc.Unit;
+using ValueLink;
 
 namespace SimplePrompt.Internal;
 
@@ -124,13 +125,11 @@ internal class SimpleTextLine
         if (keyInfo.Key != ConsoleKey.None)
         {// Control
             var key = keyInfo.Key;
-            /*if (key == ConsoleKey.Enter)
+            if (key == ConsoleKey.Enter)
             {// Exit or Multiline """
-                if (!this.readLineInstance.Options.AllowEmptyLineInput)
+                if (!this.ReadLineInstance.Options.AllowEmptyLineInput)
                 {
-                    if (this.readLineInstance.LineList.Count == 0 ||
-                    (this.readLineInstance.LineList.Count == 1 &&
-                    this.readLineInstance.LineList[0].InputLength == 0))
+                    if (this.ReadLineInstance.IsEmptyInput())
                     {// Empty input
                         return false;
                     }
@@ -138,7 +137,7 @@ internal class SimpleTextLine
 
                 return true;
             }
-            else if (key == ConsoleKey.Backspace)
+            /*else if (key == ConsoleKey.Backspace)
             {
                 if (this.InputLength == 0)
                 {// Delete empty buffer
@@ -203,9 +202,8 @@ internal class SimpleTextLine
                 }
 
                 return false;
-            }
-            else */
-            if (key == ConsoleKey.U && keyInfo.Modifiers == ConsoleModifiers.Control)
+            }*/
+            else if (key == ConsoleKey.U && keyInfo.Modifiers == ConsoleModifiers.Control)
             {// Ctrl+U: Clear line
                 this.ClearLine();
             }
@@ -483,14 +481,60 @@ internal class SimpleTextLine
         }
     }
 
+    internal void ResetRows()
+    {
+        SimpleTextRow row;
+        var start = 0;
+        var windowWidth = this.SimpleConsole.WindowWidth;
+        while (start < this.PromptLength)
+        {// Prepare slices
+            var width = 0;
+            var end = start;
+            var inputStart = start;
+            while (end < this.PromptLength)
+            {
+                if (width + this.widthArray[end] > windowWidth)
+                {// Immutable slice
+                    inputStart = -1;
+                    break;
+                }
+                else
+                {// Mutable slice
+                    width += this.widthArray[end];
+                    end++;
+                    inputStart = end;
+                }
+            }
+
+            if (!this.IsInput)
+            {
+                inputStart = -1;
+            }
+
+            var length = end - start;
+            row = SimpleTextRow.Rent(this);
+            row.Prepare(start, inputStart, length, width);
+            start = end;
+        }
+    }
+
     private void ClearLine()
     {
         Array.Fill<char>(this.charArray, ' ', this.PromptWidth, this.InputWidth);
         Array.Fill<byte>(this.widthArray, 1, this.PromptWidth, this.InputWidth);
         this.Write(this.PromptWidth, this.TotalWidth, 0, 0);
 
-        this.ChangeInputLengthAndWidth(-this.InputLength, -this.InputWidth);
-        this.SetCursorPosition(this.PromptWidth, 0, CursorOperation.None);
+        this.Clear();
+        this.ReadLineInstance.CurrentLocation.Reset(this);
+    }
+
+    private void Clear()
+    {
+        this._inputLength = 0;
+        this._inputWidth = 0;
+
+        this.ReleaseRows();
+        this.ResetRows();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -602,7 +646,7 @@ internal class SimpleTextLine
             return;
         }
 
-        var position = this.ReadLineInstance.CurrentLocation.ArrayPosition;
+        var position = Math.Min(this.ReadLineInstance.CurrentLocation.ArrayPosition, this.TotalLength);
         this.charArray.AsSpan(position, this.TotalLength - position).CopyTo(this.charArray.AsSpan(position + charBuffer.Length));
         charBuffer.CopyTo(this.charArray.AsSpan(position));
         this.widthArray.AsSpan(position, this.TotalLength - position).CopyTo(this.widthArray.AsSpan(position + charBuffer.Length));
@@ -666,48 +710,15 @@ internal class SimpleTextLine
 
         this.EnsureBuffer(prompt.Length);
         prompt.CopyTo(this.charArray);
-        var promptLength = prompt.Length;
         for (var i = 0; i < prompt.Length; i++)
         {
             this.widthArray[i] = SimplePromptHelper.GetCharWidth(this.charArray[i]);
         }
 
-        var promptWidth = (int)BaseHelper.Sum(this.widthArray.AsSpan(0, this.PromptLength));
+        this._promptLength = prompt.Length;
+        this._promptWidth = (int)BaseHelper.Sum(this.widthArray.AsSpan(0, this.PromptLength));
 
-        SimpleTextRow slice;
-        var start = 0;
-        var windowWidth = this.SimpleConsole.WindowWidth;
-        while (start < prompt.Length)
-        {// Prepare slices
-            var width = 0;
-            var end = start;
-            var inputStart = start;
-            while (end < prompt.Length)
-            {
-                if (width + this.widthArray[end] > windowWidth)
-                {// Immutable slice
-                    inputStart = -1;
-                    break;
-                }
-                else
-                {// Mutable slice
-                    width += this.widthArray[end];
-                    end++;
-                    inputStart = end;
-                }
-            }
-
-            if (!this.IsInput)
-            {
-                inputStart = -1;
-            }
-
-            var length = end - start;
-            slice = SimpleTextRow.Rent(this);
-            slice.Prepare(start, inputStart, length, width);
-            this.ChangePromptLengthAndWidth(length, width);
-            start = end;
-        }
+        this.ResetRows();
     }
 
     private void Initialize(SimpleConsole simpleConsole, ReadLineInstance readLineInstance, int index, ReadOnlySpan<char> prompt, bool isInput)
@@ -723,7 +734,19 @@ internal class SimpleTextLine
     {
         this.SimpleConsole = default!;
         this.ReadLineInstance = default!;
-        foreach (var x in this.rows)
+
+        this.ReleaseRows();
+    }
+
+    private void ReleaseRows()
+    {
+        TemporaryList<SimpleTextRow> list = default;
+        foreach (var x in this.Rows)
+        {
+            list.Add(x);
+        }
+
+        foreach (var x in list)
         {
             SimpleTextRow.Return(x);
         }

@@ -76,6 +76,28 @@ internal class ReadLineInstance
         this.CurrentLocation.Uninitialize();
     }
 
+    public bool IsEmptyInput()
+    {
+        foreach (var x in this.LineList)
+        {
+            if (!x.IsInput)
+            {
+                continue;
+            }
+
+            foreach (var y in x.Rows)
+            {
+                if (y.IsInput && y.InputStart < y.End)
+                {// Not empty
+                    return false;
+                }
+            }
+        }
+
+        // Empty input
+        return true;
+    }
+
     public void Prepare()
     {
         var prompt = this.Options.Prompt.AsSpan();

@@ -69,6 +69,18 @@ internal record class SimpleTextLocation
         this.ResetZero();
     }
 
+    public void Reset(SimpleTextLine line)
+    {
+        if (line.IsInput && line.Rows.Count > 0)
+        {
+            this.LineIndex = line.Index;
+            this.RowIndex = 0;
+            this.ArrayPosition = line.PromptLength;
+            this.CursorPosition = line.PromptWidth;
+            this.SetCursor(line.Rows.ListChain[0]);
+        }
+    }
+
     public void SetCursor()
     {
         if (this.LineIndex >= this.readLineInstance.LineList.Count)
