@@ -211,7 +211,7 @@ internal class ReadLineInstance
                     }
 
                     this.simpleConsole.UnderlyingTextWriter.Write(line.PromptSpan);
-                    this.simpleConsole.AdvanceCursor(line.PromptWidth, false);
+                    this.simpleConsole.AdvanceCursor(line.PromptWidth, false);//
                     return null;
                 }
                 else
@@ -301,7 +301,8 @@ internal class ReadLineInstance
         SimpleTextLine.Return(lineToDelete);
 
         this.ClearLastLine(dif);
-        this.simpleConsole.SetCursor(this.BufferList[index]);
+        this.CurrentLocation.MoveToLine(index);
+        this.CurrentLocation.LocationToCursor();
     }
 
     public bool IsLengthWithinLimit(int dif)

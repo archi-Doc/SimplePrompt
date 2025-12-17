@@ -55,6 +55,10 @@ internal class SimpleTextLine
 
     public int Top { get; set; }
 
+    public int InitialCursorPosition { get; private set; }
+
+    public int InitialRowIndex { get; private set; }
+
     /// <summary>
     /// Gets the cursor's horizontal position relative to the line's left edge.
     /// </summary>
@@ -475,23 +479,26 @@ internal class SimpleTextLine
 
     internal void ResetRows()
     {
+        this.InitialRowIndex = 0;
+        this.InitialCursorPosition = 0;
+
         SimpleTextRow row;
         var start = 0;
         var windowWidth = this.SimpleConsole.WindowWidth;
         while (start < this.PromptLength)
-        {// Prepare slices
+        {// Prepare rows
             var width = 0;
             var end = start;
             var inputStart = start;
             while (end < this.PromptLength)
             {
                 if (width + this.widthArray[end] > windowWidth)
-                {// Immutable slice
+                {// Immutable row
                     inputStart = -1;
                     break;
                 }
                 else
-                {// Mutable slice
+                {// Mutable row
                     width += this.widthArray[end];
                     end++;
                     inputStart = end;
@@ -507,6 +514,12 @@ internal class SimpleTextLine
             row = SimpleTextRow.Rent(this);
             row.Prepare(start, inputStart, length, width);
             start = end;
+
+            if (inputStart >= 0)
+            {
+                this.InitialRowIndex = row.ListLink.Index;
+                this.InitialCursorPosition = width;
+            }
         }
     }
 
@@ -590,7 +603,7 @@ internal class SimpleTextLine
         }
 
         var cursorIndex = line.GetCursorIndex(cursorLeft, cursorTop);
-        line.TrimCursorIndex(ref cursorIndex);
+        line.TrimCursorIndex(ref cursorIndex);//
 
         var newCursor = line.ToCursor(cursorIndex);
         if (line.CursorLeft != newCursor.Left ||
