@@ -302,7 +302,6 @@ internal class ReadLineInstance
 
         this.ClearLastLine(dif);
         this.CurrentLocation.MoveToLine(index);
-        this.CurrentLocation.LocationToCursor();
     }
 
     public bool IsLengthWithinLimit(int dif)
