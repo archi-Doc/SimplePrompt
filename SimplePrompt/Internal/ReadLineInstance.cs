@@ -299,6 +299,7 @@ internal class ReadLineInstance
         }
 
         SimpleTextLine.Return(lineToDelete);
+
         this.ClearLastLine(dif);
         this.simpleConsole.SetCursor(this.BufferList[index]);
     }
@@ -563,8 +564,13 @@ internal class ReadLineInstance
 
     private void ClearLastLine(int dif)
     {
-        var buffer = this.BufferList[this.BufferList.Count - 1];
-        var top = buffer.Top + buffer.Height;
+        if (this.LineList.Count == 0)
+        {
+            return;
+        }
+
+        var line = this.LineList[this.LineList.Count - 1];
+        var top = line.Top + line.Height;
         for (var i = 0; i < -dif; i++)
         {
             this.ClearLine(top + i);
