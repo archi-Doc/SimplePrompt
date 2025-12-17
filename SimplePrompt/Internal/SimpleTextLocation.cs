@@ -156,16 +156,16 @@ internal record class SimpleTextLocation
         this.LocationToCursor(row);
     }
 
-    public void MoveLeft()
+    public bool MoveLeft(bool moveCursor)
     {
         if (!this.TryGetLineAndRow(out var line, out var row))
         {
-            return;
+            return false;
         }
 
         if (this.ArrayPosition <= line.PromptLength)
         {
-            return;
+            return false;
         }
 
         int length, width;
@@ -198,7 +198,12 @@ internal record class SimpleTextLocation
             this.CursorPosition -= width;
         }
 
-        this.LocationToCursor(row);
+        if (moveCursor)
+        {
+            this.LocationToCursor(row);
+        }
+
+        return true;
     }
 
     public void MoveRight()
