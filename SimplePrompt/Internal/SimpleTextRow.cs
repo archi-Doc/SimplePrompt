@@ -52,13 +52,16 @@ internal partial class SimpleTextRow
 
     public ReadOnlySpan<byte> WidthSpan => this.Line.WidthArray.AsSpan(this.Start, this.Length);
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ChangeInputLengthAndWidth(int lengthDiff, int widthDiff)
     {
         this._length += lengthDiff;
         this._width += widthDiff;
-        this.Line.ChangeInputLengthAndWidth(lengthDiff, widthDiff);
-    }
+
+        // this.Line.ChangeInputLengthAndWidth(lengthDiff, widthDiff);
+        this.Line._inputLength += lengthDiff;
+        this.Line._inputWidth += widthDiff;
+    }*/
 
     #endregion
 
@@ -76,9 +79,13 @@ internal partial class SimpleTextRow
         this._width = width;
     }
 
-    public bool AddInput(int length, int width)
+    public bool AddInput(int lengthDiff, int widthDiff)
     {
-        this.ChangeInputLengthAndWidth(length, width);
+        this._length += lengthDiff;
+        this._width += widthDiff;
+        this.Line._inputLength += lengthDiff;
+        this.Line._inputWidth += widthDiff;
+
         return this.Arrange();
     }
 

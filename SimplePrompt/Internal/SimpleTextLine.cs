@@ -38,8 +38,13 @@ internal class SimpleTextLine
     private byte[] widthArray = new byte[InitialBufferSize];
     private int _promptLength;
     private int _promptWidth;
-    private int _inputLength;
-    private int _inputWidth;
+
+#pragma warning disable SA1202 // Elements should be ordered by access
+#pragma warning disable SA1401 // Fields should be private
+    internal int _inputLength;
+    internal int _inputWidth;
+#pragma warning restore SA1401 // Fields should be private
+#pragma warning restore SA1202 // Elements should be ordered by access
 
     public SimpleConsole SimpleConsole { get; private set; }
 
@@ -99,12 +104,12 @@ internal class SimpleTextLine
         this.ReadLineInstance = default!;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void ChangeInputLengthAndWidth(int lengthDiff, int widthDiff)
     {
         this._inputLength += lengthDiff;
         this._inputWidth += widthDiff;
-    }
+    }*/
 
     internal ReadOnlySpan<char> PromptSpan => this.charArray.AsSpan(0, this.PromptLength);
 

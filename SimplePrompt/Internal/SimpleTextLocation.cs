@@ -69,7 +69,7 @@ internal record class SimpleTextLocation
         if (line.IsInput && line.Rows.Count > 0)
         {
             this.LineIndex = line.Index;
-            this.RowIndex = line.InitialRowIndex; ;
+            this.RowIndex = line.InitialRowIndex;
             this.ArrayPosition = line.PromptLength;
             this.CursorPosition = line.InitialCursorPosition;
             this.LocationToCursor(line.Rows.ListChain[0]);
