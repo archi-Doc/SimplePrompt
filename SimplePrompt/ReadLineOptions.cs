@@ -1,8 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using Arc.Threading;
-using static SimplePrompt.SimpleConsole;
-
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
 namespace SimplePrompt;

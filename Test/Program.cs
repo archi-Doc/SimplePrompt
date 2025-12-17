@@ -5,7 +5,6 @@ using Arc.Threading;
 using Arc.Unit;
 using Microsoft.Extensions.DependencyInjection;
 using SimplePrompt;
-using static SimpleCommandLine.SimpleParser;
 
 namespace Playground;
 
