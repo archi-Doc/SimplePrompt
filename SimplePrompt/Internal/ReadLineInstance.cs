@@ -282,21 +282,23 @@ internal class ReadLineInstance
     public void TryDeleteBuffer(int index)
     {
         if (index < 0 ||
-            index >= (this.BufferList.Count - 1))
+            index >= (this.LineList.Count - 1))
         {
             return;
         }
 
-        var dif = -this.BufferList[index].Height;
-        this.BufferList.RemoveAt(index);
-        for (var i = index; i < this.BufferList.Count; i++)
+        var lineToDelete = this.LineList[index];
+        var dif = -lineToDelete.Height;
+        this.LineList.RemoveAt(index);
+        for (var i = index; i < this.LineList.Count; i++)
         {
-            var buffer = this.BufferList[i];
+            var buffer = this.LineList[i];
             buffer.Index = i;
             buffer.Top += dif;
             buffer.Write(0, -1, 0, 0, true);
         }
 
+        SimpleTextLine.Return(lineToDelete);
         this.ClearLastLine(dif);
         this.simpleConsole.SetCursor(this.BufferList[index]);
     }

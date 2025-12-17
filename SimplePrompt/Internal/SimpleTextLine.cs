@@ -49,7 +49,7 @@ internal class SimpleTextLine
 
     public int WindowHeight => this.SimpleConsole.WindowHeight;
 
-    public int Index { get; private set; }
+    public int Index { get; internal set; }
 
     public bool IsInput { get; private set; }
 
