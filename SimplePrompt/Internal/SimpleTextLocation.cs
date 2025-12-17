@@ -112,19 +112,6 @@ internal record class SimpleTextLocation
         this.LocationToCursor(row);
     }
 
-    /*public void MoveToLine(SimpleTextLine line)
-    {
-        this.Reset(line);
-
-        if (line.Rows.Count == 0)
-        {
-            return;
-        }
-
-        var row = line.Rows.ListChain[0];
-        this.LocationToCursor(row);
-    }*/
-
     public void MoveFirst()
     {
         this.RowIndex = 0;
@@ -266,13 +253,48 @@ internal record class SimpleTextLocation
         if (up)
         {// Up
             if (this.RowIndex > line.InitialRowIndex)
-            {
+            {// Previous row
                 this.RowIndex--;
             }
             else
-            {
+            {// Previous line
+                if (this.LineIndex > 0 &&
+                    this.readLineInstance.LineList[this.LineIndex - 1].IsInput &&
+                    this.readLineInstance.LineList[this.LineIndex - 1].Rows.Count > 0)
+                {
+                    this.LineIndex--;
+                    line = this.readLineInstance.LineList[this.LineIndex];
+                    this.RowIndex = line.Rows.Count - 1;
+                }
             }
         }
+        else
+        {// Down
+            if (this.RowIndex < line.Rows.Count - 1)
+            {// Next row
+                this.RowIndex++;
+            }
+            else
+            {// Next line
+                if (this.readLineInstance.LineList.Count > 0 &&
+                    this.LineIndex < this.readLineInstance.LineList.Count - 1)
+                {
+                    this.LineIndex++;
+                    line = this.readLineInstance.LineList[this.LineIndex];
+                    this.RowIndex = line.InitialRowIndex;
+                }
+
+            }
+        }
+
+        row = line.Rows.ListChain[this.RowIndex];
+        var cursorPosition = this.CursorPosition;
+        row.TrimCursorPosition(ref cursorPosition, out var arrayPosition);
+        this.ArrayPosition = arrayPosition;
+        this.CursorPosition = cursorPosition;
+
+        this.LocationToCursor(row);
+
     }
 
     public void Move(int lengthDiff, int widthDiff)

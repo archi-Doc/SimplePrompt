@@ -16,7 +16,7 @@ internal class Program
             InputColor = ConsoleColor.Yellow,
             Prompt = "> ",
             MultilinePrompt = "# ",
-            MultilineIdentifier = "|",
+            MultilineDelimiter = "|",
             CancelOnEscape = true,
             AllowEmptyLineInput = true,
         };

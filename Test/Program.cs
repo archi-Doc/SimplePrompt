@@ -136,7 +136,7 @@ internal class Program
             var options = ReadLineOptions.MultiLine with
             {
                 Prompt = "Yes or No?\r\n[Y/n] ",
-                MultilineIdentifier = "|",
+                MultilineDelimiter = "|",
                 MaxInputLength = 5,
                 TextInputHook = text =>
                 {
@@ -166,7 +166,7 @@ internal class Program
             {
                 Prompt = "Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input> ",
                 MultilinePrompt = ">> ",
-                MultilineIdentifier = "...",
+                MultilineDelimiter = "...",
                 InputColor = ConsoleColor.Cyan,
                 CancelOnEscape = false,
                 AllowEmptyLineInput = true,

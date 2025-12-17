@@ -89,6 +89,30 @@ internal partial class SimpleTextRow
         return this.Arrange();
     }
 
+    public void TrimCursorPosition(ref int cursorPosition, out int arrayPosition)
+    {
+        if (cursorPosition <= this.InputStart)
+        {
+        }
+
+        var i = 0;
+        var cursor = 0;
+        var nextCursor = 0;
+        for (i = this.Start; i < this.End; i++)
+        {
+            nextCursor = cursor + this.WidthSpan[i];
+            if (nextCursor >= cursorPosition)
+            {
+                break;
+            }
+
+            cursor = nextCursor;
+        }
+
+        cursorPosition = nextCursor;
+        arrayPosition = i;
+    }
+
     public override string ToString()
     {
         return this.CharSpan.ToString();

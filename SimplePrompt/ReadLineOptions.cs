@@ -12,7 +12,7 @@ public record class ReadLineOptions
     public static readonly ReadLineOptions SingleLine = new()
     {
         MaxInputLength = 1024,
-        MultilineIdentifier = null,
+        MultilineDelimiter = null,
         AllowEmptyLineInput = false,
     };
 
@@ -49,7 +49,7 @@ public record class ReadLineOptions
     /// Default is three double quotes (""").<br/>
     /// Set this to <see langword="null"/> to disable multi-line input.<br/>
     /// </summary>
-    public string? MultilineIdentifier { get; init; } = "\"\"\"";
+    public string? MultilineDelimiter { get; init; } = "\"\"\"";
 
     /// <summary>
     /// Gets a value indicating whether to cancel the ReadLine operation when the Escape key is pressed.

@@ -54,7 +54,7 @@ internal class Program
             // MaxInputLength = 4,
             Prompt = "Prompt\n> ",
             InputColor = ConsoleColor.Yellow,
-            MultilineIdentifier = "|",
+            MultilineDelimiter = "|",
             CancelOnEscape = true,
             // MaskingCharacter = '?',
             KeyInputHook = keyInfo => KeyInputHook(keyInfo),

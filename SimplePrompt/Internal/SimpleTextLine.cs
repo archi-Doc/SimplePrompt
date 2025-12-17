@@ -170,8 +170,8 @@ internal class SimpleTextLine
             {// History or move line
                 if (this.ReadLineInstance.MultilineMode)
                 {// Up
-                    // this.ReadLineInstance.CurrentLocation.MoveHorizontal(true);
-                    this.ReadLineInstance.CurrentLocation.ChangeLine(-1);
+                    this.ReadLineInstance.CurrentLocation.MoveHorizontal(true);
+                    // this.ReadLineInstance.CurrentLocation.ChangeLine(-1, true);
                 }
                 else
                 {// History
@@ -183,8 +183,8 @@ internal class SimpleTextLine
             {// History or move line
                 if (this.ReadLineInstance.MultilineMode)
                 {// Down
-                    // this.ReadLineInstance.CurrentLocation.MoveHorizontal(false);
-                    this.ReadLineInstance.CurrentLocation.ChangeLine(+1);
+                    this.ReadLineInstance.CurrentLocation.MoveHorizontal(false);
+                    // this.ReadLineInstance.CurrentLocation.ChangeLine(+1, true);
                 }
                 else
                 {// History

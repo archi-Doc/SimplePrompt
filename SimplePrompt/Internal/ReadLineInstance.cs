@@ -174,8 +174,8 @@ internal class ReadLineInstance
         var line = this.LineList[this.CurrentLocation.LineIndex];
         if (line.ProcessInternal(keyInfo, charBuffer))
         {// Exit input mode and return the concatenated string.
-            if (!string.IsNullOrEmpty(this.Options.MultilineIdentifier) &&
-                (SimpleCommandLine.SimpleParserHelper.CountOccurrences(line.InputSpan, this.Options.MultilineIdentifier) % 2) > 0)
+            if (!string.IsNullOrEmpty(this.Options.MultilineDelimiter) &&
+                (SimpleCommandLine.SimpleParserHelper.CountOccurrences(line.InputSpan, this.Options.MultilineDelimiter) % 2) > 0)
             {// Multiple line
                 if (line.Index == this.FirstInputIndex)
                 {// Start
@@ -211,16 +211,6 @@ internal class ReadLineInstance
                     this.simpleConsole.AdvanceCursor(line.PromptWidth, false);
                     this.CurrentLocation.Reset(line);
 
-                    /*var previousLeft = this.simpleConsole.CursorLeft;
-                    var previousTop = this.simpleConsole.CursorTop;
-                    if (this.simpleConsole.CursorLeft > 0)
-                    {
-                        this.simpleConsole.UnderlyingTextWriter.WriteLine();
-                        this.simpleConsole.NewLineCursor();
-                    }
-
-                    this.simpleConsole.UnderlyingTextWriter.Write(line.PromptSpan);
-                    this.simpleConsole.AdvanceCursor(line.PromptWidth, false);*/
                     return null;
                 }
                 else
