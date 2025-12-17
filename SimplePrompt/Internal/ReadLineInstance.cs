@@ -191,8 +191,8 @@ internal class ReadLineInstance
             {
                 if (line.Index == (this.LineList.Count - 1))
                 {// New InputBuffer
-                    if (line.IsEmpty)
-                    {// Empty
+                    if (line.InputLength == 0)
+                    {// Empty input
                         return null;
                     }
                     else if (!this.IsLengthWithinLimit(1))
@@ -200,9 +200,18 @@ internal class ReadLineInstance
                         return null;
                     }
 
+                    var previousLine = this.LineList[this.LineList.Count - 1];
                     line = SimpleTextLine.Rent(this.simpleConsole, this, this.LineList.Count, this.Options.MultilinePrompt.AsSpan(), true);
                     this.LineList.Add(line);
-                    var previousLeft = this.simpleConsole.CursorLeft;
+                    line.Top = previousLine.Top + previousLine.Height;
+
+                    this.simpleConsole.UnderlyingTextWriter.WriteLine();
+                    this.simpleConsole.NewLineCursor();
+                    this.simpleConsole.UnderlyingTextWriter.Write(line.PromptSpan);
+                    this.simpleConsole.AdvanceCursor(line.PromptWidth, false);
+                    this.CurrentLocation.Reset(line);
+
+                    /*var previousLeft = this.simpleConsole.CursorLeft;
                     var previousTop = this.simpleConsole.CursorTop;
                     if (this.simpleConsole.CursorLeft > 0)
                     {
@@ -211,7 +220,7 @@ internal class ReadLineInstance
                     }
 
                     this.simpleConsole.UnderlyingTextWriter.Write(line.PromptSpan);
-                    this.simpleConsole.AdvanceCursor(line.PromptWidth, false);//
+                    this.simpleConsole.AdvanceCursor(line.PromptWidth, false);*/
                     return null;
                 }
                 else
@@ -248,7 +257,6 @@ internal class ReadLineInstance
                 }
             });
 
-            this.SetCursorAtEnd(CursorOperation.None);
             return result;
         }
         else
@@ -279,10 +287,10 @@ internal class ReadLineInstance
         this.simpleConsole.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.Show);
     }
 
-    public void TryDeleteBuffer(int index)
+    public void TryDeleteBuffer(int index, bool backspace)
     {
-        if (index < 0 ||
-            index >= (this.LineList.Count - 1))
+        if (index <= this.FirstInputIndex ||
+            index >= this.LineList.Count)
         {
             return;
         }
@@ -301,7 +309,25 @@ internal class ReadLineInstance
         SimpleTextLine.Return(lineToDelete);
 
         this.ClearLastLine(dif);
-        this.CurrentLocation.MoveToLine(index);
+
+        if (backspace)
+        {
+            if (index > 0)
+            {
+                index--;
+            }
+        }
+        else
+        {
+            if (this.LineList.Count > 0 &&
+                index > (this.LineList.Count - 1))
+            {
+                index = this.LineList.Count - 1;
+                backspace = true;
+            }
+        }
+
+        this.CurrentLocation.Reset(this.LineList[index], backspace);
     }
 
     public bool IsLengthWithinLimit(int dif)

@@ -64,15 +64,27 @@ internal record class SimpleTextLocation
         this.ResetZero();
     }
 
-    public bool Reset(SimpleTextLine line)
+    public bool Reset(SimpleTextLine line, bool lastPosition = false)
     {
         if (line.IsInput && line.Rows.Count > 0)
         {
             this.LineIndex = line.Index;
-            this.RowIndex = line.InitialRowIndex;
-            this.ArrayPosition = line.PromptLength;
-            this.CursorPosition = line.InitialCursorPosition;
-            this.LocationToCursor(line.Rows.ListChain[0]);
+            if (lastPosition)
+            {
+                this.RowIndex = line.Rows.Count - 1;
+                var row = line.Rows.ListChain[this.RowIndex];
+                this.ArrayPosition = row.End;
+                this.CursorPosition = row.Width;
+                this.LocationToCursor(row);
+            }
+            else
+            {
+                this.RowIndex = line.InitialRowIndex;
+                this.ArrayPosition = line.PromptLength;
+                this.CursorPosition = line.InitialCursorPosition;
+                this.LocationToCursor(line.Rows.ListChain[0]);
+            }
+
             return true;
         }
         else
@@ -100,20 +112,8 @@ internal record class SimpleTextLocation
         this.LocationToCursor(row);
     }
 
-    public void MoveToLine(int index)
+    /*public void MoveToLine(SimpleTextLine line)
     {
-        var lineList = this.readLineInstance.LineList;
-        if (lineList.Count == 0)
-        {
-            return;
-        }
-
-        if (index >= lineList.Count)
-        {
-            index = lineList.Count - 1;
-        }
-
-        var line = lineList[index];
         this.Reset(line);
 
         if (line.Rows.Count == 0)
@@ -123,7 +123,7 @@ internal record class SimpleTextLocation
 
         var row = line.Rows.ListChain[0];
         this.LocationToCursor(row);
-    }
+    }*/
 
     public void MoveFirst()
     {
@@ -256,6 +256,25 @@ internal record class SimpleTextLocation
         this.LocationToCursor(row);
     }
 
+    public void MoveHorizontal(bool up)
+    {
+        if (!this.TryGetLineAndRow(out var line, out var row))
+        {
+            return;
+        }
+
+        if (up)
+        {// Up
+            if (this.RowIndex > line.InitialRowIndex)
+            {
+                this.RowIndex--;
+            }
+            else
+            {
+            }
+        }
+    }
+
     public void Move(int lengthDiff, int widthDiff)
     {
         this.ArrayPosition += lengthDiff;
@@ -283,7 +302,7 @@ internal record class SimpleTextLocation
         }
     }
 
-    public void ChangeLine(int diff)
+    public void ChangeLine(int diff, bool keepCursorPosition = false)
     {
         var nextLine = this.LineIndex + diff;
         if (nextLine < 0)

@@ -113,7 +113,7 @@ internal class ReadLineBuffer
             {
                 if (this.Length == 0)
                 {// Delete empty buffer
-                    this.readLineInstance.TryDeleteBuffer(this.Index);
+                    this.readLineInstance.TryDeleteBuffer(this.Index, true);
                     return false;
                 }
 
@@ -147,7 +147,7 @@ internal class ReadLineBuffer
             {
                 if (this.Length == 0)
                 {// Delete empty buffer
-                    this.readLineInstance.TryDeleteBuffer(this.Index);
+                    this.readLineInstance.TryDeleteBuffer(this.Index, false);
                     return false;
                 }
 

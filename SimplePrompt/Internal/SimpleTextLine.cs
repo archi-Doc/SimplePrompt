@@ -170,7 +170,8 @@ internal class SimpleTextLine
             {// History or move line
                 if (this.ReadLineInstance.MultilineMode)
                 {// Up
-                    this.MoveUpOrDown(true);
+                    // this.ReadLineInstance.CurrentLocation.MoveHorizontal(true);
+                    this.ReadLineInstance.CurrentLocation.ChangeLine(-1);
                 }
                 else
                 {// History
@@ -182,7 +183,8 @@ internal class SimpleTextLine
             {// History or move line
                 if (this.ReadLineInstance.MultilineMode)
                 {// Down
-                    this.MoveUpOrDown(false);
+                    // this.ReadLineInstance.CurrentLocation.MoveHorizontal(false);
+                    this.ReadLineInstance.CurrentLocation.ChangeLine(+1);
                 }
                 else
                 {// History
@@ -221,8 +223,17 @@ internal class SimpleTextLine
 
     internal void Write(int startIndex, int endIndex, int cursorDif, int removedWidth, bool eraseLine = false)
     {
-        int x, y, w;
-        var length = endIndex < 0 ? this.TotalLength : endIndex - startIndex;
+        int x, y, w, length;
+        if (endIndex < 0)
+        {
+            startIndex = this.PromptLength;
+            length = this.InputLength;
+        }
+        else
+        {
+            length = endIndex - startIndex;
+        }
+
         var widthSpan = this.widthArray.AsSpan(startIndex, length);
         var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
         var startPosition = endIndex < 0 ? 0 : (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
@@ -488,14 +499,17 @@ internal class SimpleTextLine
     {
         if (this.InputLength == 0)
         {// Delete empty buffer
-            this.ReadLineInstance.TryDeleteBuffer(this.Index);
+            this.ReadLineInstance.TryDeleteBuffer(this.Index, backspace);
             return;
         }
 
         var location = this.ReadLineInstance.CurrentLocation;
         if (backspace)
         {
-            location.MoveLeft(false);
+            if (!location.MoveLeft(false))
+            {
+                return;
+            }
         }
 
         if (!location.TryGetLineAndRow(out var line, out var row))
