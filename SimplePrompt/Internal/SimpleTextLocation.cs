@@ -283,6 +283,27 @@ internal record class SimpleTextLocation
         }
     }
 
+    public void ChangeLine(int diff)
+    {
+        var nextLine = this.LineIndex + diff;
+        if (nextLine < 0)
+        {
+            nextLine = 0;
+        }
+
+        if (nextLine >= this.readLineInstance.LineList.Count)
+        {
+            nextLine = this.readLineInstance.LineList.Count - 1;
+        }
+
+        if (this.LineIndex == nextLine)
+        {
+            return;
+        }
+
+        this.Reset(this.readLineInstance.LineList[nextLine]);
+    }
+
     public void Initialize(SimpleConsole simpleConsole, ReadLineInstance readLineInstance)
     {
         this.simpleConsole = simpleConsole;

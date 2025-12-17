@@ -215,8 +215,8 @@ internal class ReadLineInstance
                     return null;
                 }
                 else
-                {// Next buffer
-                    this.simpleConsole.SetCursor(this.BufferList[line.Index + 1]);
+                {// Next line
+                    this.CurrentLocation.ChangeLine(1);
                     return null;
                 }
             }
