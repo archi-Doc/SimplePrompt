@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 
 namespace SimplePrompt.Internal;
 
-internal record class SimpleTextLocation
+internal sealed record class SimpleTextLocation
 {
     private SimpleConsole simpleConsole = default!;
     private ReadLineInstance readLineInstance = default!;

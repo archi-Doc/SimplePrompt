@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Collections;
@@ -7,7 +8,7 @@ using Arc.Unit;
 
 namespace SimplePrompt.Internal;
 
-internal class SimpleTextLine
+internal sealed class SimpleTextLine
 {
     private const int PoolSize = 32;
     private const int InitialBufferSize = 256;
@@ -277,13 +278,13 @@ internal class SimpleTextLine
 
             x = newCursorTop + 1;
             y = newCursorLeft + 1;
-            x.TryFormat(buffer, out w);
+            x.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
             buffer = buffer.Slice(w);
             written += w;
             buffer[0] = ';';
             buffer = buffer.Slice(1);
             written += 1;
-            y.TryFormat(buffer, out w);
+            y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
             buffer = buffer.Slice(w);
             written += w;
             buffer[0] = 'H';
@@ -374,13 +375,13 @@ internal class SimpleTextLine
 
             x = newCursorTop + 1;
             y = newCursorLeft + 1;
-            x.TryFormat(buffer, out w);
+            x.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
             buffer = buffer.Slice(w);
             written += w;
             buffer[0] = ';';
             buffer = buffer.Slice(1);
             written += 1;
-            y.TryFormat(buffer, out w);
+            y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
             buffer = buffer.Slice(w);
             written += w;
             buffer[0] = 'H';

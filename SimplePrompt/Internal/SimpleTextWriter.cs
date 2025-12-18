@@ -4,7 +4,7 @@ using System.Text;
 
 namespace SimplePrompt.Internal;
 
-internal class SimpleTextWriter : TextWriter
+internal sealed class SimpleTextWriter : TextWriter
 {
     public SimpleConsole SimpleConsole { get; }
 

@@ -3,6 +3,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using Arc.Collections;
 using Arc.Threading;
@@ -17,8 +18,10 @@ namespace SimplePrompt;
 /// Provides a simple console interface with advanced input handling capabilities including multiline support and custom prompts.
 /// This class implements <see cref="IConsoleService"/> and manages console input/output operations.
 /// </summary>
+#pragma warning disable CA1001 // Types that own disposable fields should be disposable
 public partial class SimpleConsole : IConsoleService
-{
+#pragma warning restore CA1001 // Types that own disposable fields should be disposable
+{//
     private const int DelayInMilliseconds = 10;
     private const int WindowBufferSize = 32 * 1024;
     private static SimpleConsole? _instance;
@@ -29,7 +32,7 @@ public partial class SimpleConsole : IConsoleService
     /// </summary>
     /// <returns>The singleton <see cref="SimpleConsole"/> instance.</returns>
     public static SimpleConsole GetOrCreate()
-    {
+    {//i
         var instance = Volatile.Read(ref _instance);
         if (instance is not null)
         {
@@ -512,13 +515,13 @@ CancelOrTerminate:
 
         var x = cursorTop + 1;
         var y = cursorLeft + 1;
-        x.TryFormat(buffer, out var w);
+        x.TryFormat(buffer, out var w, default, CultureInfo.InvariantCulture);
         buffer = buffer.Slice(w);
         written += w;
         buffer[0] = ';';
         buffer = buffer.Slice(1);
         written += 1;
-        y.TryFormat(buffer, out w);
+        y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
         buffer = buffer.Slice(w);
         written += w;
         buffer[0] = 'H';

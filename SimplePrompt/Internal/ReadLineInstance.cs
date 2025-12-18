@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Globalization;
 using Arc;
 using Arc.Collections;
 using Arc.Unit;
@@ -7,7 +8,7 @@ using CrossChannel;
 
 namespace SimplePrompt.Internal;
 
-internal class ReadLineInstance
+internal sealed class ReadLineInstance
 {
     public const int CharBufferSize = 1024;
     private const int PoolSize = 4;
@@ -662,13 +663,13 @@ internal class ReadLineInstance
 
         var x = top + 1;
         var y = 0 + 1;
-        x.TryFormat(buffer, out var w);
+        x.TryFormat(buffer, out var w, default, CultureInfo.InvariantCulture);
         buffer = buffer.Slice(w);
         written += w;
         buffer[0] = ';';
         buffer = buffer.Slice(1);
         written += 1;
-        y.TryFormat(buffer, out w);
+        y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
         buffer = buffer.Slice(w);
         written += w;
         buffer[0] = 'H';

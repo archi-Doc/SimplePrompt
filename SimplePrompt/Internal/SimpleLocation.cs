@@ -4,7 +4,7 @@ using SimplePrompt.Internal;
 
 namespace SimplePrompt;
 
-internal class SimpleLocation
+internal sealed class SimpleLocation
 {
     #region FieldAndProperty
 

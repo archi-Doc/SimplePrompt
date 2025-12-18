@@ -7,7 +7,7 @@ using ValueLink;
 namespace SimplePrompt.Internal;
 
 [ValueLinkObject]
-internal partial class SimpleTextRow
+internal sealed partial class SimpleTextRow
 {
     #region ObjectPool
 

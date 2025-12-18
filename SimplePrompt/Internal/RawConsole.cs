@@ -2,6 +2,7 @@
 
 using System.Buffers;
 using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
 using Arc;
@@ -375,7 +376,7 @@ internal sealed class RawConsole
             int sequenceLength = SequencePrefixLength + digitCount + 1;
             if (!terminfoDb.TryGetValue(this.chars.AsSpan(this.charsStartIndex, sequenceLength), out parsed))
             {
-                key = MapEscapeSequenceNumber(byte.Parse(input.Slice(SequencePrefixLength, digitCount)));
+                key = MapEscapeSequenceNumber(byte.Parse(input.Slice(SequencePrefixLength, digitCount), default, CultureInfo.InvariantCulture));
                 if (key == default)
                 {
                     return false; // it was not a known sequence
@@ -406,7 +407,7 @@ internal sealed class RawConsole
         modifiers = MapXtermModifiers(input[SequencePrefixLength + digitCount + 1]);
 
         key = input[SequencePrefixLength + digitCount + 2] is VtSequenceEndTag
-            ? MapEscapeSequenceNumber(byte.Parse(input.Slice(SequencePrefixLength, digitCount)))
+            ? MapEscapeSequenceNumber(byte.Parse(input.Slice(SequencePrefixLength, digitCount), default, CultureInfo.InvariantCulture))
             : MapKeyIdOXterm(input[SequencePrefixLength + digitCount + 2], this.terminalFormatStrings.IsRxvtTerm).Key;
 
         if (key == default)

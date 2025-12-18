@@ -1,12 +1,13 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Unit;
 
 namespace SimplePrompt.Internal;
 
-internal class ReadLineBuffer
+internal sealed class ReadLineBuffer
 {
     private const int BufferSize = 1_024;
     private const int BufferMargin = 32;
@@ -339,13 +340,13 @@ internal class ReadLineBuffer
 
             x = newCursorTop + 1;
             y = newCursorLeft + 1;
-            x.TryFormat(buffer, out w);
+            x.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
             buffer = buffer.Slice(w);
             written += w;
             buffer[0] = ';';
             buffer = buffer.Slice(1);
             written += 1;
-            y.TryFormat(buffer, out w);
+            y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
             buffer = buffer.Slice(w);
             written += w;
             buffer[0] = 'H';
@@ -436,13 +437,13 @@ internal class ReadLineBuffer
 
             x = newCursorTop + 1;
             y = newCursorLeft + 1;
-            x.TryFormat(buffer, out w);
+            x.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
             buffer = buffer.Slice(w);
             written += w;
             buffer[0] = ';';
             buffer = buffer.Slice(1);
             written += 1;
-            y.TryFormat(buffer, out w);
+            y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
             buffer = buffer.Slice(w);
             written += w;
             buffer[0] = 'H';
