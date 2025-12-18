@@ -97,19 +97,18 @@ internal partial class SimpleTextRow
 
         var i = 0;
         var cursor = 0;
-        var nextCursor = 0;
         for (i = this.Start; i < this.End; i++)
         {
-            nextCursor = cursor + this.WidthSpan[i];
-            if (nextCursor >= cursorPosition)
+            if (i >= this.InputStart &&
+                cursor >= cursorPosition)
             {
                 break;
             }
 
-            cursor = nextCursor;
+            cursor = cursor + this.WidthSpan[i];
         }
 
-        cursorPosition = nextCursor;
+        cursorPosition = cursor;
         arrayPosition = i;
     }
 
