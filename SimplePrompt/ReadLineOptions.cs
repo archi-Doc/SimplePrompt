@@ -51,6 +51,8 @@ public record class ReadLineOptions
     /// </summary>
     public string? MultilineDelimiter { get; init; } = "\"\"\"";
 
+    public char LineContinuation { get; init; } = default;
+
     /// <summary>
     /// Gets a value indicating whether to cancel the ReadLine operation when the Escape key is pressed.
     /// Default is <see langword="false"/>.
