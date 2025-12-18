@@ -202,7 +202,7 @@ internal class ReadLineBuffer
             }
             else if (key == ConsoleKey.UpArrow)
             {// History or move line
-                if (this.readLineInstance.MultilineMode)
+                if (this.readLineInstance.Mode.IsMultiline)
                 {// Up
                     this.MoveUpOrDown(true);
                 }
@@ -214,7 +214,7 @@ internal class ReadLineBuffer
             }
             else if (key == ConsoleKey.DownArrow)
             {// History or move line
-                if (this.readLineInstance.MultilineMode)
+                if (this.readLineInstance.Mode.IsMultiline)
                 {// Down
                     this.MoveUpOrDown(false);
                 }

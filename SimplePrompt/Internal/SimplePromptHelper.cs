@@ -12,6 +12,13 @@ internal static class SimplePromptHelper
 
     public static ReadOnlySpan<char> ForceNewLineCursor => " \e[1D";
 
+#pragma warning disable SA1101 // Prefix local calls with this
+    extension(ReadLineMode mode)
+    {
+        public bool IsMultiline => mode != ReadLineMode.Singleline;
+    }
+#pragma warning restore SA1101 // Prefix local calls with this
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
     {

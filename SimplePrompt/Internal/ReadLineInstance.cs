@@ -7,6 +7,15 @@ using CrossChannel;
 
 namespace SimplePrompt.Internal;
 
+internal enum ReadLineMode
+{
+    Singleline,
+
+    Delimiter,
+
+    LineContinuation,
+}
+
 internal class ReadLineInstance
 {
     public const int CharBufferSize = 1024;
@@ -49,7 +58,7 @@ internal class ReadLineInstance
 
     public int LinePosition { get; set; }
 
-    public bool MultilineMode { get; private set; }
+    public ReadLineMode Mode { get; private set; }
 
     public int FirstInputIndex { get; private set; }
 
@@ -176,18 +185,41 @@ internal class ReadLineInstance
         {// Exit input mode and return the concatenated string.
             if (!string.IsNullOrEmpty(this.Options.MultilineDelimiter) &&
                 (SimpleCommandLine.SimpleParserHelper.CountOccurrences(line.InputSpan, this.Options.MultilineDelimiter) % 2) > 0)
-            {// Multiple line
+            {// Multiple line (Delimiter)
                 if (line.Index == this.FirstInputIndex)
                 {// Start
-                    this.MultilineMode = true;
+                    this.Mode = ReadLineMode.Delimiter;
                 }
                 else
                 {// End
-                    this.MultilineMode = false;
+                    this.Mode = default;
                 }
             }
 
-            if (this.MultilineMode)
+            var lineContinuation = false;
+            if (this.Mode == ReadLineMode.Singleline)
+            {// Single line mode -> Multiple line mode
+                if (this.Options.LineContinuation != default)
+                {
+                    if (line.InputLength > 0 && line.InputSpan[^1] == this.Options.LineContinuation)
+                    {// Multiple line (LineContinuation)
+                        this.Mode = ReadLineMode.LineContinuation;
+                    }
+                }
+            }
+            else if (this.Mode == ReadLineMode.LineContinuation)
+            {
+                if (line.InputLength > 0 && line.InputSpan[^1] == this.Options.LineContinuation)
+                {// Multiple line (LineContinuation)
+                }
+                else
+                {
+                    lineContinuation = true;
+                    this.Mode = default;
+                }
+            }
+
+            if (this.Mode.IsMultiline)
             {
                 if (line.Index == (this.LineList.Count - 1))
                 {// New InputBuffer
@@ -220,32 +252,59 @@ internal class ReadLineInstance
                 }
             }
 
-            var length = this.LineList[this.FirstInputIndex].InputLength;
-            for (var i = this.FirstInputIndex + 1; i < this.LineList.Count; i++)
-            {
-                length += 1 + this.LineList[i].InputLength;
-            }
-
-            var result = string.Create(length, this.LineList, (span, lines) =>
-            {
-                var isFirst = true;
-                for (var i = this.FirstInputIndex; i < lines.Count; i++)
+            string result;
+            if (lineContinuation)
+            {// A\ B\ -> AB
+                var length = 1;
+                for (var i = this.FirstInputIndex; i < this.LineList.Count; i++)
                 {
-                    if (!isFirst)
-                    {
-                        span[0] = '\n';
-                        span = span.Slice(1);
-                    }
-                    else
-                    {
-                        isFirst = false;
-                    }
-
-                    var inputSpan = lines[i].InputSpan;
-                    inputSpan.CopyTo(span);
-                    span = span.Slice(inputSpan.Length);
+                    length += this.LineList[i].InputLength - 1;
                 }
-            });
+
+                result = string.Create(length, this.LineList, (span, lines) =>
+                {
+                    for (var i = this.FirstInputIndex; i < lines.Count; i++)
+                    {
+                        var inputSpan = lines[i].InputSpan;
+                        if (i != (lines.Count - 1) && inputSpan.Length > 0)
+                        {
+                            inputSpan = inputSpan.Slice(0, inputSpan.Length - 1);
+                        }
+
+                        inputSpan.CopyTo(span);
+                        span = span.Slice(inputSpan.Length);
+                    }
+                });
+            }
+            else
+            {// """ABC""" -> ABC
+                var length = this.LineList[this.FirstInputIndex].InputLength;
+                for (var i = this.FirstInputIndex + 1; i < this.LineList.Count; i++)
+                {
+                    length += 1 + this.LineList[i].InputLength;
+                }
+
+                result = string.Create(length, this.LineList, (span, lines) =>
+                {
+                    var isFirst = true;
+                    for (var i = this.FirstInputIndex; i < lines.Count; i++)
+                    {
+                        if (!isFirst)
+                        {
+                            span[0] = '\n';
+                            span = span.Slice(1);
+                        }
+                        else
+                        {
+                            isFirst = false;
+                        }
+
+                        var inputSpan = lines[i].InputSpan;
+                        inputSpan.CopyTo(span);
+                        span = span.Slice(inputSpan.Length);
+                    }
+                });
+            }
 
             return result;
         }
@@ -384,7 +443,7 @@ internal class ReadLineInstance
 
     public void Reset()
     {
-        this.MultilineMode = false;
+        this.Mode = default;
         for (var i = this.FirstInputIndex + 1; i < this.BufferList.Count; i++)
         {
             this.BufferList.Remove(this.BufferList[i]);
@@ -400,7 +459,7 @@ internal class ReadLineInstance
 
     public void Clear()
     {
-        this.MultilineMode = false;
+        this.Mode = default;
         this.FirstInputIndex = 0;
 
         this.ReleaseLines();
