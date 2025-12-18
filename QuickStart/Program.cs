@@ -1,8 +1,8 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using Arc;
-using Arc.Unit;
 using SimplePrompt;
+using Arc.Unit;
 
 namespace QuickStart;
 
