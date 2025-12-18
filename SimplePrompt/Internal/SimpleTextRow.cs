@@ -48,9 +48,9 @@ internal partial class SimpleTextRow
 
     public int Width => this._width;
 
-    public ReadOnlySpan<char> CharSpan => this.Line.CharArray.AsSpan(this.Start, this.Length);
+    // public ReadOnlySpan<char> CharSpan => this.Line.CharArray.AsSpan(this.Start, this.Length);
 
-    public ReadOnlySpan<byte> WidthSpan => this.Line.WidthArray.AsSpan(this.Start, this.Length);
+    // public ReadOnlySpan<byte> WidthSpan => this.Line.WidthArray.AsSpan(this.Start, this.Length);
 
     /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ChangeInputLengthAndWidth(int lengthDiff, int widthDiff)
@@ -91,10 +91,6 @@ internal partial class SimpleTextRow
 
     public void TrimCursorPosition(ref int cursorPosition, out int arrayPosition)
     {
-        if (cursorPosition <= this.InputStart)
-        {
-        }
-
         var i = 0;
         var cursor = 0;
         for (i = this.Start; i < this.End; i++)
@@ -105,7 +101,7 @@ internal partial class SimpleTextRow
                 break;
             }
 
-            cursor = cursor + this.WidthSpan[i];
+            cursor = cursor + this.Line.WidthArray[i];
         }
 
         cursorPosition = cursor;
@@ -114,7 +110,7 @@ internal partial class SimpleTextRow
 
     public override string ToString()
     {
-        return this.CharSpan.ToString();
+        return this.Line.CharArray.AsSpan(this.Start, this.Length).ToString();
     }
 
     private bool Arrange()
