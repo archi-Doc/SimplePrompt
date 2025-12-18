@@ -7,15 +7,6 @@ using CrossChannel;
 
 namespace SimplePrompt.Internal;
 
-internal enum ReadLineMode
-{
-    Singleline,
-
-    Delimiter,
-
-    LineContinuation,
-}
-
 internal class ReadLineInstance
 {
     public const int CharBufferSize = 1024;
