@@ -8,7 +8,7 @@ using SimplePrompt;
 
 namespace Playground;
 
-internal class Program
+internal sealed class Program
 {
     public static async Task Main(string[] args)
     {
@@ -79,7 +79,7 @@ internal class Program
                 simpleConsole.WriteLine("Canceled");
                 continue;
             }
-            else if (string.Equals(result.Text, "exit", StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(result.Text, "exit", StringComparison.OrdinalIgnoreCase))
             {// exit
                 ThreadCore.Root.Terminate(); // Send a termination signal to the root.
                 break;
@@ -88,7 +88,7 @@ internal class Program
             {// continue
                 continue;
             }
-            else if (string.Equals(result.Text, "a", StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(result.Text, "a", StringComparison.OrdinalIgnoreCase))
             {
                 _ = Task.Run(async () =>
                 {
@@ -96,7 +96,7 @@ internal class Program
                     simpleConsole.WriteLine("AAAAA");
                 });
             }
-            else if (string.Equals(result.Text, "b", StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(result.Text, "b", StringComparison.OrdinalIgnoreCase))
             {
                 _ = Task.Run(async () =>
                 {

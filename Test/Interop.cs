@@ -2,7 +2,7 @@
 
 namespace Playground;
 
-internal class Interop
+internal sealed class Interop
 {
 #pragma warning disable SA1310 // Field names should not contain underscore
     private const int STD_OUTPUT_HANDLE = -11;

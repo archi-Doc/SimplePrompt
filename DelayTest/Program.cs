@@ -1,6 +1,6 @@
 ﻿namespace DelayTest;
 
-internal class Program
+internal sealed class Program
 {
     public static async Task Main(string[] args)
     {

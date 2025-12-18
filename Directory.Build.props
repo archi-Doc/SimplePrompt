@@ -3,6 +3,7 @@
   <PropertyGroup>
     <Version>0.4.4</Version>
     <LangVersion>latest</LangVersion>
+    <AnalysisMode>Recommended</AnalysisMode>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <Deterministic>true</Deterministic>
