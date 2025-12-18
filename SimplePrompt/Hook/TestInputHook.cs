@@ -1,5 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+namespace SimplePrompt;
+
 /// <summary>
 /// Represents a method that handles text input validation or transformation after the user submits input.
 /// </summary>

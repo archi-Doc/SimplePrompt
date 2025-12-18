@@ -182,7 +182,7 @@ internal class SimpleLocation
         (_, this.simpleConsole.CursorTop) = newCursor;
     }
 
-    private void Log(string message)
+    private static void Log(string message)
     {
         File.AppendAllText("log.txt", message);
     }

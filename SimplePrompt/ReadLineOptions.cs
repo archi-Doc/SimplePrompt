@@ -61,25 +61,25 @@ public record class ReadLineOptions
     /// Gets a value indicating whether to cancel the ReadLine operation when the Escape key is pressed.
     /// Default is <see langword="false"/>.
     /// </summary>
-    public bool CancelOnEscape { get; init; } = false;
+    public bool CancelOnEscape { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether an empty line (pressing Enter with no characters entered) is treated as valid input.
     /// </summary>
-    public bool AllowEmptyLineInput { get; init; } = false;
+    public bool AllowEmptyLineInput { get; init; }
 
     /// <summary>
     /// Gets the character used to mask user input in the console (e.g., for password entry).
     /// Default is 0 (no masking).
     /// </summary>
-    public char MaskingCharacter { get; init; } = default;
+    public char MaskingCharacter { get; init; }
 
     /// <summary>
     /// Gets the hook for intercepting and processing key input during console reading operations.
     /// Default is <see langword="null"/> (no custom key input handling).<br/>
     /// If provided and returns <see langword="true"/>, the key input is considered handled and will not be processed further.
     /// </summary>
-    public KeyInputHook? KeyInputHook { get; init; } = default;
+    public KeyInputHook? KeyInputHook { get; init; }
 
     /// <summary>
     /// Gets the hook for intercepting and processing text input during console reading operations.
@@ -87,5 +87,5 @@ public record class ReadLineOptions
     /// If a valid string is returned, it is treated as valid text input and the function completes.<br/>
     /// If <see langword="null"/> is returned, the input is rejected and the user is prompted to enter it again.
     /// </summary>
-    public TextInputHook? TextInputHook { get; init; } = default;
+    public TextInputHook? TextInputHook { get; init; }
 }

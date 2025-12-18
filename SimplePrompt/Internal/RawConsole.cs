@@ -26,9 +26,9 @@ internal sealed class RawConsole
     private readonly Lock bufferLock = new();
     private readonly byte[] bytes = new byte[BufferCapacity];
     private readonly char[] chars = new char[BufferCapacity];
-    private int bytesLength = 0;
-    private int charsStartIndex = 0;
-    private int charsEndIndex = 0;
+    private int bytesLength;
+    private int charsStartIndex;
+    private int charsEndIndex;
 
     private SafeHandle? handle;
     private bool useStdin;
@@ -216,17 +216,17 @@ internal sealed class RawConsole
         if (span.Length == 2 && span[0] == Escape && span[1] != Escape)
         {
             this.charsStartIndex++;
-            keyInfo = this.ParseFromSingleChar(span[0], isAlt: true);
+            keyInfo = ParseFromSingleChar(span[0], isAlt: true);
             this.charsStartIndex++;
             return true;
         }
 
-        keyInfo = this.ParseFromSingleChar(span[0], isAlt: false);
+        keyInfo = ParseFromSingleChar(span[0], isAlt: false);
         this.charsStartIndex++;
         return true;
     }
 
-    private ConsoleKeyInfo ParseFromSingleChar(char single, bool isAlt)
+    private static ConsoleKeyInfo ParseFromSingleChar(char single, bool isAlt)
     {
         bool isShift = false, isCtrl = false;
         char keyChar = single;
