@@ -328,6 +328,25 @@ internal sealed class ReadLineInstance
         this.simpleConsole.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.Show);
     }
 
+    public void HeightChanged(SimpleTextRow row, int diff)
+    {
+        var changedIndex = 0;
+        for (var i = 0; i < this.LineList.Count; i++)
+        {
+            if (this.LineList[i] == row.Line)
+            {
+                changedIndex = i + 1;
+                continue;
+            }
+
+            if (i >= changedIndex)
+            {
+                this.LineList[i].Top += diff;
+                this.LineList[i].Write(0, -1, 0, 0, false);
+            }
+        }
+    }
+
     public void TryDeleteBuffer(int index, bool backspace)
     {
         if (index <= this.FirstInputIndex ||

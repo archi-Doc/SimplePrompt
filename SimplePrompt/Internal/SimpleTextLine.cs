@@ -622,10 +622,17 @@ internal sealed class SimpleTextLine
             width += w;
         }
 
-        row.AddInput(charBuffer.Length, width);
-
-        this.Write(position, this.TotalLength, width, 0);
-        this.ReadLineInstance.CurrentLocation.Move(charBuffer.Length, width);
+        if (row.AddInput(charBuffer.Length, width))
+        {// Height changed
+            this.Write(position, this.TotalLength, width, 0);
+            this.ReadLineInstance.CurrentLocation.Move(charBuffer.Length, width);
+            this.ReadLineInstance.HeightChanged(row, +1);
+        }
+        else
+        {
+            this.Write(position, this.TotalLength, width, 0);
+            this.ReadLineInstance.CurrentLocation.Move(charBuffer.Length, width);
+        }
 
         /*var line = this.FindLine();
 
