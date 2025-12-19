@@ -308,7 +308,6 @@ ProcessKeyInfo:
         }
         finally
         {
-            // currentInstance.CurrentLocation.MoveLast();
             using (this.syncObject.EnterScope())
             {
                 currentInstance.CurrentLocation.MoveEnd();
@@ -321,11 +320,11 @@ ProcessKeyInfo:
         }
 
 CancelOrTerminate:
-        /*this.UnderlyingTextWriter.WriteLine();
-        using (this.syncObject.EnterScope())
-        {
-            this.NewLineCursor();
-        }*/
+/*this.UnderlyingTextWriter.WriteLine();
+using (this.syncObject.EnterScope())
+{
+    this.NewLineCursor();
+}*/
 
         return new(inputResultKind);
     }
