@@ -329,22 +329,37 @@ internal sealed class ReadLineInstance
     }
 
     public void HeightChanged(SimpleTextRow row, int diff)
-    {
-        var changedIndex = 0;
+    {// coi
+        // 
+        var index = -1;
         for (var i = 0; i < this.LineList.Count; i++)
         {
             if (this.LineList[i] == row.Line)
             {
-                changedIndex = i + 1;
-                continue;
-            }
-
-            if (i >= changedIndex)
-            {
-                this.LineList[i].Top += diff;
-                this.LineList[i].Write(0, -1, 0, 0, false);
+                index = i;
+                break;
             }
         }
+
+        if (index < 0)
+        {
+            return;
+        }
+
+        var line = this.LineList[index];
+        if (diff > 0)
+        {
+            var nextRow = line.Rows.ListChain[row.ListLink.Index + 1];
+            line.Write(nextRow.Start, line.TotalLength, 0, 0);
+        }
+
+        for (var i = index + 1; i < this.LineList.Count; i++)
+        {
+            this.LineList[i].Top += diff;
+            this.LineList[i].Write(0, -1, 0, 0, true);
+        }
+
+        this.CurrentLocation.LocationToCursor();
     }
 
     public void TryDeleteBuffer(int index, bool backspace)
@@ -508,9 +523,9 @@ internal sealed class ReadLineInstance
         var y = this.simpleConsole.CursorTop;
         var isFirst = true;
         var remainingHeight = this.simpleConsole.WindowHeight;
-        for (var i = 0; i < this.BufferList.Count; i++)
+        for (var i = 0; i < this.LineList.Count; i++)
         {
-            var buffer = this.BufferList[i];
+            var buffer = this.LineList[i];
             if (buffer.Top >= 0 && buffer.Height <= remainingHeight)
             {
                 if (isFirst)
@@ -524,9 +539,9 @@ internal sealed class ReadLineInstance
 
                 remainingHeight -= buffer.Height;
 
-                if (buffer.Prompt is not null)
+                if (buffer.PromptLength > 0)
                 {
-                    SimplePromptHelper.TryCopy(buffer.Prompt.AsSpan(), ref span);
+                    SimplePromptHelper.TryCopy(buffer.PromptSpan, ref span);
                 }
 
                 SimplePromptHelper.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.InputColor).AsSpan(), ref span); // Input color
@@ -534,14 +549,14 @@ internal sealed class ReadLineInstance
                 var maskingCharacter = this.Options.MaskingCharacter;
                 if (maskingCharacter == default)
                 {
-                    SimplePromptHelper.TryCopy(buffer.TextSpan, ref span);
+                    SimplePromptHelper.TryCopy(buffer.InputSpan, ref span);
                 }
                 else
                 {
-                    if (span.Length >= buffer.Width)
+                    if (span.Length >= buffer.InputWidth)
                     {
-                        span.Slice(0, buffer.Width).Fill(maskingCharacter);
-                        span = span.Slice(buffer.Width);
+                        span.Slice(0, buffer.InputWidth).Fill(maskingCharacter);
+                        span = span.Slice(buffer.InputWidth);
                     }
                 }
 
