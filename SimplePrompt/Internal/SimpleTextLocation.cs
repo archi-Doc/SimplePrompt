@@ -324,6 +324,29 @@ internal sealed record class SimpleTextLocation
         }
     }
 
+    public void MoveEnd()
+    {
+        if (this.readLineInstance.LineList.Count == 0)
+        {
+            return;
+        }
+
+        this.LineIndex = this.readLineInstance.LineList.Count - 1;
+        var line = this.readLineInstance.LineList[this.LineIndex];
+        if (line.Rows.Count == 0)
+        {
+            return;
+        }
+
+        this.RowIndex = line.Rows.Count - 1;
+        var row = line.Rows.ListChain[this.RowIndex];
+
+        this.ArrayPosition = row.End;
+        this.CursorPosition = row.Width;
+
+        this.LocationToCursor();
+    }
+
     public void ChangeLine(int diff, bool keepCursorPosition = false)
     {
         var nextLine = this.LineIndex + diff;

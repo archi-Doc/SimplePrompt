@@ -330,7 +330,6 @@ internal sealed class ReadLineInstance
 
     public void HeightChanged(SimpleTextRow row, int diff)
     {// coi
-        // 
         var index = -1;
         for (var i = 0; i < this.LineList.Count; i++)
         {
@@ -350,7 +349,7 @@ internal sealed class ReadLineInstance
         if (diff > 0)
         {
             var nextRow = line.Rows.ListChain[row.ListLink.Index + 1];
-            line.Write(nextRow.Start, line.TotalLength, 0, 0);
+            line.Write(nextRow.Start, line.TotalLength, 0, 0, true);
         }
 
         for (var i = index + 1; i < this.LineList.Count; i++)

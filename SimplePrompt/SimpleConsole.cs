@@ -292,8 +292,8 @@ ProcessKeyInfo:
                         position = 0;
                         if (result is not null)
                         {
-                            this.UnderlyingTextWriter.WriteLine();
-                            this.NewLineCursor();
+                            // this.UnderlyingTextWriter.WriteLine();
+                            // this.NewLineCursor();
                             return new(result);
                         }
                     }
@@ -308,16 +308,24 @@ ProcessKeyInfo:
         }
         finally
         {
+            // currentInstance.CurrentLocation.MoveLast();
+            using (this.syncObject.EnterScope())
+            {
+                currentInstance.CurrentLocation.MoveEnd();
+                this.UnderlyingTextWriter.WriteLine();
+                this.NewLineCursor();
+            }
+
             this.RemoveInstance(currentInstance);
             ReadLineInstance.Return(currentInstance);
         }
 
 CancelOrTerminate:
-        this.UnderlyingTextWriter.WriteLine();
+        /*this.UnderlyingTextWriter.WriteLine();
         using (this.syncObject.EnterScope())
         {
             this.NewLineCursor();
-        }
+        }*/
 
         return new(inputResultKind);
     }
