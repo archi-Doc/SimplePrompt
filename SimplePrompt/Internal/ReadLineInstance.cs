@@ -349,18 +349,27 @@ internal sealed class ReadLineInstance
         if (diff > 0)
         {
             var nextRow = line.Rows.ListChain[row.ListLink.Index + 1];
-            nextRow.Clear();
+            this.simpleConsole.ClearRow(nextRow.Top);
             // line.Write(nextRow.Start, line.TotalLength, 0, 0, true);
         }
-        else
-        {
 
-        }
-
+        var top = -1;
         for (var i = index + 1; i < this.LineList.Count; i++)
         {
             this.LineList[i].Top += diff;
             this.LineList[i].Write(0, -1, 0, 0, true);
+            top = this.LineList[i].Top + this.LineList[i].Height;
+        }
+
+        if (diff < 0)
+        {
+            if (top >= 0)
+            {
+                for (var i = 0; i < -diff; i++)
+                {
+                    this.simpleConsole.ClearRow(top++);
+                }
+            }
         }
 
         this.CurrentLocation.LocationToCursor();

@@ -742,4 +742,65 @@ using (this.syncObject.EnterScope())
             (this.CursorLeft, this.CursorTop) = newCursor;
         }
     }
+
+    internal void ClearRow(int top)
+    {
+        if (top < 0 || top >= this.WindowHeight)
+        {
+            return;
+        }
+
+        ReadOnlySpan<char> span;
+        var windowBuffer = SimpleConsole.RentWindowBuffer();
+        var buffer = windowBuffer.AsSpan();
+        var written = 0;
+
+        var moveCursor = this.CursorTop != top || this.CursorLeft != 0;
+        if (moveCursor)
+        {// Save cursor
+            span = ConsoleHelper.SaveCursorSpan;
+            span.CopyTo(buffer);
+            written += span.Length;
+            buffer = buffer.Slice(span.Length);
+
+            // Move cursor
+            span = ConsoleHelper.SetCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
+
+            var x = top + 1;
+            var y = 0 + 1;
+            int w;
+            x.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = ';';
+            buffer = buffer.Slice(1);
+            written += 1;
+            y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = 'H';
+            buffer = buffer.Slice(1);
+            written += 1;
+        }
+
+        // Erase entire line
+        span = ConsoleHelper.EraseEntireLineSpan;
+        span.CopyTo(buffer);
+        written += span.Length;
+        buffer = buffer.Slice(span.Length);
+
+        if (moveCursor)
+        {// Restore cursor
+            span = ConsoleHelper.RestoreCursorSpan;
+            span.CopyTo(buffer);
+            written += span.Length;
+            buffer = buffer.Slice(span.Length);
+        }
+
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        SimpleConsole.ReturnWindowBuffer(windowBuffer);
+    }
 }
