@@ -538,8 +538,13 @@ internal sealed class SimpleTextLine
             removedWidth = this.RemoveBuffer1(location.ArrayPosition);
         }
 
-        row.AddInput(-removedLength, -removedWidth);
+        var heightChanged = row.AddInput(-removedLength, -removedWidth);
         this.Write(location.ArrayPosition, this.TotalLength, 0, removedWidth);
+
+        if (heightChanged)
+        {
+            this.ReadLineInstance.HeightChanged(row, -1);
+        }
 
         /*if (r.Diff != 0)
         {
