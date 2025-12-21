@@ -32,7 +32,7 @@ public partial class SimpleConsole : IConsoleService
     /// </summary>
     /// <returns>The singleton <see cref="SimpleConsole"/> instance.</returns>
     public static SimpleConsole GetOrCreate()
-    {//i
+    {
         var instance = Volatile.Read(ref _instance);
         if (instance is not null)
         {
