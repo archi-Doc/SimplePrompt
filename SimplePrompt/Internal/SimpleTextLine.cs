@@ -231,7 +231,8 @@ internal sealed class SimpleTextLine
         if (endIndex < 0)
         {
             startIndex = 0;
-            length = this.TotalLength;
+            endIndex = this.TotalLength;
+            length = this.InputLength;
         }
         else
         {
@@ -239,7 +240,7 @@ internal sealed class SimpleTextLine
         }
 
         var startCursor = this.GetCursor(startIndex);
-        var endCursor = endIndex < 0 ? this.GetEndCursor() : this.GetCursor(endIndex);
+        var endCursor = endIndex == this.TotalLength ? this.GetEndCursor() : this.GetCursor(endIndex);
         var scroll = endCursor.Top - this.WindowHeight;
 
         ReadOnlySpan<char> span;
@@ -284,8 +285,9 @@ internal sealed class SimpleTextLine
             buffer = buffer.Slice(span.Length);
         }
 
-        if (endIndex < 0 && this.PromptLength > 0)
+        if (startIndex < this.PromptLength && this.PromptLength > 0)
         {// Prompt
+            startIndex = this.PromptLength;
             span = this.CharArray.AsSpan(0, this.PromptLength);
             span.CopyTo(buffer);
             written += span.Length;
@@ -316,13 +318,13 @@ internal sealed class SimpleTextLine
             buffer = buffer.Slice(totalWidth);
         }
 
-        /*if (newCursorLeft == 0 && cursorDif > 0)
+        if (endCursor.Left == 0)
         {// New line at the end
             span = SimplePromptHelper.ForceNewLineCursor;
             span.CopyTo(buffer);
             written += span.Length;
             buffer = buffer.Slice(span.Length);
-        }*/
+        }
 
         // Reset color
         span = ConsoleHelper.ResetSpan;
