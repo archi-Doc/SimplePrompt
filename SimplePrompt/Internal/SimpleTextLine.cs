@@ -238,28 +238,13 @@ internal sealed class SimpleTextLine
             length = endIndex - startIndex;
         }
 
+        var startCursor = this.GetCursor(startIndex);
+        var endCursor = endIndex < 0 ? this.GetEndCursor() : this.GetCursor(endIndex);
+        var scroll = endCursor.Top - this.WindowHeight;
+
         var widthSpan = this.widthArray.AsSpan(startIndex, length);
         var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
         var startPosition = endIndex < 0 ? 0 : (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
-
-        var startCursor = (this.Top * this.WindowWidth) + startPosition;
-        var windowRemaining = (this.WindowWidth * this.WindowHeight) - startCursor;
-        if (totalWidth > windowRemaining)
-        {
-        }
-
-        var startCursorLeft = startCursor % this.WindowWidth;
-        var startCursorTop = startCursor / this.WindowWidth;
-        if (startCursorTop < 0)
-        {
-            return;
-        }
-
-        var scroll = startCursorTop + 1 + ((startCursorLeft + totalWidth) / this.WindowWidth) - this.WindowHeight;
-
-        var newCursor = startCursor; // + cursorDif;
-        var newCursorLeft = newCursor % this.WindowWidth;
-        var newCursorTop = newCursor / this.WindowWidth;
 
         ReadOnlySpan<char> span;
         var windowBuffer = SimpleConsole.RentWindowBuffer();
@@ -272,15 +257,15 @@ internal sealed class SimpleTextLine
         written += span.Length;
         buffer = buffer.Slice(span.Length);
 
-        if (startCursorLeft != this.SimpleConsole.CursorLeft || startCursorTop != this.SimpleConsole.CursorTop)
+        if (startCursor.Left != this.SimpleConsole.CursorLeft || startCursor.Top != this.SimpleConsole.CursorTop)
         {// Move cursor
             span = ConsoleHelper.SetCursorSpan;
             span.CopyTo(buffer);
             buffer = buffer.Slice(span.Length);
             written += span.Length;
 
-            x = newCursorTop + 1;
-            y = newCursorLeft + 1;
+            x = startCursor.Top + 1;
+            y = startCursor.Left + 1;
             x.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
             buffer = buffer.Slice(w);
             written += w;
@@ -363,12 +348,12 @@ internal sealed class SimpleTextLine
 
         if (eraseLine)
         {// Erase line
-            if ((startCursor + totalWidth) % this.WindowWidth == 0)
+            /*if ((startCursor + totalWidth) % this.WindowWidth == 0)
             {// Add one space to clear the next line (add a space and move to the next line).
                 buffer[0] = ' ';
                 written += 1;
                 buffer = buffer.Slice(1);
-            }
+            }*/
 
             span = ConsoleHelper.EraseToEndOfLineSpan;
             span.CopyTo(buffer);
@@ -393,19 +378,62 @@ internal sealed class SimpleTextLine
         if (scroll > 0)
         {
             this.SimpleConsole.Scroll(scroll, true);
-            newCursorTop -= scroll;
+        }
+        else
+        {
+            scroll = 0;
         }
 
         this.SimpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
-        this.SimpleConsole.CursorLeft = newCursorLeft;
-        this.SimpleConsole.CursorTop = newCursorTop;
-        // this.SimpleConsole.SyncCursor(); // coi
+
+        if (restoreCursor)
+        {
+            this.SimpleConsole.CursorLeft = startCursor.Left;
+            this.SimpleConsole.CursorTop = startCursor.Top - scroll;
+        }
+        else
+        {
+            this.SimpleConsole.CursorLeft = endCursor.Left;
+            this.SimpleConsole.CursorTop = endCursor.Top - scroll;
+        }
 
         this.ReadLineInstance.LinePosition = endIndex;
     }
 
-    internal (int Left, int Top) ToCursor(int cursorIndex)
+    private (int Left, int Top) GetCursor(int arrayIndex)
+    {
+        if (arrayIndex < 0 || arrayIndex > this.TotalLength)
+        {
+            return (this.InitialCursorPosition, this.InitialRowIndex);
+        }
+
+        for (var i = 0; i < this.Rows.Count; i++)
+        {
+            var row = this.Rows.ListChain[i];
+            if (row.Start <= arrayIndex &&
+                arrayIndex <= row.End)
+            {
+                var left = (int)BaseHelper.Sum(this.WidthArray.AsSpan(row.Start, arrayIndex - row.Start));
+                return (left, this.Top + i);
+            }
+        }
+
+        return (this.InitialCursorPosition, this.InitialRowIndex);
+    }
+
+    private (int Left, int Top) GetEndCursor()
+    {
+        var count = this.Rows.Count;
+        if (count == 0)
+        {
+            return (this.InitialCursorPosition, this.InitialRowIndex);
+        }
+
+        return (this.Rows.ListChain[count - 1].Width, this.Top + count);
+    }
+
+    /*internal (int Left, int Top) ToCursor(int cursorIndex)
     {
         var top = cursorIndex / this.SimpleConsole.WindowWidth;
         var left = cursorIndex - (top * this.SimpleConsole.WindowWidth);
@@ -426,7 +454,7 @@ internal sealed class SimpleTextLine
         catch
         {
         }
-    }
+    }*/
 
     private void ResetRows()
     {
