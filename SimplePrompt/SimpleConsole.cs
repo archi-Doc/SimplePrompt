@@ -436,7 +436,7 @@ using (this.syncObject.EnterScope())
         => this.bufferPool.Return(obj);
 
     internal void AdvanceCursor(int width, bool newLine)
-    {
+    {// coi
         this.CursorLeft += width;
         var h = this.CursorLeft >= 0 ? (this.CursorLeft / this.WindowWidth) : (((this.CursorLeft - 1) / this.WindowWidth) - 1);
         this.CursorLeft -= h * this.WindowWidth; // 0 - (WindowWidth-1)

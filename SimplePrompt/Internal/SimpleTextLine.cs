@@ -222,7 +222,10 @@ internal sealed class SimpleTextLine
         }
     }
 
-    internal void Write(int startIndex, int endIndex, int cursorDif, int removedWidth, bool eraseLine = false)
+    internal void Redraw()
+        => this.Write(0, -1, false, 0, true);
+
+    internal void Write(int startIndex, int endIndex, bool restoreCursor, int removedWidth, bool eraseLine = false)
     {
         int x, y, w, length;
         if (endIndex < 0)
@@ -254,7 +257,7 @@ internal sealed class SimpleTextLine
 
         var scroll = startCursorTop + 1 + ((startCursorLeft + totalWidth) / this.WindowWidth) - this.WindowHeight;
 
-        var newCursor = startCursor + cursorDif;
+        var newCursor = startCursor; // + cursorDif;
         var newCursorLeft = newCursor % this.WindowWidth;
         var newCursorTop = newCursor / this.WindowWidth;
 
@@ -322,13 +325,13 @@ internal sealed class SimpleTextLine
             buffer = buffer.Slice(totalWidth);
         }
 
-        if (newCursorLeft == 0 && cursorDif > 0)
+        /*if (newCursorLeft == 0 && cursorDif > 0)
         {// New line at the end
             span = SimplePromptHelper.ForceNewLineCursor;
             span.CopyTo(buffer);
             written += span.Length;
             buffer = buffer.Slice(span.Length);
-        }
+        }*/
 
         // Reset color
         span = ConsoleHelper.ResetSpan;
@@ -365,7 +368,7 @@ internal sealed class SimpleTextLine
             buffer = buffer.Slice(span.Length);
         }
 
-        if (cursorDif != totalWidth || cursorDif == 0)
+        if (restoreCursor)
         {
             // Set cursor
             span = ConsoleHelper.SetCursorSpan;
@@ -405,6 +408,7 @@ internal sealed class SimpleTextLine
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
         this.SimpleConsole.CursorLeft = newCursorLeft;
         this.SimpleConsole.CursorTop = newCursorTop;
+        this.SimpleConsole.SyncCursor(); // coi
 
         this.ReadLineInstance.LinePosition = endIndex;
     }
@@ -539,7 +543,7 @@ internal sealed class SimpleTextLine
         }
 
         var heightChanged = row.AddInput(-removedLength, -removedWidth);
-        this.Write(location.ArrayPosition, this.TotalLength, 0, removedWidth);
+        this.Write(location.ArrayPosition, this.TotalLength, true, removedWidth);
 
         if (heightChanged)
         {
@@ -556,7 +560,7 @@ internal sealed class SimpleTextLine
     {
         Array.Fill<char>(this.charArray, ' ', this.PromptWidth, this.InputWidth);
         Array.Fill<byte>(this.widthArray, 1, this.PromptWidth, this.InputWidth);
-        this.Write(this.PromptWidth, this.TotalWidth, 0, 0);
+        this.Write(this.PromptWidth, this.TotalWidth, false, 0);
 
         if (this.Rows.Count > 1)
         {
@@ -636,12 +640,12 @@ internal sealed class SimpleTextLine
         if (row.AddInput(charBuffer.Length, width))
         {// Height changed
             this.ReadLineInstance.HeightChanged(row, +1);
-            this.Write(position, this.TotalLength, width, 0);
+            this.Write(position, this.TotalLength, false, 0);
             this.ReadLineInstance.CurrentLocation.Move(charBuffer.Length, width);
         }
         else
         {
-            this.Write(position, this.TotalLength, width, 0);
+            this.Write(position, this.TotalLength, false, 0);
             this.ReadLineInstance.CurrentLocation.Move(charBuffer.Length, width);
         }
 

@@ -357,7 +357,7 @@ internal sealed class ReadLineInstance
         for (var i = index + 1; i < this.LineList.Count; i++)
         {
             this.LineList[i].Top += diff;
-            this.LineList[i].Write(0, -1, 0, 0, true);
+            this.LineList[i].Redraw();
             top = this.LineList[i].Top + this.LineList[i].Height;
         }
 
@@ -388,10 +388,10 @@ internal sealed class ReadLineInstance
         this.LineList.RemoveAt(index);
         for (var i = index; i < this.LineList.Count; i++)
         {
-            var buffer = this.LineList[i];
-            buffer.Index = i;
-            buffer.Top += dif;
-            buffer.Write(0, -1, 0, 0, true);
+            var line = this.LineList[i];
+            line.Index = i;
+            line.Top += dif;
+            line.Redraw();
         }
 
         SimpleTextLine.Return(lineToDelete);
