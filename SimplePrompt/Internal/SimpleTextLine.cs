@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Collections;
 using Arc.Unit;
+using static Arc.Unit.UnitMessage;
 
 namespace SimplePrompt.Internal;
 
@@ -318,13 +319,13 @@ internal sealed class SimpleTextLine
             buffer = buffer.Slice(totalWidth);
         }
 
-        if (endCursor.Left == 0)
+        /*if (endCursor.Left == 0)
         {// New line at the end
             span = SimplePromptHelper.ForceNewLineCursor;
             span.CopyTo(buffer);
             written += span.Length;
             buffer = buffer.Slice(span.Length);
-        }
+        }*/
 
         // Reset color
         span = ConsoleHelper.ResetSpan;
@@ -399,6 +400,11 @@ internal sealed class SimpleTextLine
         }
 
         this.ReadLineInstance.LinePosition = endIndex;
+
+        if (this.SimpleConsole.CursorLeft == 0)
+        {
+            this.SimpleConsole.SetCursorPosition(this.SimpleConsole.CursorLeft, this.SimpleConsole.CursorTop, CursorOperation.None);
+        }
     }
 
     private (int Left, int Top) GetCursor(int arrayIndex)
@@ -412,7 +418,7 @@ internal sealed class SimpleTextLine
         {
             var row = this.Rows.ListChain[i];
             if (row.Start <= arrayIndex &&
-                arrayIndex <= row.End)
+                arrayIndex < row.End)
             {
                 var left = (int)BaseHelper.Sum(this.WidthArray.AsSpan(row.Start, arrayIndex - row.Start));
                 return (left, this.Top + i);
@@ -430,7 +436,7 @@ internal sealed class SimpleTextLine
             return (this.InitialCursorPosition, this.InitialRowIndex);
         }
 
-        return (this.Rows.ListChain[count - 1].Width, this.Top + count);
+        return (this.Rows.ListChain[count - 1].Width, this.Top + count - 1);
     }
 
     /*internal (int Left, int Top) ToCursor(int cursorIndex)
@@ -524,8 +530,11 @@ internal sealed class SimpleTextLine
     {
         if (this.InputLength == 0)
         {// Delete empty buffer
-            this.ReadLineInstance.TryDeleteBuffer(this.Index, backspace);
-            return;
+            if (backspace || this.Index < this.ReadLineInstance.LineList.Count - 1)
+            {
+                this.ReadLineInstance.TryDeleteBuffer(this.Index, backspace);
+                return;
+            }
         }
 
         var location = this.ReadLineInstance.CurrentLocation;

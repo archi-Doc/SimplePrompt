@@ -415,6 +415,11 @@ internal sealed class ReadLineInstance
             }
         }
 
+        if (this.LineList.Count <= this.FirstInputIndex + 1)
+        {
+            this.Mode = ReadLineMode.Singleline;
+        }
+
         this.CurrentLocation.Reset(this.LineList[index], backspace);
     }
 
