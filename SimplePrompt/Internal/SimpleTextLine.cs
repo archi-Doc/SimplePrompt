@@ -230,8 +230,8 @@ internal sealed class SimpleTextLine
         int x, y, w, length;
         if (endIndex < 0)
         {
-            startIndex = this.PromptLength;
-            length = this.InputLength;
+            startIndex = 0;
+            length = this.TotalLength;
         }
         else
         {
@@ -241,10 +241,6 @@ internal sealed class SimpleTextLine
         var startCursor = this.GetCursor(startIndex);
         var endCursor = endIndex < 0 ? this.GetEndCursor() : this.GetCursor(endIndex);
         var scroll = endCursor.Top - this.WindowHeight;
-
-        var widthSpan = this.widthArray.AsSpan(startIndex, length);
-        var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
-        var startPosition = endIndex < 0 ? 0 : (int)BaseHelper.Sum(this.widthArray.AsSpan(0, startIndex));
 
         ReadOnlySpan<char> span;
         var windowBuffer = SimpleConsole.RentWindowBuffer();
@@ -313,6 +309,8 @@ internal sealed class SimpleTextLine
         }
         else
         {// Masked
+            var widthSpan = this.widthArray.AsSpan(startIndex, length);
+            var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
             buffer.Slice(0, totalWidth).Fill(maskingCharacter);
             written += totalWidth;
             buffer = buffer.Slice(totalWidth);
