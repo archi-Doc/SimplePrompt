@@ -80,18 +80,16 @@ internal sealed partial class SimpleTextRow
         this._width = width;
     }
 
-    public (bool RowChanged, int RemovedWidth) AddInput(int lengthDiff, int widthDiff)
+    public (bool RowChanged, int WidthDiff) AddInput(int lengthDiff, int widthDiff)
     {
         this._length += lengthDiff;
         this._width += widthDiff;
         this.Line._inputLength += lengthDiff;
         this.Line._inputWidth += widthDiff;
 
-
         bool rowChanged = false;
-        int removedWidth = -widthDiff;
-        this.Arrange(ref rowChanged, ref removedWidth);
-        return (rowChanged, removedWidth);
+        this.Arrange(ref rowChanged, ref widthDiff);
+        return (rowChanged, widthDiff);
     }
 
     public void TrimCursorPosition(ref int cursorPosition, out int arrayPosition)
@@ -118,7 +116,7 @@ internal sealed partial class SimpleTextRow
         return this.Line.CharArray.AsSpan(this.Start, this.Length).ToString();
     }
 
-    private void Arrange(ref bool rowChanged, ref int removedWidth)
+    private void Arrange(ref bool rowChanged, ref int widthDiff)
     {
         // This is the core functionality of SimpleTextRow.
         // If a row is too short, it pulls data from the next row; if it is too long, it pushes excess data to the next row, maintaining the correct line/ row structure.
@@ -149,10 +147,9 @@ internal sealed partial class SimpleTextRow
                 }
 
                 var lengthDiff = this.End - index;
-                var widthDiff = this.Width + width - this.Line.WindowWidth;
+                var widthDiff2 = this.Width + width - this.Line.WindowWidth;
                 this._length -= lengthDiff;
-                this._width -= widthDiff;
-                removedWidth = -widthDiff;
+                this._width -= widthDiff2;
                 if (nextRow.Length == 0)
                 {
                     SimpleTextRow.Return(nextRow);
@@ -160,8 +157,9 @@ internal sealed partial class SimpleTextRow
                 }
                 else
                 {
+                    widthDiff = widthDiff2;
                     nextRow.ChangeStartPosition(this.End, lengthDiff, widthDiff);
-                    nextRow.Arrange(ref rowChanged, ref removedWidth);
+                    nextRow.Arrange(ref rowChanged, ref widthDiff);
                 }
             }
         }
@@ -176,7 +174,7 @@ internal sealed partial class SimpleTextRow
             }
 
             var lengthDiff = this.Start + this.Length - 1 - index;
-            var widthDiff = this.Width - width;
+            widthDiff = this.Width - width;
             this._length = index + 1 - this.Start;
             this._width = width;
 
@@ -184,13 +182,13 @@ internal sealed partial class SimpleTextRow
             {
                 nextRow = SimpleTextRow.Rent(this.Line);
                 nextRow.Prepare(this.End, this.End, lengthDiff, widthDiff);
-                nextRow.Arrange(ref rowChanged, ref removedWidth);
+                nextRow.Arrange(ref rowChanged, ref widthDiff);
                 rowChanged = true;
             }
             else
             {
                 nextRow.ChangeStartPosition(this.End, lengthDiff, widthDiff);
-                nextRow.Arrange(ref rowChanged, ref removedWidth);
+                nextRow.Arrange(ref rowChanged, ref widthDiff);
             }
         }
         else
@@ -199,7 +197,7 @@ internal sealed partial class SimpleTextRow
             {
                 nextRow = SimpleTextRow.Rent(this.Line);
                 nextRow.Prepare(this.End, this.End, 0, 0);
-                nextRow.Arrange(ref rowChanged, ref removedWidth);
+                nextRow.Arrange(ref rowChanged, ref widthDiff);
                 rowChanged = true;
             }
         }

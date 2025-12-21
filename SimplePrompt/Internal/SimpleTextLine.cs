@@ -242,7 +242,7 @@ internal sealed class SimpleTextLine
 
         var startCursor = this.GetCursor(startIndex);
         var endCursor = endIndex == this.TotalLength ? this.GetEndCursor() : this.GetCursor(endIndex);
-        var scroll = endCursor.Top - this.WindowHeight;
+        var scroll = endCursor.Top - this.WindowHeight + 1;
 
         ReadOnlySpan<char> span;
         var windowBuffer = SimpleConsole.RentWindowBuffer();
@@ -425,9 +425,10 @@ internal sealed class SimpleTextLine
             }
         }
 
-        return (this.InitialCursorPosition, this.InitialRowIndex);
+        return this.GetEndCursor();
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private (int Left, int Top) GetEndCursor()
     {
         var count = this.Rows.Count;
@@ -572,7 +573,7 @@ internal sealed class SimpleTextLine
         }
 
         var result = row.AddInput(-removedLength, -removedWidth);
-        this.Write(location.ArrayPosition, this.TotalLength, true, result.RemovedWidth);
+        this.Write(location.ArrayPosition, this.TotalLength, true, Math.Max(0, -result.WidthDiff));
 
         if (result.RowChanged)
         {
