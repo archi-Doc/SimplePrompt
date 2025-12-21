@@ -571,10 +571,10 @@ internal sealed class SimpleTextLine
             removedWidth = this.RemoveBuffer1(location.ArrayPosition);
         }
 
-        var heightChanged = row.AddInput(-removedLength, -removedWidth);
-        this.Write(location.ArrayPosition, this.TotalLength, true, removedWidth);
+        var result = row.AddInput(-removedLength, -removedWidth);
+        this.Write(location.ArrayPosition, this.TotalLength, true, result.RemovedWidth);
 
-        if (heightChanged)
+        if (result.RowChanged)
         {
             this.ReadLineInstance.HeightChanged(row, -1);
         }
@@ -666,7 +666,8 @@ internal sealed class SimpleTextLine
             width += w;
         }
 
-        if (row.AddInput(charBuffer.Length, width))
+        var result = row.AddInput(charBuffer.Length, width);
+        if (result.RowChanged)
         {// Height changed
             this.ReadLineInstance.HeightChanged(row, +1);
             this.Write(position, this.TotalLength, false, 0);
