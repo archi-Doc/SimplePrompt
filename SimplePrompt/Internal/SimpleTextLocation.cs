@@ -297,7 +297,7 @@ internal sealed record class SimpleTextLocation
 
     }
 
-    public void Move(int lengthDiff, int widthDiff)
+    public void Advance(int lengthDiff, int widthDiff)
     {
         this.ArrayPosition += lengthDiff;
         this.CursorPosition += widthDiff;
