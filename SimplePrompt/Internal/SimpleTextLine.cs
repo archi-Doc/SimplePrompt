@@ -642,6 +642,7 @@ internal sealed class SimpleTextLine
             this.ReadLineInstance.HeightChanged(row, +1);
             this.Write(position, this.TotalLength, false, 0);
             this.ReadLineInstance.CurrentLocation.Move(charBuffer.Length, width);
+            this.ReadLineInstance.CurrentLocation.LocationToCursor();
         }
         else
         {

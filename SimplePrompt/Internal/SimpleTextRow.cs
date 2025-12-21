@@ -1,9 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Globalization;
-using System.Runtime.CompilerServices;
 using Arc.Collections;
-using Arc.Unit;
 using ValueLink;
 
 namespace SimplePrompt.Internal;
