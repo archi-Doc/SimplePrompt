@@ -567,7 +567,7 @@ internal sealed class ReadLineInstance
             y += line.Height;
         }
 
-        var scroll = y - this.simpleConsole.WindowHeight + 1;
+        var scroll = y - this.simpleConsole.WindowHeight;
         if (scroll > 0)
         {
             this.simpleConsole.Scroll(scroll, true);
