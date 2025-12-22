@@ -42,65 +42,6 @@ internal sealed class SimpleLocation
         this.previousCursorTop = -1;
     }
 
-    /*public void Redraw()
-    {
-        if (this.previousInstance is null)
-        {
-            this.Reset();
-            return;
-        }
-
-        var bufferList = this.previousInstance.BufferList;
-        if (this.BufferIndex >= bufferList.Count)
-        {// Invalid buffer index
-            this.Reset();
-            return;
-        }
-
-        var buffer = bufferList[this.BufferIndex];
-        if (this.BufferPosition > buffer.Width)
-        {// Invalid buffer position
-            this.Reset();
-            return;
-        }
-
-        var totalHeight = 0;
-        foreach (var x in bufferList)
-        {
-            x.UpdateHeight(false);
-            totalHeight += x.Height;
-        }
-
-        var diff = bufferList[0].Top + totalHeight - this.simpleConsole.WindowHeight;
-        var minBuffer = bufferList.Count - 1;
-        if (diff > 0)
-        {
-            foreach (var x in bufferList)
-            {
-                x.Top -= diff;
-                if (x.Top >= 0 && minBuffer > x.Index)
-                {
-                    minBuffer = x.Index;
-                }
-            }
-        }
-
-        if (this.BufferIndex < minBuffer)
-        {
-            this.BufferIndex = minBuffer;
-            this.BufferPosition = 0;
-        }
-
-        buffer = bufferList[this.BufferIndex];
-        var newCursor = buffer.ToCursor(this.BufferPosition);
-        newCursor.Top += buffer.Top;
-        this.simpleConsole.SetCursorPosition(newCursor.Left, newCursor.Top, CursorOperation.None);
-    }
-
-    public void Reset()
-    {
-    }*/
-
     public void RearrangeBuffers((int Left, int Top) newCursor)
     {
         // this.Log($"({newCursor.Left}, {newCursor.Top}) {this.simpleConsole.WindowWidth}-{this.simpleConsole.WindowHeight}\r\n");

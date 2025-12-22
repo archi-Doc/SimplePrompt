@@ -633,33 +633,6 @@ internal sealed class ReadLineInstance
         return;
     }
 
-    /*private ReadLineBuffer? PrepareAndFindBuffer()
-    {
-        if (this.BufferList.Count == 0)
-        {
-            return null;
-        }
-
-        // Calculate buffer heights.
-        var y = this.BufferList[0].Top;
-        ReadLineBuffer? buffer = null;
-        foreach (var x in this.BufferList)
-        {
-            x.Top = y;
-            x.UpdateHeight();
-            y += x.Height;
-            if (buffer is null &&
-                this.simpleConsole.CursorTop >= x.Top &&
-                this.simpleConsole.CursorTop < y)
-            {
-                buffer = x;
-            }
-        }
-
-        buffer ??= this.BufferList[0];
-        return buffer;
-    }*/
-
     private void ReleaseLines()
     {
         TemporaryList<SimpleTextLine> list = default;

@@ -305,7 +305,7 @@ ProcessKeyInfo:
         {
             using (this.syncObject.EnterScope())
             {
-                currentInstance.CurrentLocation.MoveEnd();
+                currentInstance.CurrentLocation.MoveToEnd();
                 this.UnderlyingTextWriter.WriteLine();
                 this.NewLineCursor();
             }
@@ -362,7 +362,8 @@ CancelOrTerminate:
             this.WriteInternal(message, true);
 
             activeInstance.Redraw();
-            activeInstance.CurrentLocation.Reset(CursorOperation.Show);
+            // activeInstance.CurrentLocation.Reset(CursorOperation.Show);
+            activeInstance.CurrentLocation.Restore(CursorOperation.Show);
 
             this.CheckCursor();
         }
@@ -584,21 +585,8 @@ CancelOrTerminate:
 
             if (this.TryGetActiveInstance(out var activeInstance))
             {
-                // activeInstance.Restore();
-                // activeInstance.CurrentLocation.Reset(CursorOperation.Hide);
                 activeInstance.Redraw();
-                activeInstance.CurrentLocation.Reset(CursorOperation.None);
-
-                // coi
-                /*
-                if (activeInstance.LinePosition > activeInstance.BufferList[activeInstance.LineIndex].Width)
-                {
-                    activeInstance.LinePosition = activeInstance.BufferList[activeInstance.LineIndex].Width;
-                }
-
-                var buffer = activeInstance.BufferList[activeInstance.LineIndex];
-                var cursor = buffer.ToCursor(activeInstance.LinePosition);
-                this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);*/
+                activeInstance.CurrentLocation.Restore(CursorOperation.None);
             }
         }
     }

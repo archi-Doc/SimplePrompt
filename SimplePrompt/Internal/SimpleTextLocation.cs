@@ -325,7 +325,7 @@ internal sealed record class SimpleTextLocation
         }
     }
 
-    public void MoveEnd()
+    public void MoveToEnd()
     {
         if (this.readLineInstance.LineList.Count == 0)
         {
@@ -416,5 +416,16 @@ internal sealed record class SimpleTextLocation
         this.RowIndex = 0;
         this.ArrayPosition = 0;
         this.CursorPosition = 0;
+    }
+
+    internal void Restore(CursorOperation cursorOperation)
+    {
+        if (!this.TryGetLineAndRow(out var line, out var row))
+        {
+            this.Reset(cursorOperation);
+            return;
+        }
+
+        this.LocationToCursor(row, cursorOperation);
     }
 }
