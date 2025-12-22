@@ -282,8 +282,6 @@ ProcessKeyInfo:
                                 currentInstance.Reset();
                                 currentInstance.Redraw();
                                 currentInstance.CurrentLocation.Reset();
-                                // coi
-                                // this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.None);
                                 continue;
                             }
                         }

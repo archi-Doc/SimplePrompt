@@ -342,7 +342,7 @@ internal sealed class ReadLineInstance
     }
 
     public void HeightChanged(SimpleTextRow row, int diff)
-    {// coi
+    {
         var index = -1;
         for (var i = 0; i < this.LineList.Count; i++)
         {
@@ -363,7 +363,6 @@ internal sealed class ReadLineInstance
         {
             var nextRow = line.Rows.ListChain[row.ListLink.Index + 1];
             this.simpleConsole.ClearRow(nextRow.Top);
-            // line.Write(nextRow.Start, line.TotalLength, 0, 0, true);
         }
 
         var top = -1;
