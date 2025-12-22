@@ -281,6 +281,7 @@ ProcessKeyInfo:
                                 this.NewLineCursor();
                                 currentInstance.Reset();
                                 currentInstance.Redraw();
+                                currentInstance.CurrentLocation.Reset();
                                 // coi
                                 // this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.None);
                                 continue;
@@ -493,6 +494,11 @@ CancelOrTerminate:
         }
     }
 
+    internal void ShowCursor()
+    {
+        this.RawConsole.WriteInternal(ConsoleHelper.ShowCursorSpan);
+    }
+
     internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
     {// Move and show cursor.
         /*if (this.CursorLeft == cursorLeft &&
@@ -580,15 +586,10 @@ CancelOrTerminate:
 
             if (this.TryGetActiveInstance(out var activeInstance))
             {
-                activeInstance.Restore();
-                activeInstance.SetCursorAtFirst(CursorOperation.Hide);
+                // activeInstance.Restore();
+                // activeInstance.CurrentLocation.Reset(CursorOperation.Hide);
                 activeInstance.Redraw();
-
-                if (activeInstance.LineIndex < activeInstance.FirstInputIndex)
-                {
-                    activeInstance.LineIndex = activeInstance.FirstInputIndex;
-                    activeInstance.LinePosition = 0;
-                }
+                activeInstance.CurrentLocation.Reset(CursorOperation.None);
 
                 // coi
                 /*

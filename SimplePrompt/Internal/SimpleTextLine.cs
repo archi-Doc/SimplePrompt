@@ -573,7 +573,7 @@ internal sealed class SimpleTextLine
         this.ReadLineInstance.CurrentLocation.Reset(this);
     }
 
-    private void Clear()
+    internal void Clear()
     {
         this._inputLength = 0;
         this._inputWidth = 0;

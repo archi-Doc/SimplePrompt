@@ -76,14 +76,14 @@ internal sealed record class SimpleTextLocation
                 var row = line.Rows.ListChain[this.RowIndex];
                 this.ArrayPosition = row.End;
                 this.CursorPosition = row.Width;
-                this.LocationToCursor(row);
+                this.LocationToCursor(row, cursorOperation);
             }
             else
             {
                 this.RowIndex = line.InitialRowIndex;
                 this.ArrayPosition = line.PromptLength;
                 this.CursorPosition = line.InitialCursorPosition;
-                this.LocationToCursor(line.Rows.ListChain[0]);
+                this.LocationToCursor(line.Rows.ListChain[0], cursorOperation);
             }
 
             return true;
@@ -402,6 +402,10 @@ internal sealed record class SimpleTextLocation
             this.simpleConsole.CursorLeft != left)
         {
             this.simpleConsole.SetCursorPosition(left, top, cursorOperation);
+        }
+        else if (cursorOperation == CursorOperation.Show)
+        {
+            this.simpleConsole.ShowCursor();
         }
     }
 

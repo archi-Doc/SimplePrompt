@@ -488,20 +488,25 @@ internal sealed class ReadLineInstance
         {
             this.simpleConsole.SetCursorPosition(0, top, cursorOperation);
         }
+        else if (cursorOperation == CursorOperation.Show)
+        {
+            this.simpleConsole.ShowCursor();
+        }
     }
-
 
     public void Reset()
     {
         this.Mode = default;
-        for (var i = this.FirstInputIndex + 1; i < this.LineList.Count; i++)
+        var indexToRemove = this.FirstInputIndex + 1;
+        var numberToRemove = this.LineList.Count - indexToRemove;
+        while (numberToRemove-- > 0)
         {
-            var listToRemove = this.LineList[i];
-            this.LineList.RemoveAt(i);
+            var listToRemove = this.LineList[indexToRemove];
+            this.LineList.RemoveAt(indexToRemove);
             SimpleTextLine.Return(listToRemove);
         }
 
-        // coi this.LineList[this.FirstInputIndex].Reset();
+        this.LineList[this.FirstInputIndex].Clear();
     }
 
     public void Clear()
