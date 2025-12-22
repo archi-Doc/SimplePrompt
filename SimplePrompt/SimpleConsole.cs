@@ -396,7 +396,6 @@ CancelOrTerminate:
     [Conditional("DEBUG")]
     internal void CheckCursor()
     {
-        return;
         try
         {
             var cursor = Console.GetCursorPosition();
