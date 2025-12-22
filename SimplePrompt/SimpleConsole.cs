@@ -94,7 +94,6 @@ public partial class SimpleConsole : IConsoleService
     internal SimpleLocation Location { get; }
 
     private readonly SimpleTextWriter simpleTextWriter;
-    private readonly ObjectPool<ReadLineBuffer> bufferPool;
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
@@ -107,7 +106,6 @@ public partial class SimpleConsole : IConsoleService
         this.simpleTextWriter = new(this, Console.Out);
         this.RawConsole = new(this);
         this.Location = new(this);
-        this.bufferPool = new(() => new ReadLineBuffer(this), 32);
         this.DefaultOptions = new();
 
         this.PrepareWindow(default);
@@ -282,9 +280,8 @@ ProcessKeyInfo:
                                 this.NewLineCursor();
                                 currentInstance.Reset();
                                 currentInstance.Redraw();
-                                var buffer = currentInstance.BufferList[currentInstance.BufferList.Count - 1];
-                                var cursor = buffer.ToCursor(0);
-                                this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.None);
+                                // coi
+                                // this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.None);
                                 continue;
                             }
                         }
@@ -371,9 +368,10 @@ using (this.syncObject.EnterScope())
             this.WriteInternal(message, true);
             activeInstance.Redraw();
 
-            var buffer = activeInstance.BufferList[activeInstance.LineIndex];
+            // coi
+            /* var buffer = activeInstance.BufferList[activeInstance.LineIndex];
             var cursor = buffer.ToCursor(activeInstance.LinePosition);
-            this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
+            this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);*/
 
             this.CheckCursor();
         }
@@ -425,16 +423,6 @@ using (this.syncObject.EnterScope())
         }
     }
 
-    internal ReadLineBuffer RentBuffer(ReadLineInstance @instance, int index, string? prompt)
-    {
-        var obj = this.bufferPool.Rent();
-        obj.Initialize(@instance, index, prompt);
-        return obj;
-    }
-
-    internal void ReturnBuffer(ReadLineBuffer obj)
-        => this.bufferPool.Return(obj);
-
     internal void AdvanceCursor(int width, bool newLine)
     {// coi
         this.CursorLeft += width;
@@ -478,23 +466,11 @@ using (this.syncObject.EnterScope())
 
         if (this.TryGetActiveInstance(out var activeInstance))
         {
-            foreach (var y in activeInstance.BufferList)
-            {
-                y.Top -= scroll;
-            }
-
             foreach (var y in activeInstance.LineList)
             {
                 y.Top -= scroll;
             }
         }
-    }
-
-    internal void SetCursor(ReadLineBuffer buffer)
-    {
-        var cursorLeft = buffer.PromptWidth;
-        var cursorTop = buffer.Top;
-        this.SetCursorPosition(cursorLeft, cursorTop, CursorOperation.None);
     }
 
     internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
@@ -594,6 +570,8 @@ using (this.syncObject.EnterScope())
                     activeInstance.LinePosition = 0;
                 }
 
+                // coi
+                /*
                 if (activeInstance.LinePosition > activeInstance.BufferList[activeInstance.LineIndex].Width)
                 {
                     activeInstance.LinePosition = activeInstance.BufferList[activeInstance.LineIndex].Width;
@@ -601,7 +579,7 @@ using (this.syncObject.EnterScope())
 
                 var buffer = activeInstance.BufferList[activeInstance.LineIndex];
                 var cursor = buffer.ToCursor(activeInstance.LinePosition);
-                this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);
+                this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);*/
             }
         }
     }

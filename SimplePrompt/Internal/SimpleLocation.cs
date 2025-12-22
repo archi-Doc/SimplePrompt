@@ -109,7 +109,8 @@ internal sealed class SimpleLocation
             return;
         }
 
-        var bufferList = this.previousInstance.BufferList;
+        // coi
+        /*var bufferList = this.previousInstance.LineList;
         if (this.previousInstance.LineIndex >= bufferList.Count)
         {// Invalid buffer index
             return;
@@ -156,7 +157,7 @@ internal sealed class SimpleLocation
         }
 
         this.simpleConsole.CursorLeft = newCursor.Left;
-        this.simpleConsole.CursorTop = newCursor.Top;
+        this.simpleConsole.CursorTop = newCursor.Top;*/
     }
 
     public void CorrectCursorTop(ReadLineInstance readLineInstance)
@@ -169,11 +170,6 @@ internal sealed class SimpleLocation
         }
 
         var topDiff = newCursor.Top - this.simpleConsole.CursorTop;
-        foreach (var x in readLineInstance.BufferList)
-        {
-            x.Top += topDiff;
-        }
-
         foreach (var x in readLineInstance.LineList)
         {
             x.Top += topDiff;
