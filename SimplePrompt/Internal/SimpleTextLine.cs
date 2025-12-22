@@ -582,24 +582,6 @@ internal sealed class SimpleTextLine
         this.ResetRows();
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private int GetCursorIndex(int cursorLeft, int cursorTop)
-    {
-        var index = cursorLeft + (cursorTop * this.SimpleConsole.WindowWidth);
-        if (index < 0)
-        {
-            return 0;
-        }
-        else if (index >= this.TotalWidth)
-        {
-            return this.TotalWidth;
-        }
-        else
-        {
-            return index;
-        }
-    }
-
     private void ProcessCharBuffer(Span<char> charBuffer)
     {
         if (!this.ReadLineInstance.IsLengthWithinLimit(charBuffer.Length))
@@ -642,33 +624,11 @@ internal sealed class SimpleTextLine
         if (result.RowChanged)
         {// Height changed
             this.ReadLineInstance.HeightChanged(row, +1);
-            this.Write(position, this.TotalLength, false, 0);
-            this.ReadLineInstance.CurrentLocation.Advance(charBuffer.Length, width);
-            this.ReadLineInstance.CurrentLocation.LocationToCursor();
-        }
-        else
-        {
-            this.Write(position, this.TotalLength, false, 0);
-            this.ReadLineInstance.CurrentLocation.Advance(charBuffer.Length, width);
-            this.ReadLineInstance.CurrentLocation.LocationToCursor();
         }
 
-        /*var line = this.FindLine();
-
-        var heightChanged = this.ChangeLengthAndWidth(charBuffer.Length, width);
-        if (heightChanged.Diff == 0)
-        {
-            this.Write(arrayPosition, this.Length, width, 0);//
-            // if (this.CursorLeft == 0 && width > 0)
-            // {
-            //     this.readLineInstance.HeightChanged(heightChanged.Index, 1);
-            // }
-        }
-        else
-        {
-            this.Write(arrayPosition, this.Length, width, 0, true);
-            this.readLineInstance.HeightChanged(heightChanged.Index, heightChanged.Diff);
-        }*/
+        this.Write(position, this.TotalLength, false, 0);
+        this.ReadLineInstance.CurrentLocation.Advance(charBuffer.Length, width);
+        this.ReadLineInstance.CurrentLocation.LocationToCursor();
     }
 
     private void EnsureBuffer(int capacity)

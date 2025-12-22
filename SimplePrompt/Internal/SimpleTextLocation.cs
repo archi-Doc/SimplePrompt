@@ -2,7 +2,6 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using static Arc.Unit.UnitMessage;
 
 namespace SimplePrompt.Internal;
 
