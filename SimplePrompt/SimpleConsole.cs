@@ -364,9 +364,12 @@ using (this.syncObject.EnterScope())
             }
 
             this.Location.CorrectCursorTop(activeInstance);
-            activeInstance.PrepareLocation();
-            activeInstance.SetCursorAtFirst(CursorOperation.None);
+            // activeInstance.PrepareLocation();
+            // activeInstance.CurrentLocation.Reset();
+            activeInstance.ResetCursor();
+
             this.WriteInternal(message, true);
+
             activeInstance.Redraw();
             activeInstance.CurrentLocation.Reset();
 

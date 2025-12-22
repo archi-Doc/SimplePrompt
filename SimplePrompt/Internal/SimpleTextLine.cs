@@ -105,13 +105,6 @@ internal sealed class SimpleTextLine
         this.ReadLineInstance = default!;
     }
 
-    /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal void ChangeInputLengthAndWidth(int lengthDiff, int widthDiff)
-    {
-        this._inputLength += lengthDiff;
-        this._inputWidth += widthDiff;
-    }*/
-
     internal ReadOnlySpan<char> PromptSpan => this.charArray.AsSpan(0, this.PromptLength);
 
     internal ReadOnlySpan<char> InputSpan => this.charArray.AsSpan(this.PromptLength, this.InputLength);
@@ -185,7 +178,6 @@ internal sealed class SimpleTextLine
                 if (this.ReadLineInstance.Mode.IsMultiline)
                 {// Down
                     this.ReadLineInstance.CurrentLocation.MoveHorizontal(false);
-                    // this.ReadLineInstance.CurrentLocation.ChangeLine(+1, true);
                 }
                 else
                 {// History
@@ -439,29 +431,6 @@ internal sealed class SimpleTextLine
         return (this.Rows.ListChain[count - 1].Width, this.Top + count - 1);
     }
 
-    /*internal (int Left, int Top) ToCursor(int cursorIndex)
-    {
-        var top = cursorIndex / this.SimpleConsole.WindowWidth;
-        var left = cursorIndex - (top * this.SimpleConsole.WindowWidth);
-        return (left, top);
-    }
-
-    internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
-    {
-        try
-        {
-            if (cursorOperation == CursorOperation.Show ||
-                cursorLeft != this.CursorLeft ||
-                cursorTop != this.CursorTop)
-            {
-                this.SimpleConsole.SetCursorPosition(cursorLeft, this.Top + cursorTop, cursorOperation);
-            }
-        }
-        catch
-        {
-        }
-    }*/
-
     private void ResetRows()
     {
         this.InitialRowIndex = 0;
@@ -578,11 +547,6 @@ internal sealed class SimpleTextLine
         {
             this.ReadLineInstance.HeightChanged(row, -1);
         }
-
-        /*if (r.Diff != 0)
-        {
-            this.readLineInstance.HeightChanged(r.Index, r.Diff);
-        }*/
     }
 
     private void ClearLine()

@@ -52,6 +52,20 @@ internal sealed class ReadLineInstance
 
     public int FirstInputIndex { get; private set; }
 
+    public int TotalHeight
+    {
+        get
+        {
+            var height = 0;
+            foreach (var x in this.LineList)
+            {
+                height += x.Height;
+            }
+
+            return height;
+        }
+    }
+
     private SimpleConsole simpleConsole;
     private ReadLineOptions options = new();
 
@@ -154,7 +168,25 @@ internal sealed class ReadLineInstance
             SimpleConsole.ReturnWindowBuffer(windowBuffer);
         }
 
+
+        this.Scroll();
+
         this.CurrentLocation.Reset();
+    }
+
+    private void Scroll()
+    {
+        if (this.LineList.Count == 0)
+        {
+            return;
+        }
+
+        var line = this.LineList[^1];
+        var scroll = line.Top + line.Height - this.simpleConsole.WindowHeight;
+        if (scroll > 0)
+        {
+            this.simpleConsole.Scroll(scroll, true);
+        }
     }
 
     public string? ProcessInput(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
@@ -432,6 +464,22 @@ internal sealed class ReadLineInstance
         return top;
     }
 
+    public void ResetCursor()
+    {
+        if (this.LineList.Count == 0)
+        {
+            return;
+        }
+
+        var top = this.LineList[0].Top;
+        if (this.simpleConsole.CursorTop != top ||
+            this.simpleConsole.CursorLeft != 0)
+        {
+            this.simpleConsole.SetCursorPosition(0, top, CursorOperation.None);
+        }
+    }
+
+
     public void Reset()
     {
         this.Mode = default;
@@ -474,56 +522,52 @@ internal sealed class ReadLineInstance
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
 
+        // var scroll = y + this.TotalHeight - this.simpleConsole.WindowHeight;
         var y = this.simpleConsole.CursorTop;
         var isFirst = true;
-        var remainingHeight = this.simpleConsole.WindowHeight;
         for (var i = 0; i < this.LineList.Count; i++)
         {
             var line = this.LineList[i];
-            if (line.Top >= 0 && line.Height <= remainingHeight)
+            // if (line.Top >= 0 && line.Height <= remainingHeight)
+
+            if (isFirst)
             {
-                if (isFirst)
-                {
-                    isFirst = false;
-                }
-                else
-                {
-                    SimplePromptHelper.TryCopy(ConsoleHelper.NewLineSpan, ref span);
-                }
-
-                remainingHeight -= line.Height;
-
-                if (line.PromptLength > 0)
-                {
-                    SimplePromptHelper.TryCopy(line.PromptSpan, ref span);
-                }
-
-                SimplePromptHelper.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.InputColor).AsSpan(), ref span); // Input color
-
-                var maskingCharacter = this.Options.MaskingCharacter;
-                if (maskingCharacter == default)
-                {
-                    SimplePromptHelper.TryCopy(line.InputSpan, ref span);
-                }
-                else
-                {
-                    if (span.Length >= line.InputWidth)
-                    {
-                        span.Slice(0, line.InputWidth).Fill(maskingCharacter);
-                        span = span.Slice(line.InputWidth);
-                    }
-                }
-
-                SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
-                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
+                isFirst = false;
             }
+            else
+            {
+                SimplePromptHelper.TryCopy(ConsoleHelper.NewLineSpan, ref span);
+            }
+
+            if (line.PromptLength > 0)
+            {
+                SimplePromptHelper.TryCopy(line.PromptSpan, ref span);
+            }
+
+            SimplePromptHelper.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.InputColor).AsSpan(), ref span); // Input color
+
+            var maskingCharacter = this.Options.MaskingCharacter;
+            if (maskingCharacter == default)
+            {
+                SimplePromptHelper.TryCopy(line.InputSpan, ref span);
+            }
+            else
+            {
+                if (span.Length >= line.InputWidth)
+                {
+                    span.Slice(0, line.InputWidth).Fill(maskingCharacter);
+                    span = span.Slice(line.InputWidth);
+                }
+            }
+
+            SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
+            SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
 
             line.Top = y;
             y += line.Height;
         }
 
-        remainingHeight = this.simpleConsole.WindowHeight - remainingHeight;
-        var scroll = this.simpleConsole.CursorTop + remainingHeight - this.simpleConsole.WindowHeight;
+        var scroll = y - this.simpleConsole.WindowHeight + 1;
         if (scroll > 0)
         {
             this.simpleConsole.Scroll(scroll, true);
