@@ -61,6 +61,11 @@ internal sealed class Program
         };
 
         Console.WriteLine(Environment.OSVersion.ToString());
+        var cursor = Console.GetCursorPosition();
+        Console.WriteLine($"Top:{cursor.Top} Left:{cursor.Left}");
+        Console.Write("ABC");
+        cursor = Console.GetCursorPosition();
+        Console.WriteLine($"Top:{cursor.Top} Left:{cursor.Left}");
 
         while (!ThreadCore.Root.IsTerminated)
         {

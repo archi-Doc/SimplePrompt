@@ -394,7 +394,7 @@ internal sealed class SimpleTextLine
 
         this.ReadLineInstance.LinePosition = endIndex;
 
-        // if (this.SimpleConsole.CursorLeft == 0)
+        if (this.SimpleConsole.CursorLeft == 0)
         {
             this.SimpleConsole.SetCursorPosition(this.SimpleConsole.CursorLeft, this.SimpleConsole.CursorTop, CursorOperation.None);
         }

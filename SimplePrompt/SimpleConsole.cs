@@ -125,6 +125,12 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
+        var cursor = Console.GetCursorPosition();// coi
+        this.RawConsole.WriteInternal($"Top:{cursor.Top} Left:{cursor.Left}");
+        Console.Write("ABC");
+        cursor = Console.GetCursorPosition();
+        this.RawConsole.WriteInternal($"Top:{cursor.Top} Left:{cursor.Left}");
+
         InputResultKind inputResultKind;
         ReadLineInstance currentInstance;
         using (this.syncObject.EnterScope())
@@ -331,7 +337,7 @@ CancelOrTerminate:
         using (this.syncObject.EnterScope())
         {
             if (!this.IsReadLineInProgress)
-            {
+            {// coi
                 this.CheckCursor();
 
                 this.WriteInternal(message, false);
