@@ -132,7 +132,11 @@ internal sealed partial class SimpleTextRow
         {// The width is within WindowWidth. If necessary, the array is moved starting from the next row.
             if (nextRow is null)
             {// There is no next row, so nothing to move.
-                return;
+            }
+            else if (nextRow.Length == 0)
+            {// Empty row
+                SimpleTextRow.Return(nextRow);
+                rowChanged = true;
             }
             else
             {// Move from the next row if there is extra space.
@@ -147,20 +151,12 @@ internal sealed partial class SimpleTextRow
                 }
 
                 var lengthDiff = this.End - index;
-                var widthDiff2 = this.Width + width - this.Line.WindowWidth;
+                widthDiff = this.Width + width - this.Line.WindowWidth;
                 this._length -= lengthDiff;
-                this._width -= widthDiff2;
-                if (nextRow.Length == 0)
-                {
-                    SimpleTextRow.Return(nextRow);
-                    rowChanged = true;
-                }
-                else
-                {
-                    widthDiff = widthDiff2;
-                    nextRow.ChangeStartPosition(this.End, lengthDiff, widthDiff);
-                    nextRow.Arrange(ref rowChanged, ref widthDiff);
-                }
+                this._width -= widthDiff;
+
+                nextRow.ChangeStartPosition(this.End, lengthDiff, widthDiff);
+                nextRow.Arrange(ref rowChanged, ref widthDiff);
             }
         }
         else if (this.Width > this.Line.WindowWidth)

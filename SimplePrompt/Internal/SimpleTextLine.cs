@@ -318,13 +318,13 @@ internal sealed class SimpleTextLine
             buffer = buffer.Slice(totalWidth);
         }
 
-        /*if (endCursor.Left == 0)
+        if (endCursor.Left == 0)
         {// New line at the end
             span = SimplePromptHelper.ForceNewLineCursor;
             span.CopyTo(buffer);
             written += span.Length;
             buffer = buffer.Slice(span.Length);
-        }*/
+        }
 
         // Reset color
         span = ConsoleHelper.ResetSpan;
