@@ -13,6 +13,7 @@ public record class ReadLineOptions
     {
         MaxInputLength = 1024,
         MultilineDelimiter = null,
+        LineContinuation = default,
         AllowEmptyLineInput = false,
     };
 

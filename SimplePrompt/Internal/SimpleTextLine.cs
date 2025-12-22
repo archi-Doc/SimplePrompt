@@ -437,6 +437,14 @@ internal sealed class SimpleTextLine
         this.InitialCursorPosition = 0;
 
         SimpleTextRow row;
+        if (this.PromptLength == 0)
+        {
+            row = SimpleTextRow.Rent(this);
+            row.Prepare(0, 0, 0, 0);
+            this.InitialRowIndex = 0;
+            this.InitialCursorPosition = 0;
+        }
+
         var start = 0;
         var windowWidth = this.SimpleConsole.WindowWidth;
         while (start < this.PromptLength)

@@ -290,8 +290,6 @@ ProcessKeyInfo:
                         position = 0;
                         if (result is not null)
                         {
-                            // this.UnderlyingTextWriter.WriteLine();
-                            // this.NewLineCursor();
                             return new(result);
                         }
                     }
@@ -318,12 +316,6 @@ ProcessKeyInfo:
         }
 
 CancelOrTerminate:
-/*this.UnderlyingTextWriter.WriteLine();
-using (this.syncObject.EnterScope())
-{
-    this.NewLineCursor();
-}*/
-
         return new(inputResultKind);
     }
 
