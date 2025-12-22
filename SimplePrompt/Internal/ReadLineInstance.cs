@@ -361,8 +361,7 @@ internal sealed class ReadLineInstance
         var line = this.LineList[index];
         if (diff > 0)
         {
-            var nextRow = line.Rows.ListChain[row.ListLink.Index + 1];
-            this.simpleConsole.ClearRow(nextRow.Top);
+            this.simpleConsole.ClearRow(line.Top + line.Height - 1);
         }
 
         var top = -1;
@@ -387,7 +386,7 @@ internal sealed class ReadLineInstance
         this.CurrentLocation.LocationToCursor();
     }
 
-    public void TryDeleteBuffer(int index, bool backspace)
+    public void TryDeleteLine(int index, bool backspace)
     {
         if (index <= this.FirstInputIndex ||
             index >= this.LineList.Count)

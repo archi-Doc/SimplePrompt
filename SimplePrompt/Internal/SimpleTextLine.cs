@@ -509,7 +509,7 @@ internal sealed class SimpleTextLine
         {// Delete empty buffer
             if (backspace || this.Index < this.ReadLineInstance.LineList.Count - 1)
             {
-                this.ReadLineInstance.TryDeleteBuffer(this.Index, backspace);
+                this.ReadLineInstance.TryDeleteLine(this.Index, backspace);
                 return;
             }
         }

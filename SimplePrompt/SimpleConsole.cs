@@ -355,14 +355,11 @@ CancelOrTerminate:
             }
 
             this.Location.CorrectCursorTop(activeInstance);
-            // activeInstance.PrepareLocation();
-            // activeInstance.CurrentLocation.Reset();
             activeInstance.ResetCursor(CursorOperation.Hide);
 
             this.WriteInternal(message, true);
 
             activeInstance.Redraw();
-            // activeInstance.CurrentLocation.Reset(CursorOperation.Show);
             activeInstance.CurrentLocation.Restore(CursorOperation.Show);
 
             this.CheckCursor();
