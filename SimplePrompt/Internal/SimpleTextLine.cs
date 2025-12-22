@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Collections;
 using Arc.Unit;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SimplePrompt.Internal;
 
@@ -376,7 +377,8 @@ internal sealed class SimpleTextLine
             scroll = 0;
         }
 
-        this.SimpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        this.SimpleConsole.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written));
+        // this.SimpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
 
         if (restoreCursor)
