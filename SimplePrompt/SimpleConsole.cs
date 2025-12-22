@@ -358,12 +358,12 @@ CancelOrTerminate:
             this.Location.CorrectCursorTop(activeInstance);
             // activeInstance.PrepareLocation();
             // activeInstance.CurrentLocation.Reset();
-            activeInstance.ResetCursor();
+            activeInstance.ResetCursor(CursorOperation.Hide);
 
             this.WriteInternal(message, true);
 
             activeInstance.Redraw();
-            activeInstance.CurrentLocation.Reset();
+            activeInstance.CurrentLocation.Reset(CursorOperation.Show);
 
             this.CheckCursor();
         }
@@ -609,6 +609,8 @@ CancelOrTerminate:
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
 
+        // SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref span);
+
         while (message.Length > 0)
         {
             var appendNewLine = false;
@@ -656,6 +658,8 @@ CancelOrTerminate:
 
             this.AdvanceCursor(text, appendNewLine);
         }
+
+        // SimplePromptHelper.TryCopy(ConsoleHelper.ShowCursorSpan, ref span);
 
         // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
         this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));

@@ -52,11 +52,11 @@ internal sealed record class SimpleTextLocation
         return true;
     }
 
-    public void Reset()
+    public void Reset(CursorOperation cursorOperation = CursorOperation.None)
     {
         foreach (var x in this.readLineInstance.LineList)
         {
-            if (this.Reset(x))
+            if (this.Reset(x, cursorOperation))
             {
                 return;
             }
@@ -65,7 +65,7 @@ internal sealed record class SimpleTextLocation
         this.ResetZero();
     }
 
-    public bool Reset(SimpleTextLine line, bool lastPosition = false)
+    public bool Reset(SimpleTextLine line, CursorOperation cursorOperation = CursorOperation.None, bool lastPosition = false)
     {
         if (line.IsInput && line.Rows.Count > 0)
         {
@@ -381,12 +381,12 @@ internal sealed record class SimpleTextLocation
         this.readLineInstance = default!;
     }
 
-    private void LocationToCursor(SimpleTextRow row)
+    private void LocationToCursor(SimpleTextRow row, CursorOperation cursorOperation = CursorOperation.None)
     {
         if (this.ArrayPosition < row.Start ||
             row.End < this.ArrayPosition)
         {
-            this.Reset();
+            this.Reset(cursorOperation);
             return;
         }
 
@@ -401,7 +401,7 @@ internal sealed record class SimpleTextLocation
         if (this.simpleConsole.CursorTop != top ||
             this.simpleConsole.CursorLeft != left)
         {
-            this.simpleConsole.SetCursorPosition(left, top, CursorOperation.None);
+            this.simpleConsole.SetCursorPosition(left, top, cursorOperation);
         }
     }
 

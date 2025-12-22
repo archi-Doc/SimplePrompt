@@ -115,13 +115,13 @@ internal sealed class ReadLineInstance
     {
         var top = this.simpleConsole.CursorTop;
         var prompt = this.Options.Prompt.AsSpan();
-        var bufferIndex = 0;
+        var lineIndex = 0;
         char[]? windowBuffer = null;
         while (prompt.Length >= 0)
         {
             // For a multi-line prompt, multiple SimpleTextLine instances are created and each line is assigned accordingly.
             var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
-            SimpleTextLine simpleTextLine;
+            SimpleTextLine line;
             ReadOnlySpan<char> currentPrompt;
             var isInput = false;
             if (index < 0)
@@ -135,15 +135,21 @@ internal sealed class ReadLineInstance
                 prompt = prompt.Slice(index + newLineLength);
             }
 
-            simpleTextLine = SimpleTextLine.Rent(this.simpleConsole, this, bufferIndex, currentPrompt, isInput);
-            bufferIndex++;
+            line = SimpleTextLine.Rent(this.simpleConsole, this, lineIndex, currentPrompt, isInput);
+            lineIndex++;
 
-            this.LineList.Add(simpleTextLine);
-            simpleTextLine.Top = top;
-            top += simpleTextLine.Height;
+            this.LineList.Add(line);
+            line.Top = top;
+            top += line.Height;
 
             windowBuffer ??= SimpleConsole.RentWindowBuffer();
             var span = windowBuffer.AsSpan();
+
+            if (lineIndex == 1)
+            {// Hide the cursor during the initial rendering.
+                SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref span);
+            }
+
             SimplePromptHelper.TryCopy(currentPrompt, ref span);
             if (isInput)
             {
@@ -154,11 +160,16 @@ internal sealed class ReadLineInstance
                 SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
             }
 
+            if (isInput)
+            {// Show the cursor during the final rendering.
+                SimplePromptHelper.TryCopy(ConsoleHelper.ShowCursorSpan, ref span);
+            }
+
             this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
 
             if (isInput)
             {// Input
-                this.FirstInputIndex = bufferIndex - 1;
+                this.FirstInputIndex = lineIndex - 1;
                 break;
             }
         }
@@ -422,7 +433,7 @@ internal sealed class ReadLineInstance
             this.Mode = ReadLineMode.Singleline;
         }
 
-        this.CurrentLocation.Reset(this.LineList[index], backspace);
+        this.CurrentLocation.Reset(this.LineList[index], CursorOperation.None, backspace);
     }
 
     public bool IsLengthWithinLimit(int dif)
@@ -464,7 +475,7 @@ internal sealed class ReadLineInstance
         return top;
     }
 
-    public void ResetCursor()
+    public void ResetCursor(CursorOperation cursorOperation)
     {
         if (this.LineList.Count == 0)
         {
@@ -475,7 +486,7 @@ internal sealed class ReadLineInstance
         if (this.simpleConsole.CursorTop != top ||
             this.simpleConsole.CursorLeft != 0)
         {
-            this.simpleConsole.SetCursorPosition(0, top, CursorOperation.None);
+            this.simpleConsole.SetCursorPosition(0, top, cursorOperation);
         }
     }
 
