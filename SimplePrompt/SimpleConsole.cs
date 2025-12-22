@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using Arc;
 using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
@@ -364,14 +365,10 @@ using (this.syncObject.EnterScope())
 
             this.Location.CorrectCursorTop(activeInstance);
             activeInstance.PrepareLocation();
-            activeInstance.SetCursorAtFirst(CursorOperation.Hide);
+            activeInstance.SetCursorAtFirst(CursorOperation.None);
             this.WriteInternal(message, true);
             activeInstance.Redraw();
-
-            // coi
-            /* var buffer = activeInstance.BufferList[activeInstance.LineIndex];
-            var cursor = buffer.ToCursor(activeInstance.LinePosition);
-            this.SetCursorPosition(cursor.Left, buffer.Top + cursor.Top, CursorOperation.Show);*/
+            activeInstance.CurrentLocation.Reset();
 
             this.CheckCursor();
         }
@@ -423,21 +420,49 @@ using (this.syncObject.EnterScope())
         }
     }
 
-    internal void AdvanceCursor(int width, bool newLine)
-    {// coi
-        this.CursorLeft += width;
-        var h = this.CursorLeft >= 0 ? (this.CursorLeft / this.WindowWidth) : (((this.CursorLeft - 1) / this.WindowWidth) - 1);
-        this.CursorLeft -= h * this.WindowWidth; // 0 - (WindowWidth-1)
-        this.CursorTop += h;
+    internal void AdvanceCursor(ReadOnlySpan<char> text, bool newLine)
+    {
+        var left = this.CursorLeft;
+        var top = this.CursorTop;
+        var windowWidth = this.WindowWidth;
+        var windowHeight = this.WindowHeight;
+
+        for (var i = 0; i < text.Length; i++)
+        {
+            int width;
+            var c = text[i];
+            if (char.IsHighSurrogate(c) && (i + 1) < text.Length && char.IsLowSurrogate(text[i + 1]))
+            {
+                var codePoint = char.ConvertToUtf32(c, text[i + 1]);
+                width = SimplePromptHelper.GetCharWidth(codePoint);
+            }
+            else
+            {
+                width = SimplePromptHelper.GetCharWidth(c);
+            }
+
+            if (left + width >= windowWidth)
+            {
+                left += width - windowWidth;
+                top++;
+            }
+            else
+            {
+                left += width;
+            }
+        }
 
         if (newLine)
         {
-            this.CursorLeft = 0;
-            this.CursorTop++;
+            left = 0;
+            top++;
         }
 
+        this.CursorLeft = left;
+        this.CursorTop = top;
+
         // Scroll if needed.
-        var scroll = this.CursorTop - this.WindowHeight + 1;
+        var scroll = top - windowHeight + 1;
         if (scroll > 0)
         {
             this.Scroll(scroll, true);
@@ -634,7 +659,7 @@ using (this.syncObject.EnterScope())
                 }
             }
 
-            this.AdvanceCursor(SimplePromptHelper.GetWidth(text), appendNewLine);
+            this.AdvanceCursor(text, appendNewLine);
         }
 
         // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
