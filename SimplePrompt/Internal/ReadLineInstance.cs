@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Globalization;
+using System.Reflection;
 using Arc;
 using Arc.Collections;
 using Arc.Unit;

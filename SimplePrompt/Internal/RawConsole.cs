@@ -3,6 +3,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using Arc;
@@ -45,6 +46,25 @@ internal sealed class RawConsole
     {
         this.simpleConsole = inputConsole;
         this.encoding = Encoding.UTF8;
+
+        try
+        {
+            var coreLib = typeof(Console).Assembly;
+            var consolePalType = coreLib.GetType("System.ConsolePal");
+            if (consolePalType is not null)
+            {
+                var method = consolePalType.GetMethod("TryGetCachedCursorPosition", BindingFlags.NonPublic | BindingFlags.Static, [typeof(int), typeof(int),])!;
+                var args = new object?[] { null, null };
+                method.Invoke(default, args);
+                var x = (int)args[0]!;
+                var y = (int)args[1]!;
+                Console.WriteLine($"{x},{y}");
+            }
+        }
+        catch
+        {
+
+        }
 
         try
         {
