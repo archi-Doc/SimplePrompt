@@ -726,6 +726,8 @@ internal sealed class ReadLineInstance
             return false;
         }
 
+        Console.WriteLine($"Cursor top {this.simpleConsole.CursorTop} -> {newCursor.Top}"); // coi
+
         var topDiff = newCursor.Top - this.simpleConsole.CursorTop;
         foreach (var x in this.LineList)
         {
