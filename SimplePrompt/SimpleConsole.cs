@@ -184,11 +184,11 @@ public partial class SimpleConsole : IConsoleService
 
                     if (currentInstance.CorrectCursorTop())
                     {// Since the cursor position has been corrected, redraw the prompt.
-                        this.UnderlyingTextWriter.WriteLine();
+                        /*this.UnderlyingTextWriter.WriteLine();
                         this.NewLineCursor();
                         currentInstance.Redraw();
                         currentInstance.CurrentLocation.Restore(CursorOperation.None);
-                        Console.SetCursorPosition(this.CursorLeft, this.CursorTop);
+                        Console.SetCursorPosition(this.CursorLeft, this.CursorTop);*/
                     }
 
                     if (!this.RawConsole.TryRead(out keyInfo))
