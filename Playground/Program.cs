@@ -60,6 +60,7 @@ internal sealed class Program
             KeyInputHook = keyInfo => KeyInputHook(keyInfo),
         };
 
+        Console.ReadLine();
         Console.WriteLine(Environment.OSVersion.ToString());
         var cursor = Console.GetCursorPosition();
         Console.WriteLine($"Top:{cursor.Top} Left:{cursor.Left}");
