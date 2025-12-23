@@ -188,6 +188,7 @@ public partial class SimpleConsole : IConsoleService
                         this.NewLineCursor();
                         currentInstance.Redraw();
                         currentInstance.CurrentLocation.Restore(CursorOperation.None);
+                        Console.SetCursorPosition(this.CursorLeft, this.CursorTop);
                     }
 
                     if (!this.RawConsole.TryRead(out keyInfo))
