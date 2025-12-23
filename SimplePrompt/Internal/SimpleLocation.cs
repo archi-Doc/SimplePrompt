@@ -101,24 +101,6 @@ internal sealed class SimpleLocation
         this.simpleConsole.CursorTop = newCursor.Top;*/
     }
 
-    public void CorrectCursorTop(ReadLineInstance readLineInstance)
-    {
-        var newCursor = Console.GetCursorPosition();
-        // this.simpleConsole.UnderlyingTextWriter.Write($"{this.simpleConsole.CursorTop}->{newCursor.Top}, ");
-        if (newCursor.Top == this.simpleConsole.CursorTop)
-        {
-            return;
-        }
-
-        var topDiff = newCursor.Top - this.simpleConsole.CursorTop;
-        foreach (var x in readLineInstance.LineList)
-        {
-            x.Top += topDiff;
-        }
-
-        (_, this.simpleConsole.CursorTop) = newCursor;
-    }
-
     private static void Log(string message)
     {
         File.AppendAllText("log.txt", message);

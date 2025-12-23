@@ -187,7 +187,7 @@ public partial class SimpleConsole : IConsoleService
                         continue;
                     }
 
-                    // this.Location.CorrectCursorTop(currentInstance);
+                    currentInstance.CorrectCursorTop();
                 }
 
 ProcessKeyInfo:
@@ -331,7 +331,7 @@ CancelOrTerminate:
         using (this.syncObject.EnterScope())
         {
             if (!this.IsReadLineInProgress)
-            {// coi
+            {
                 this.CheckCursor();
 
                 this.WriteInternal(message, false);
@@ -354,7 +354,7 @@ CancelOrTerminate:
                 return;
             }
 
-            this.Location.CorrectCursorTop(activeInstance);
+            activeInstance.CorrectCursorTop();
             activeInstance.ResetCursor(CursorOperation.Hide);
 
             this.WriteInternal(message, true);

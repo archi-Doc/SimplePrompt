@@ -60,6 +60,16 @@ internal sealed class Program
             KeyInputHook = keyInfo => KeyInputHook(keyInfo),
         };
 
+        _ = Task.Run(async () =>
+        {
+            while (!ThreadCore.Root.IsTerminated)
+            {
+                await ThreadCore.Root.Delay(5000);
+
+                Console.WriteLine("12345 - ABCDEF - あいうえお");
+            }
+        });
+
         while (!ThreadCore.Root.IsTerminated)
         {
             var options = simpleConsole.DefaultOptions with

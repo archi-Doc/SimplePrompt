@@ -68,6 +68,7 @@ internal sealed class ReadLineInstance
 
     private SimpleConsole simpleConsole;
     private ReadLineOptions options = new();
+    private DateTime correctedCursorTime;
 
     #endregion
 
@@ -707,5 +708,30 @@ internal sealed class ReadLineInstance
 
         this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
+    }
+
+    internal void CorrectCursorTop()
+    {
+        var current = DateTime.UtcNow;
+        if ((current - this.correctedCursorTime) < TimeSpan.FromSeconds(1))
+        {
+            return;
+        }
+
+        this.correctedCursorTime = current;
+
+        var newCursor = Console.GetCursorPosition(); // I have just got a new theory of eternity in this method, so an interval was added between calls.
+        if (newCursor.Top == this.simpleConsole.CursorTop)
+        {
+            return;
+        }
+
+        var topDiff = newCursor.Top - this.simpleConsole.CursorTop;
+        foreach (var x in this.LineList)
+        {
+            x.Top += topDiff;
+        }
+
+        this.simpleConsole.CursorTop = newCursor.Top;
     }
 }
