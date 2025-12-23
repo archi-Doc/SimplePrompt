@@ -72,7 +72,7 @@ internal sealed class Program
                 }
                 else
                 {
-                    // Console.WriteLine("12345 - ABCDEF - あいうえお");
+                    Console.WriteLine("12345 - ABCDEF - あいうえお");
                 }
             }
         });

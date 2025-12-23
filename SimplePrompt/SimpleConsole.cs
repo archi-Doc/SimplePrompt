@@ -182,13 +182,12 @@ public partial class SimpleConsole : IConsoleService
                     // Active instance: Prepare window and read key input.
                     this.PrepareWindow(currentInstance);
 
-                    //if (currentInstance.CorrectCursorTop())
+                    if (currentInstance.CorrectCursorTop())
                     {// Since the cursor position has been corrected, redraw the prompt.
-                        /*this.UnderlyingTextWriter.WriteLine();
+                        this.UnderlyingTextWriter.WriteLine();
                         this.NewLineCursor();
                         currentInstance.Redraw();
                         currentInstance.CurrentLocation.Restore(CursorOperation.None);
-                        Console.SetCursorPosition(this.CursorLeft, this.CursorTop);*/
                     }
 
                     if (!this.RawConsole.TryRead(out keyInfo))
@@ -364,7 +363,7 @@ CancelOrTerminate:
                 return;
             }
 
-            activeInstance.CorrectCursorTop();
+            // activeInstance.CorrectCursorTop();
             activeInstance.ResetCursor(CursorOperation.Hide);
 
             this.WriteInternal(message, true);
