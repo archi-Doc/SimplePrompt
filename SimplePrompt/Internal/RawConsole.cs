@@ -38,6 +38,7 @@ internal sealed class RawConsole
     private SafeHandle? handle;
     private byte posixDisableValue;
     private byte veraseCharacter;
+    private FieldInfo? cursorTopField;
 
     public Span<char> CharsSpan => this.chars.AsSpan(this.charsStartIndex, this.charsEndIndex - this.charsStartIndex);
 
@@ -54,19 +55,8 @@ internal sealed class RawConsole
             var consolePalType = coreLib.GetType("System.ConsolePal");
             if (consolePalType is not null)
             {
-                Console.WriteLine($"1");
-                var method = consolePalType.GetMethod("TryGetCachedCursorPosition", BindingFlags.NonPublic | BindingFlags.Static, [typeof(int), typeof(int),])!;
-                Console.WriteLine($"2 {method is not null}");
-                var getField = consolePalType.GetField("s_cursorTop", BindingFlags.NonPublic | BindingFlags.Static);
-                Console.WriteLine($"3 {getField is not null}");
-                Console.WriteLine($"4 {(int)getField.GetValue(null)!}");
-                /*var args = new object?[] { null, null };
-                method.Invoke(default, args);
-                Console.WriteLine($"3");
-                var x = (int)args[0]!;
-                Console.WriteLine($"4");
-                var y = (int)args[1]!;
-                Console.WriteLine($"{x},{y}");*/
+                // var method = consolePalType.GetMethod("TryGetCachedCursorPosition", BindingFlags.NonPublic | BindingFlags.Static, [typeof(int), typeof(int),])!;
+                this.cursorTopField = consolePalType.GetField("s_cursorTop", BindingFlags.NonPublic | BindingFlags.Static);
             }
         }
         catch
@@ -85,6 +75,24 @@ internal sealed class RawConsole
         }
 
         this.terminalFormatStrings = new(this.db);
+    }
+
+    public bool TryGetCursorTop(out int top)
+    {
+        if (this.cursorTopField is not null)
+        {
+            try
+            {
+                top = (int)this.cursorTopField.GetValue(null)!;
+                return true;
+            }
+            catch
+            {
+            }
+        }
+
+        top = 0;
+        return false;
     }
 
     public unsafe bool TryRead(out ConsoleKeyInfo keyInfo)

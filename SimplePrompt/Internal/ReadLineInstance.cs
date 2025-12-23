@@ -721,21 +721,26 @@ internal sealed class ReadLineInstance
 
         this.correctedCursorTime = current;
 
-        var newCursor = Console.GetCursorPosition(); // I have just got a new theory of eternity in this method, so an interval was added between calls.
-        if (newCursor.Top == this.simpleConsole.CursorTop)
+        if (!this.RawConsole.TryGetCursorTop(out var newCursorTop))
         {
             return false;
         }
 
-        // this.RawConsole.WriteInternal($"<Cursor top {this.simpleConsole.CursorTop} -> {newCursor.Top}>"); // coi
+        /*var newCursor = Console.GetCursorPosition(); // I have just got a new theory of eternity in this method, so an interval was added between calls.
+        if (newCursor.Top == this.simpleConsole.CursorTop)
+        {
+            return false;
+        }*/
 
-        var topDiff = newCursor.Top - this.simpleConsole.CursorTop;
+        this.RawConsole.WriteInternal($"<Cursor top {this.simpleConsole.CursorTop} -> {newCursorTop}>"); // coi
+
+        var topDiff = newCursorTop - this.simpleConsole.CursorTop;
         foreach (var x in this.LineList)
         {
             x.Top += topDiff;
         }
 
-        this.simpleConsole.CursorTop = newCursor.Top;
+        this.simpleConsole.CursorTop = newCursorTop;
         return true;
     }
 }
