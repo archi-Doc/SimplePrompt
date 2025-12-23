@@ -109,7 +109,7 @@ public partial class SimpleConsole : IConsoleService
         this.Location = new(this);
         this.DefaultOptions = new();
 
-        this.PrepareWindow(default);
+        this.PrepareWindow();
         this.SyncCursor();
     }
 
@@ -130,7 +130,7 @@ public partial class SimpleConsole : IConsoleService
         using (this.syncObject.EnterScope())
         {
             // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
-            this.PrepareWindow(default);
+            this.PrepareWindow();
             this.CheckCursor();
             if (this.CursorLeft > 0)
             {
@@ -693,7 +693,7 @@ CancelOrTerminate:
         return false;
     }
 
-    private void PrepareWindow(ReadLineInstance? activeInstance)
+    private bool PrepareWindow()
     {
         var windowWidth = 120;
         var windowHeight = 30;
@@ -719,6 +719,19 @@ CancelOrTerminate:
 
         if (windowWidth == this.WindowWidth &&
             windowHeight == this.WindowHeight)
+        {
+            return false;
+        }
+
+        this.WindowWidth = windowWidth;
+        this.WindowHeight = windowHeight;
+        return true;
+    }
+
+    private void PrepareWindow(ReadLineInstance activeInstance)
+    {
+
+        if (this.PrepareWindow())
         {// Window size not changed
             if (activeInstance is not null)
             {
@@ -728,18 +741,14 @@ CancelOrTerminate:
             return;
         }
 
-        // Window size changed
-        this.WindowWidth = windowWidth;
-        this.WindowHeight = windowHeight;
-
-        if (activeInstance is not null)
+        /*if (activeInstance is not null)
         {
             // this.Location.Redraw();
 
             var newCursor = Console.GetCursorPosition();
             this.Location.RearrangeBuffers(newCursor);
             (this.CursorLeft, this.CursorTop) = newCursor;
-        }
+        }*/
     }
 
     internal void ClearRow(int top)

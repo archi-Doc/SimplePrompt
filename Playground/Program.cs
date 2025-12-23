@@ -66,7 +66,14 @@ internal sealed class Program
             {
                 await ThreadCore.Root.Delay(5000);
 
-                Console.WriteLine("12345 - ABCDEF - あいうえお");
+                if (ThreadCore.Root.IsTerminated)
+                {
+                    break;
+                }
+                else
+                {
+                    Console.WriteLine("12345 - ABCDEF - あいうえお");
+                }
             }
         });
 
