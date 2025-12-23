@@ -712,7 +712,6 @@ internal sealed class ReadLineInstance
 
     internal bool CorrectCursorTop()
     {
-        return false;
         var current = DateTime.UtcNow;
         if ((current - this.correctedCursorTime) < TimeSpan.FromSeconds(1))
         {
