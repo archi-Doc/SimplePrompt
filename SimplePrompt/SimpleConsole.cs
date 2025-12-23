@@ -199,7 +199,6 @@ public partial class SimpleConsole : IConsoleService
                 }
 
 ProcessKeyInfo:
-                this.CheckCursor();
                 this.Location.Invalidate();
 
                 if (keyInfo.KeyChar == '\n' ||
@@ -250,25 +249,28 @@ ProcessKeyInfo:
                 else
                 {// Not control
                     currentInstance.CharBuffer[position++] = keyInfo.KeyChar;
-                    if (this.RawConsole.TryRead(out keyInfo))
+                    using (this.syncObject.EnterScope())
                     {
-                        processInput = false;
-                        if (position >= (ReadLineInstance.CharBufferSize - 2))
+                        if (this.RawConsole.TryRead(out keyInfo))
                         {
-                            if (position >= ReadLineInstance.CharBufferSize ||
-                                char.IsLowSurrogate(keyInfo.KeyChar))
+                            processInput = false;
+                            if (position >= (ReadLineInstance.CharBufferSize - 2))
                             {
-                                processInput = true;
+                                if (position >= ReadLineInstance.CharBufferSize ||
+                                    char.IsLowSurrogate(keyInfo.KeyChar))
+                                {
+                                    processInput = true;
+                                }
                             }
-                        }
 
-                        if (processInput)
-                        {
-                            pendingKeyInfo = keyInfo;
-                        }
-                        else
-                        {
-                            goto ProcessKeyInfo;
+                            if (processInput)
+                            {
+                                pendingKeyInfo = keyInfo;
+                            }
+                            else
+                            {
+                                goto ProcessKeyInfo;
+                            }
                         }
                     }
                 }

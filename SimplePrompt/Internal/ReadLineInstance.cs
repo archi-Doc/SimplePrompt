@@ -516,7 +516,7 @@ internal sealed class ReadLineInstance
         this.ReleaseLines();
     }
 
-    public void Restore()
+    /*public void Restore()
     {
         this.simpleConsole.SyncCursor();
         var y = this.simpleConsole.CursorTop;
@@ -525,7 +525,7 @@ internal sealed class ReadLineInstance
             x.Top = y;
             y += x.Height;
         }
-    }
+    }*/
 
     public void Redraw()
     {
