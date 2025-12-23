@@ -720,7 +720,7 @@ internal sealed class ReadLineInstance
 
         this.correctedCursorTime = current;
 
-        this.simpleConsole.ShowCursor();
+        this.simpleConsole.UnderlyingTextWriter.Write("\e[0D");
         var newCursor = Console.GetCursorPosition(); // I have just got a new theory of eternity in this method, so an interval was added between calls.
         if (newCursor.Top == this.simpleConsole.CursorTop)
         {
