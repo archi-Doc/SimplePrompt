@@ -56,7 +56,7 @@ internal sealed class RawConsole
             {
                 Console.WriteLine($"1");
                 var method = consolePalType.GetMethod("TryGetCachedCursorPosition", BindingFlags.NonPublic | BindingFlags.Static, [typeof(int), typeof(int),])!;
-                Console.WriteLine($"2");
+                Console.WriteLine($"2 {method is not null}");
                 var args = new object?[] { null, null };
                 method.Invoke(default, args);
                 Console.WriteLine($"3");
