@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Globalization;
@@ -53,10 +54,14 @@ internal sealed class RawConsole
             var consolePalType = coreLib.GetType("System.ConsolePal");
             if (consolePalType is not null)
             {
+                Console.WriteLine($"1");
                 var method = consolePalType.GetMethod("TryGetCachedCursorPosition", BindingFlags.NonPublic | BindingFlags.Static, [typeof(int), typeof(int),])!;
+                Console.WriteLine($"2");
                 var args = new object?[] { null, null };
                 method.Invoke(default, args);
+                Console.WriteLine($"3");
                 var x = (int)args[0]!;
+                Console.WriteLine($"4");
                 var y = (int)args[1]!;
                 Console.WriteLine($"{x},{y}");
             }
