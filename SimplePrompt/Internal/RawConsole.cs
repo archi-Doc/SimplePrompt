@@ -612,6 +612,6 @@ internal sealed class RawConsole
         Interop.Sys.InitializeConsoleBeforeRead();
         Interop.Sys.UninitializeConsoleAfterRead();
 
-        this.UseStdin = true;
+        // coi this.UseStdin = true;
     }
 }
