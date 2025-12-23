@@ -651,8 +651,8 @@ CancelOrTerminate:
 
         // SimplePromptHelper.TryCopy(ConsoleHelper.ShowCursorSpan, ref span);
 
-        // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
-        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
+        this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
+        // this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
     }
 
