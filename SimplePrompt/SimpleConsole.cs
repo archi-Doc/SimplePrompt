@@ -125,12 +125,6 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
-        var cursor = Console.GetCursorPosition();// coi
-        this.RawConsole.WriteInternal($"Top:{cursor.Top} Left:{cursor.Left}");
-        Console.Write("ABC");
-        cursor = Console.GetCursorPosition();
-        this.RawConsole.WriteInternal($"Top:{cursor.Top} Left:{cursor.Left}");
-
         InputResultKind inputResultKind;
         ReadLineInstance currentInstance;
         using (this.syncObject.EnterScope())
@@ -404,6 +398,11 @@ CancelOrTerminate:
     {
         try
         {
+            if (this.RawConsole.UseStdin)
+            {// With Interop.Sys.Write(), changes are not applied immediately, so the cursor position cannot be retrieved.
+                return;
+            }
+
             var cursor = Console.GetCursorPosition();
             if (cursor.Left != this.CursorLeft ||
                 cursor.Top != this.CursorTop)

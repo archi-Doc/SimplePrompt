@@ -11,6 +11,8 @@ namespace SimplePrompt.Internal;
 
 internal sealed class RawConsole
 {
+    public bool UseStdin { get; private set; }
+
     private const int BufferCapacity = 1024;
     private const int MinimalSequenceLength = 3;
     private const int SequencePrefixLength = 2; // ^[[ ("^[" stands for Escape)
@@ -32,7 +34,6 @@ internal sealed class RawConsole
     private int charsEndIndex;
 
     private SafeHandle? handle;
-    private bool useStdin;
     private byte posixDisableValue;
     private byte veraseCharacter;
 
@@ -62,7 +63,7 @@ internal sealed class RawConsole
     {
         try
         {
-            if (this.useStdin)
+            if (this.UseStdin)
             {// Stdin
                 if (this.TryConsumeBuffer(out keyInfo))
                 {
@@ -575,6 +576,6 @@ internal sealed class RawConsole
         Interop.Sys.InitializeConsoleBeforeRead();
         Interop.Sys.UninitializeConsoleAfterRead();
 
-        this.useStdin = true;
+        this.UseStdin = true;
     }
 }
