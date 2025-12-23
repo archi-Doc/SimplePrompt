@@ -184,6 +184,7 @@ public partial class SimpleConsole : IConsoleService
 
                     if (currentInstance.CorrectCursorTop())
                     {// Since the cursor position has been corrected, redraw the prompt.
+                        this.UnderlyingTextWriter.WriteLine();
                         this.NewLineCursor();
                         currentInstance.Redraw();
                         currentInstance.CurrentLocation.Restore(CursorOperation.None);
