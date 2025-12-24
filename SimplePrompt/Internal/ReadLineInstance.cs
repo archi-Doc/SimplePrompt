@@ -187,7 +187,7 @@ internal sealed class ReadLineInstance
         this.CurrentLocation.Reset();
     }
 
-    private void Scroll()
+    internal void Scroll()
     {
         if (this.LineList.Count == 0)
         {
@@ -591,47 +591,6 @@ internal sealed class ReadLineInstance
 
         this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
-    }
-
-    public void PrepareLocation()
-    {
-        if (this.LineList.Count == 0)
-        {
-            this.LineIndex = 0;
-            this.LinePosition = 0;
-            return;
-        }
-
-        var y = this.LineList[0].Top;
-        SimpleTextLine? line = null;
-        foreach (var x in this.LineList)
-        {
-            x.Top = y;
-            y += x.Height;
-            if (line is null &&
-                this.simpleConsole.CursorTop >= x.Top &&
-                this.simpleConsole.CursorTop < y)
-            {
-                line = x;
-                break;
-            }
-        }
-
-        if (line is null)
-        {
-            if (this.simpleConsole.CursorTop < this.LineList[0].Top)
-            {
-                line = this.LineList[0];
-            }
-            else
-            {
-                line = this.LineList[this.LineList.Count - 1];
-            }
-        }
-
-        this.LineIndex = line.Index;
-        // this.LinePosition = line.GetCursorIndex(); // coi
-        return;
     }
 
     private void ReleaseLines()
