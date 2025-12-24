@@ -42,7 +42,7 @@ internal sealed class SimpleLocation
         this.previousCursorTop = -1;
     }
 
-    public void RearrangeBuffers((int Left, int Top) newCursor)
+    public void RearrangeLines((int Left, int Top) newCursor)
     {
         // this.Log($"({newCursor.Left}, {newCursor.Top}) {this.simpleConsole.WindowWidth}-{this.simpleConsole.WindowHeight}\r\n");
         if (this.previousInstance is null)
@@ -50,20 +50,36 @@ internal sealed class SimpleLocation
             return;
         }
 
+        var lineList = this.previousInstance.LineList;
+        foreach (var x in lineList)
+        {
+            if (x.Rows.Count > 0)
+            {
+                bool rowChanged = false;
+                int widthDiff = 0;
+                x.Rows.ListChain[0].Arrange(ref rowChanged, ref widthDiff);
+            }
+        }
+
+        var location = this.previousInstance.CurrentLocation;
+
+        if (location.LineIndex >= lineList.Count)
+        {// Invalid line index
+            location.Reset();
+            return;
+        }
+
+        var line = lineList[location.LineIndex];
+        if (location.RowIndex >= line.Rows.Count)
+        {// Invalid row index
+            location.Reset();
+            return;
+        }
+
         // coi
-        /*var bufferList = this.previousInstance.LineList;
-        if (this.previousInstance.LineIndex >= bufferList.Count)
-        {// Invalid buffer index
-            return;
-        }
 
-        var buffer = bufferList[this.previousInstance.LineIndex];
-        if (this.previousInstance.LinePosition > buffer.Width)
-        {// Invalid buffer position
-            return;
-        }
 
-        var position = newCursor.Left + (newCursor.Top * this.simpleConsole.WindowWidth) - this.previousInstance.LinePosition - buffer.PromptWidth;
+        var position = newCursor.Left + (newCursor.Top * this.simpleConsole.WindowWidth) - this.previousInstance.LinePosition - line.PromptWidth;
         if (position < 0)
         {// Invalid position
             return;
@@ -76,29 +92,26 @@ internal sealed class SimpleLocation
             return;
         }
 
-        if (buffer.Top != newTop)
+        if (line.Top != newTop)
         {
             // this.Log($"Top {buffer.Top} -> {newTop}\r\n");
 
-            buffer.Top = newTop;
-            foreach (var x in bufferList)
+            line.Top = newTop;
+            foreach (var x in lineList)
             {
-                x.UpdateHeight();
+                // x.UpdateHeight();
             }
 
-            for (var i = buffer.Index - 1; i >= 0; i--)
+            for (var i = line.Index - 1; i >= 0; i--)
             {
-                bufferList[i].Top = bufferList[i + 1].Top - bufferList[i].Height;
+                lineList[i].Top = lineList[i + 1].Top - lineList[i].Height;
             }
 
-            for (var i = buffer.Index + 1; i < bufferList.Count; i++)
+            for (var i = line.Index + 1; i < lineList.Count; i++)
             {
-                bufferList[i].Top = bufferList[i - 1].Top + bufferList[i - 1].Height;
+                lineList[i].Top = lineList[i - 1].Top + lineList[i - 1].Height;
             }
         }
-
-        this.simpleConsole.CursorLeft = newCursor.Left;
-        this.simpleConsole.CursorTop = newCursor.Top;*/
     }
 
     private static void Log(string message)

@@ -116,7 +116,7 @@ internal sealed partial class SimpleTextRow
         return this.Line.CharArray.AsSpan(this.Start, this.Length).ToString();
     }
 
-    private void Arrange(ref bool rowChanged, ref int widthDiff)
+    internal void Arrange(ref bool rowChanged, ref int widthDiff)
     {
         // This is the core functionality of SimpleTextRow.
         // If a row is too short, it pulls data from the next row; if it is too long, it pushes excess data to the next row, maintaining the correct line/ row structure.

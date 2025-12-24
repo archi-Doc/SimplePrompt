@@ -211,7 +211,7 @@ public partial class SimpleConsole : IConsoleService
                     }
 
                     // Active instance: Prepare window and read key input.
-                    this.PrepareWindow(currentInstance);
+                    this.AdjustWindow(currentInstance);
 
                     // Adjusts the cursor position when attached to a console, but it is disabled because Console.GetCursorPosition() may freeze.
                     /*if (currentInstance.CorrectCursorTop())
@@ -761,7 +761,7 @@ CancelOrTerminate:
         return true;
     }
 
-    private void PrepareWindow(ReadLineInstance activeInstance)
+    private void AdjustWindow(ReadLineInstance activeInstance)
     {
 
         if (this.PrepareWindow())
@@ -774,21 +774,14 @@ CancelOrTerminate:
             return;
         }
 
-        /*if (activeInstance is not null)
+        if (activeInstance is not null)
         {
             // this.Location.Redraw();
 
             var newCursor = Console.GetCursorPosition();
-            this.Location.RearrangeBuffers(newCursor);
+            this.Location.RearrangeLines(newCursor);
             (this.CursorLeft, this.CursorTop) = newCursor;
-        }*/
-    }
-
-    private bool IsInteractive()
-    {
-        return !Console.IsInputRedirected
-            && !Console.IsOutputRedirected
-            && !Console.IsErrorRedirected;
+        }
     }
 
     internal void ClearRow(int top)
