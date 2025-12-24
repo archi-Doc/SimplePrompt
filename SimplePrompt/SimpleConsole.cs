@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Arc;
 using Arc.Collections;
 using Arc.Threading;
@@ -112,6 +113,35 @@ public partial class SimpleConsole : IConsoleService
 
         this.PrepareWindow();
         this.SyncCursor();
+
+        try
+        {
+#pragma warning disable CA1416 // Validate platform compatibility
+            _ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
+            {
+                // Console.WriteLine($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop}");
+
+                using (this.syncObject.EnterScope())
+                {
+                    if (this.instanceList.Count > 0)
+                    {
+                        var currentInstance = this.instanceList[^1];
+                        if (currentInstance.CorrectCursorTop())
+                        {// Since the cursor position has been corrected, redraw the prompt.
+                            this.UnderlyingTextWriter.WriteLine();
+                            this.NewLineCursor();
+                            currentInstance.Redraw();
+                            currentInstance.CurrentLocation.Restore(CursorOperation.None);
+                        }
+                    }
+
+                }
+            });
+#pragma warning restore CA1416 // Validate platform compatibility
+        }
+        catch
+        {
+        }
     }
 
     /// <summary>
