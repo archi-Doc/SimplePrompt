@@ -69,7 +69,7 @@ internal sealed class ReadLineInstance
 
     private SimpleConsole simpleConsole;
     private ReadLineOptions options = new();
-    private DateTime correctedCursorTime;
+    // private DateTime correctedCursorTime;
 
     #endregion
 
@@ -713,13 +713,13 @@ internal sealed class ReadLineInstance
 
     internal bool CorrectCursorTop()
     {
-        var current = DateTime.UtcNow;
+        /*var current = DateTime.UtcNow;
         if ((current - this.correctedCursorTime) < TimeSpan.FromSeconds(1))
         {
             return false;
         }
 
-        this.correctedCursorTime = current;
+        this.correctedCursorTime = current;*/
 
         /*if (Console.IsInputRedirected || Console.IsOutputRedirected)
         {
@@ -737,7 +737,7 @@ internal sealed class ReadLineInstance
             return false;
         }
 
-        this.RawConsole.WriteInternal($"<Cursor top {this.simpleConsole.CursorTop} -> {newCursorTop}>"); // coi
+        //  this.RawConsole.WriteInternal($"<Cursor top {this.simpleConsole.CursorTop} -> {newCursorTop}>");
 
         var topDiff = newCursorTop - this.simpleConsole.CursorTop;
         foreach (var x in this.LineList)
