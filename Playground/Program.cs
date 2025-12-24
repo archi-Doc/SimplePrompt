@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Runtime.InteropServices;
 using Arc;
 using Arc.Threading;
 using Arc.Unit;
@@ -12,6 +13,19 @@ internal sealed class Program
 {
     public static async Task Main(string[] args)
     {
+        try
+        {
+#pragma warning disable CA1416 // Validate platform compatibility
+            _ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
+            {
+                Console.WriteLine("SIGWINCH");
+            });
+#pragma warning restore CA1416 // Validate platform compatibility
+        }
+        catch
+        {
+        }
+
         AppCloseHandler.Set(() =>
         {// Console window closing or process terminated.
             ThreadCore.Root.Terminate(); // Send a termination signal to the root.
