@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Buffers;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -151,6 +152,7 @@ public partial class SimpleConsole : IConsoleService
             var position = 0;
             ConsoleKeyInfo keyInfo = default;
             ConsoleKeyInfo pendingKeyInfo = default;
+            var last = false;
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -181,6 +183,13 @@ public partial class SimpleConsole : IConsoleService
 
                     // Active instance: Prepare window and read key input.
                     this.PrepareWindow(currentInstance);
+
+                    bool current = IsInteractive();
+                    if (current && !last)
+                    {
+                        Console.WriteLine("Attached");
+                        last = current;
+                    }
 
                     // Adjusts the cursor position when attached to a console, but it is disabled because Console.GetCursorPosition() may freeze.
                     /*if (currentInstance.CorrectCursorTop())
@@ -751,6 +760,13 @@ CancelOrTerminate:
             this.Location.RearrangeBuffers(newCursor);
             (this.CursorLeft, this.CursorTop) = newCursor;
         }*/
+    }
+
+    private bool IsInteractive()
+    {
+        return !Console.IsInputRedirected
+            && !Console.IsOutputRedirected
+            && !Console.IsErrorRedirected;
     }
 
     internal void ClearRow(int top)
