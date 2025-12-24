@@ -152,7 +152,6 @@ public partial class SimpleConsole : IConsoleService
             var position = 0;
             ConsoleKeyInfo keyInfo = default;
             ConsoleKeyInfo pendingKeyInfo = default;
-            var last = false;
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -183,13 +182,6 @@ public partial class SimpleConsole : IConsoleService
 
                     // Active instance: Prepare window and read key input.
                     this.PrepareWindow(currentInstance);
-
-                    bool current = IsInteractive();
-                    if (current && !last)
-                    {
-                        Console.WriteLine("Attached");
-                        last = current;
-                    }
 
                     // Adjusts the cursor position when attached to a console, but it is disabled because Console.GetCursorPosition() may freeze.
                     /*if (currentInstance.CorrectCursorTop())
