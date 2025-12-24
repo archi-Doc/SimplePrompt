@@ -166,7 +166,7 @@ public partial class SimpleConsole : IConsoleService
                     await Task.Delay(DelayInMilliseconds, cancellationToken).ConfigureAwait(false);
                 }
 
-                // coi using (this.syncObject.EnterScope())
+                using (this.syncObject.EnterScope())
                 {
                     var idx = this.instanceList.IndexOf(currentInstance);
                     if (idx < 0)
