@@ -721,6 +721,11 @@ internal sealed class ReadLineInstance
 
         this.correctedCursorTime = current;
 
+        if (Console.IsInputRedirected || Console.IsOutputRedirected)
+        {
+            return false;
+        }
+
         /*if (!this.RawConsole.TryGetCursorTop(out var newCursorTop))
         {
             return false;
