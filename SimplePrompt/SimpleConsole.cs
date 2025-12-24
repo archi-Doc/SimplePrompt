@@ -22,7 +22,7 @@ namespace SimplePrompt;
 #pragma warning disable CA1001 // Types that own disposable fields should be disposable
 public partial class SimpleConsole : IConsoleService
 #pragma warning restore CA1001 // Types that own disposable fields should be disposable
-{//
+{
     private const int DelayInMilliseconds = 10;
     private const int WindowBufferSize = 32 * 1024;
     private static SimpleConsole? _instance;
@@ -95,6 +95,7 @@ public partial class SimpleConsole : IConsoleService
     internal SimpleLocation Location { get; }
 
     private readonly SimpleTextWriter simpleTextWriter;
+    private readonly Worker worker;
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
@@ -105,6 +106,7 @@ public partial class SimpleConsole : IConsoleService
     {
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         this.simpleTextWriter = new(this, Console.Out);
+        this.worker = new(this);
         this.RawConsole = new(this);
         this.Location = new(this);
         this.DefaultOptions = new();
@@ -337,7 +339,9 @@ CancelOrTerminate:
     /// <param name="message">The message to write. If null, nothing is written.</param>
     public void Write(string? message)
     {
-        using (this.syncObject.EnterScope())
+        this.worker.Add(message);
+
+        /*using (this.syncObject.EnterScope())
         {
             if (!this.IsReadLineInProgress)
             {
@@ -347,7 +351,7 @@ CancelOrTerminate:
 
                 this.CheckCursor();
             }
-        }
+        }*/
     }
 
     public void WriteLine(string? message = null)
@@ -376,29 +380,33 @@ CancelOrTerminate:
     }
 
     ConsoleKeyInfo IConsoleService.ReadKey(bool intercept)
-    {
-        try
+    {// This console function is not supported.
+        return default;
+
+        /*try
         {
             return Console.ReadKey();
         }
         catch
         {
             return default;
-        }
+        }*/
     }
 
     bool IConsoleService.KeyAvailable
-    {
+    {// This console function is not supported.
         get
         {
-            try
+            return false;
+
+            /*try
             {
                 return Console.KeyAvailable;
             }
             catch
             {
                 return false;
-            }
+            }*/
         }
     }
 
