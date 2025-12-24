@@ -18,7 +18,7 @@ internal sealed class Program
 #pragma warning disable CA1416 // Validate platform compatibility
             _ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
-                Console.WriteLine("SIGWINCH");
+                Console.WriteLine($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth}");
             });
 #pragma warning restore CA1416 // Validate platform compatibility
         }

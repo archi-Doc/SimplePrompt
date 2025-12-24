@@ -182,6 +182,7 @@ public partial class SimpleConsole : IConsoleService
                     // Active instance: Prepare window and read key input.
                     this.PrepareWindow(currentInstance);
 
+                    // Adjusts the cursor position when attached to a console, but it is disabled because Console.GetCursorPosition() may freeze.
                     /*if (currentInstance.CorrectCursorTop())
                     {// Since the cursor position has been corrected, redraw the prompt.
                         this.UnderlyingTextWriter.WriteLine();
@@ -363,7 +364,6 @@ CancelOrTerminate:
                 return;
             }
 
-            // activeInstance.CorrectCursorTop();
             activeInstance.ResetCursor(CursorOperation.Hide);
 
             this.WriteInternal(message, true);
