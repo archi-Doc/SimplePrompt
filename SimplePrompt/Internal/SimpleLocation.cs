@@ -60,7 +60,7 @@ internal sealed class SimpleLocation
         }
 
         var line = lineList[location.LineIndex];
-        if (location.RowIndex >= line.Rows.Count)
+        /*if (location.RowIndex >= line.Rows.Count)
         {// Invalid row index
             location.Reset();
             return;
@@ -68,7 +68,7 @@ internal sealed class SimpleLocation
 
         var previousTop = line.Top + location.RowIndex;
         var previousLeft = location.CursorPosition;
-        var topDiff = newCursor.Top - previousTop;
+        var topDiff = newCursor.Top - previousTop;*/
 
         foreach (var x in lineList)
         {
@@ -79,9 +79,32 @@ internal sealed class SimpleLocation
                 x.Rows.ListChain[0].Arrange(ref rowChanged, ref widthDiff);
             }
         }
-        var currentTop = newCursor.Top;
+
+        var arrayPosition = location.ArrayPosition;
+        var currentTop = -1;
+        for (var i = 0; i < line.Rows.Count; i++)
+        {
+            var row = line.Rows.ListChain[i];
+            if (arrayPosition >= row.Start &&
+                arrayPosition < row.End)
+            {
+                currentTop = newCursor.Top - i;
+                break;
+            }
+        }
+
+        if (currentTop < 0)
+        {
+            location.Reset();
+            return;
+        }
+
         for (var i = location.LineIndex; i >= 0; i--)
         {
+            if (lineList[i].Top != currentTop)
+            {
+            }
+
             lineList[i].Top = currentTop;
             if (i > 0)
             {
@@ -92,6 +115,10 @@ internal sealed class SimpleLocation
         currentTop = newCursor.Top + lineList[location.LineIndex].Height;
         for (var i = location.LineIndex + 1; i < lineList.Count; i++)
         {
+            if (lineList[i].Top != currentTop)
+            {
+            }
+
             lineList[i].Top = currentTop;
             currentTop += lineList[i].Height;
         }
