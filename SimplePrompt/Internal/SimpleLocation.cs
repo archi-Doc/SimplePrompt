@@ -82,16 +82,31 @@ internal sealed class SimpleLocation
 
         var arrayPosition = location.ArrayPosition;
         var currentTop = -1;
-        for (var i = 0; i < line.Rows.Count; i++)
+        SimpleTextRow row;
+        if (line.Rows.Count > 0)
         {
-            var row = line.Rows.ListChain[i];
+            row = line.Rows.ListChain[line.Rows.Count - 1];
             if (arrayPosition >= row.Start &&
-                arrayPosition < row.End)
+                arrayPosition <= row.End)
             {
-                currentTop = newCursor.Top - i;
-                break;
+                currentTop = newCursor.Top - line.Rows.Count + 1;
+                row.GetCursorPosition(arrayPosition);
+            }
+            else
+            {
+                for (var i = 0; i < line.Rows.Count - 1; i++)
+                {
+                    row = line.Rows.ListChain[i];
+                    if (arrayPosition >= row.Start &&
+                        arrayPosition < row.End)
+                    {
+                        currentTop = newCursor.Top - i;
+                        break;
+                    }
+                }
             }
         }
+
 
         if (currentTop < 0)
         {

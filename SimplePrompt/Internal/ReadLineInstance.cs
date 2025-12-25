@@ -45,10 +45,6 @@ internal sealed class ReadLineInstance
 
     public SimpleTextLocation CurrentLocation { get; private set; } = new();
 
-    public int LineIndex { get; set; }
-
-    public int LinePosition { get; set; }
-
     public ReadLineMode Mode { get; private set; }
 
     public int FirstInputIndex { get; private set; }
