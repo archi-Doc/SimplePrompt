@@ -80,17 +80,19 @@ internal sealed class SimpleLocation
             }
         }
 
-        var arrayPosition = location.ArrayPosition;
-        var currentTop = -1;
-        SimpleTextRow row;
-        if (line.Rows.Count > 0)
+        var currentCursor = line.GetCursor(location.ArrayPosition);
+        var currentTop = currentCursor.Top - currentCursor.RowIndex;
+        location.CursorPosition = currentCursor.Left;
+        if (location.CursorPosition != newCursor.Left)
+        {
+        }
+        /*if (line.Rows.Count > 0)
         {
             row = line.Rows.ListChain[line.Rows.Count - 1];
             if (arrayPosition >= row.Start &&
                 arrayPosition <= row.End)
             {
                 currentTop = newCursor.Top - line.Rows.Count + 1;
-                row.GetCursorPosition(arrayPosition);
             }
             else
             {
@@ -105,7 +107,7 @@ internal sealed class SimpleLocation
                     }
                 }
             }
-        }
+        }*/
 
 
         if (currentTop < 0)

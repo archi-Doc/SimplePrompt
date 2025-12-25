@@ -49,21 +49,6 @@ internal sealed partial class SimpleTextRow
 
     public int Width => this._width;
 
-    // public ReadOnlySpan<char> CharSpan => this.Line.CharArray.AsSpan(this.Start, this.Length);
-
-    // public ReadOnlySpan<byte> WidthSpan => this.Line.WidthArray.AsSpan(this.Start, this.Length);
-
-    /*[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void ChangeInputLengthAndWidth(int lengthDiff, int widthDiff)
-    {
-        this._length += lengthDiff;
-        this._width += widthDiff;
-
-        // this.Line.ChangeInputLengthAndWidth(lengthDiff, widthDiff);
-        this.Line._inputLength += lengthDiff;
-        this.Line._inputWidth += widthDiff;
-    }*/
-
     #endregion
 
     [Link(Primary = true, Type = ChainType.List, Name = "List")]

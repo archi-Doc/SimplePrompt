@@ -398,11 +398,11 @@ internal sealed class SimpleTextLine
         }
     }
 
-    private (int Left, int Top) GetCursor(int arrayIndex)
+    internal (int Left, int Top, int RowIndex) GetCursor(int arrayIndex)
     {
         if (arrayIndex < 0 || arrayIndex > this.TotalLength)
         {
-            return (this.InitialCursorPosition, this.InitialRowIndex);
+            return (this.InitialCursorPosition, this.Top + this.InitialRowIndex, this.InitialRowIndex);
         }
 
         for (var i = 0; i < this.Rows.Count; i++)
@@ -412,7 +412,7 @@ internal sealed class SimpleTextLine
                 arrayIndex < row.End)
             {
                 var left = (int)BaseHelper.Sum(this.WidthArray.AsSpan(row.Start, arrayIndex - row.Start));
-                return (left, this.Top + i);
+                return (left, this.Top + i, i);
             }
         }
 
@@ -420,15 +420,15 @@ internal sealed class SimpleTextLine
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private (int Left, int Top) GetEndCursor()
+    private (int Left, int Top, int RowIndex) GetEndCursor()
     {
-        var count = this.Rows.Count;
-        if (count == 0)
+        var lastIndex = this.Rows.Count - 1;
+        if (lastIndex < 0)
         {
-            return (this.InitialCursorPosition, this.InitialRowIndex);
+            return (this.InitialCursorPosition, this.Top + this.InitialRowIndex, this.InitialRowIndex);
         }
 
-        return (this.Rows.ListChain[count - 1].Width, this.Top + count - 1);
+        return (this.Rows.ListChain[lastIndex].Width, this.Top + lastIndex, lastIndex);
     }
 
     private void ResetRows()
