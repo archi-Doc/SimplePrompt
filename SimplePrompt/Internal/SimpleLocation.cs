@@ -11,8 +11,8 @@ internal sealed class SimpleLocation
     private readonly SimpleConsole simpleConsole;
 
     private ReadLineInstance? previousInstance;
-    private int previousCursorLeft;
-    private int previousCursorTop;
+    // private int previousCursorLeft;
+    // private int previousCursorTop;
 
     #endregion
 
@@ -24,22 +24,22 @@ internal sealed class SimpleLocation
 
     public void Update(ReadLineInstance readLineInstance)
     {
-        if (this.simpleConsole.CursorLeft == this.previousCursorLeft &&
+        /*if (this.simpleConsole.CursorLeft == this.previousCursorLeft &&
             this.simpleConsole.CursorTop == this.previousCursorTop)
         {// Identical cursor position
             return;
-        }
+        }*/
 
         this.previousInstance = readLineInstance;
-        this.previousCursorLeft = this.simpleConsole.CursorLeft;
-        this.previousCursorTop = this.simpleConsole.CursorTop;
+        // this.previousCursorLeft = this.simpleConsole.CursorLeft;
+        // this.previousCursorTop = this.simpleConsole.CursorTop;
         // this.previousInstance.PrepareLocation();
     }
 
     public void Invalidate()
     {
-        this.previousCursorLeft = -1;
-        this.previousCursorTop = -1;
+        // this.previousCursorLeft = -1;
+        // this.previousCursorTop = -1;
     }
 
     public void RearrangeLines((int Left, int Top) newCursor)
@@ -116,28 +116,22 @@ internal sealed class SimpleLocation
             return;
         }
 
+        var top = currentTop;
         for (var i = location.LineIndex; i >= 0; i--)
         {
-            if (lineList[i].Top != currentTop)
-            {
-            }
-
-            lineList[i].Top = currentTop;
+            lineList[i].Top = top;
             if (i > 0)
             {
-                currentTop -= lineList[i - 1].Height;
+                top -= lineList[i - 1].Height;
             }
         }
 
-        currentTop = newCursor.Top + lineList[location.LineIndex].Height;
+        // currentTop = newCursor.Top + lineList[location.LineIndex].Height;
+        top = currentTop + lineList[location.LineIndex].Height;
         for (var i = location.LineIndex + 1; i < lineList.Count; i++)
         {
-            if (lineList[i].Top != currentTop)
-            {
-            }
-
-            lineList[i].Top = currentTop;
-            currentTop += lineList[i].Height;
+            lineList[i].Top = top;
+            top += lineList[i].Height;
         }
 
         this.previousInstance.Scroll();
