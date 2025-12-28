@@ -340,12 +340,12 @@ internal sealed class SimpleTextLine
         }
 
 
-        if (removedWidth == 0)
+        /*if (removedWidth == 0)
         {// coi
             buffer[0] = ' ';
             written += 1;
             buffer = buffer.Slice(1);
-        }
+        }*/
 
         if (eraseLine)
         {// Erase line

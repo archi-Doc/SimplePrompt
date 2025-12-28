@@ -136,6 +136,11 @@ internal sealed class SimpleArrange
             top += lineList[i].Height;
         }
 
+        foreach (var x in lineList)
+        {// coi
+            x.Redraw();
+        }
+
         this.previousInstance.Scroll();
     }
 
