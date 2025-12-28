@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using Arc;
 using Arc.Collections;
 using ValueLink;
 
@@ -191,13 +192,28 @@ internal sealed partial class SimpleTextRow
         }
     }
 
-    internal void ArrayPositionToCursorPosition(int arrayPosition)
+    internal int ArrayPositionToCursorPosition(int arrayPosition)
     {
+        return (int)BaseHelper.Sum(this.Line.WidthArray.AsSpan(this.Start, (arrayPosition - this.Start)));
+
+        /*var charArray = this.Line.CharArray;
+        var widthArray = this.Line.WidthArray;
         var cursorPosition = 0;
         while (arrayPosition > 0)
         {
-            arrayPosition
-        }
+            if (char.IsLowSurrogate(charArray[arrayPosition - 1]) &&
+            arrayPosition > 1 &&
+            char.IsHighSurrogate(charArray[arrayPosition - 2]))
+            {
+                arrayPosition -= 2;
+                cursorPosition += widthArray[arrayPosition - 1] + widthArray[arrayPosition - 2];
+            }
+            else
+            {
+                arrayPosition--;
+                cursorPosition += widthArray[arrayPosition - 1];
+            }
+        }*/
     }
 
     private void ChangeStartPosition(int newStart, int lengthDiff, int widthDiff)

@@ -433,37 +433,32 @@ internal sealed record class SimpleTextLocation
             this.ArrayPosition <= row.End)
         {
             top = row.Top;
-            left = row.G
+            left = row.ArrayPositionToCursorPosition(this.ArrayPosition);
         }
         else
         {
             for (var i = 0; i < line.Rows.Count - 1; i++)
             {
                 row = line.Rows.ListChain[i];
-                if (arrayPosition >= row.Start &&
-                    arrayPosition < row.End)
+                if (this.ArrayPosition >= row.Start &&
+                    this.ArrayPosition < row.End)
                 {
-                    currentTop = newCursor.Top - i;
+                    top = row.Top;
+                    left = row.ArrayPositionToCursorPosition(this.ArrayPosition);
                     break;
                 }
             }
         }
 
-
-
-        if (this.ArrayPosition < row.Start ||
-            row.End < this.ArrayPosition)
+        if (top < 0)
         {
             this.Reset(cursorOperation);
             return;
         }
 
-        var top = row.Line.Top + this.RowIndex;
         top = top < 0 ? 0 : top;
         top = top >= this.simpleConsole.WindowHeight ? this.simpleConsole.WindowHeight - 1 : top;
 
-        var left = this.CursorPosition;
-        // left = left < 0 ? 0 : left;
         left = left >= this.simpleConsole.WindowWidth ? this.simpleConsole.WindowWidth - 1 : left;
 
         if (this.simpleConsole.CursorTop != top ||
