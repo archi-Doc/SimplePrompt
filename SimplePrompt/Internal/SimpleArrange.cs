@@ -70,6 +70,7 @@ internal sealed class SimpleArrange
         var previousLeft = location.CursorPosition;
         var topDiff = newCursor.Top - previousTop;*/
 
+        bool redraw = false;
         Log($"Width:{this.simpleConsole.WindowWidth} Height:{this.simpleConsole.WindowHeight}\n");
         foreach (var x in lineList)
         {
@@ -77,7 +78,13 @@ internal sealed class SimpleArrange
             {
                 bool rowChanged = false;
                 int widthDiff = 0;
-                x.Rows.ListChain[0].Arrange(ref rowChanged, ref widthDiff);
+                bool emptyRow = false;
+                x.Rows.ListChain[0].Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
+                if (rowChanged || emptyRow)
+                {
+                    redraw = true;
+                }
+
                 Log($"Arrange {x.Index} Row changed:{rowChanged} Width diff:{widthDiff}\n");
             }
         }
@@ -118,6 +125,14 @@ internal sealed class SimpleArrange
             return;
         }
 
+        if (!redraw)
+        {
+            return;
+        }
+
+        Log($"Redraw\n");
+
+
         var top = currentTop;
         for (var i = location.LineIndex; i >= 0; i--)
         {
@@ -128,7 +143,6 @@ internal sealed class SimpleArrange
             }
         }
 
-        // currentTop = newCursor.Top + lineList[location.LineIndex].Height;
         top = currentTop + lineList[location.LineIndex].Height;
         for (var i = location.LineIndex + 1; i < lineList.Count; i++)
         {
@@ -136,8 +150,9 @@ internal sealed class SimpleArrange
             top += lineList[i].Height;
         }
 
+
         foreach (var x in lineList)
-        {// coi
+        {
             x.Redraw();
         }
 

@@ -73,7 +73,8 @@ internal sealed partial class SimpleTextRow
         this.Line._inputWidth += widthDiff;
 
         bool rowChanged = false;
-        this.Arrange(ref rowChanged, ref widthDiff);
+        bool emptyRow = false;
+        this.Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
         return (rowChanged, widthDiff);
     }
 
@@ -101,7 +102,7 @@ internal sealed partial class SimpleTextRow
         return this.Line.CharArray.AsSpan(this.Start, this.Length).ToString();
     }
 
-    internal void Arrange(ref bool rowChanged, ref int widthDiff)
+    internal void Arrange(ref bool rowChanged, ref int widthDiff, ref bool emptyRow)
     {
         // This is the core functionality of SimpleTextRow.
         // If a row is too short, it pulls data from the next row; if it is too long, it pushes excess data to the next row, maintaining the correct line/ row structure.
@@ -117,11 +118,16 @@ internal sealed partial class SimpleTextRow
         {// The width is within WindowWidth. If necessary, the array is moved starting from the next row.
             if (nextRow is null)
             {// There is no next row, so nothing to move.
+                if (this.Length == 0)
+                {
+                    emptyRow = true;
+                }
             }
             else if (nextRow.Length == 0)
             {// Empty row
                 SimpleTextRow.Return(nextRow);
                 rowChanged = true;
+                emptyRow = true;
             }
             else
             {// Move from the next row if there is extra space.
@@ -141,7 +147,7 @@ internal sealed partial class SimpleTextRow
                 this._width -= widthDiff;
 
                 nextRow.ChangeStartPosition(this.End, lengthDiff, widthDiff);
-                nextRow.Arrange(ref rowChanged, ref widthDiff);
+                nextRow.Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
             }
         }
         else if (this.Width > this.Line.WindowWidth)
@@ -163,13 +169,13 @@ internal sealed partial class SimpleTextRow
             {
                 nextRow = SimpleTextRow.Rent(this.Line);
                 nextRow.Prepare(this.End, this.End, lengthDiff, widthDiff);
-                nextRow.Arrange(ref rowChanged, ref widthDiff);
+                nextRow.Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
                 rowChanged = true;
             }
             else
             {
                 nextRow.ChangeStartPosition(this.End, lengthDiff, widthDiff);
-                nextRow.Arrange(ref rowChanged, ref widthDiff);
+                nextRow.Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
             }
         }
         else
@@ -178,8 +184,9 @@ internal sealed partial class SimpleTextRow
             {
                 nextRow = SimpleTextRow.Rent(this.Line);
                 nextRow.Prepare(this.End, this.End, 0, 0);
-                nextRow.Arrange(ref rowChanged, ref widthDiff);
+                nextRow.Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
                 rowChanged = true;
+                emptyRow = true;
             }
         }
     }
