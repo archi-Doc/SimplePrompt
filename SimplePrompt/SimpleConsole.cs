@@ -94,9 +94,8 @@ public partial class SimpleConsole : IConsoleService
 
     internal int CursorTop { get; set; }
 
-    internal SimpleLocation Location { get; }
-
     private readonly SimpleTextWriter simpleTextWriter;
+    private readonly SimpleArrange simpleArrange;
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
@@ -108,7 +107,7 @@ public partial class SimpleConsole : IConsoleService
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         this.simpleTextWriter = new(this, Console.Out);
         this.RawConsole = new(this);
-        this.Location = new(this);
+        this.simpleArrange = new(this);
         this.DefaultOptions = new();
 
         this.PrepareWindow();
@@ -230,7 +229,7 @@ public partial class SimpleConsole : IConsoleService
                 }
 
 ProcessKeyInfo:
-                this.Location.Invalidate();
+                this.simpleArrange.Invalidate();
 
                 if (keyInfo.KeyChar == '\n' ||
                     keyInfo.Key == ConsoleKey.Enter)
@@ -764,11 +763,11 @@ CancelOrTerminate:
     private void AdjustWindow(ReadLineInstance activeInstance)
     {
 
-        if (this.PrepareWindow())
+        if (!this.PrepareWindow())
         {// Window size not changed
             if (activeInstance is not null)
             {
-                this.Location.Update(activeInstance);
+                this.simpleArrange.Update(activeInstance);
             }
 
             return;
@@ -779,7 +778,7 @@ CancelOrTerminate:
             // this.Location.Redraw();
 
             var newCursor = Console.GetCursorPosition();
-            this.Location.RearrangeLines(newCursor);
+            this.simpleArrange.Arrange(newCursor);
             (this.CursorLeft, this.CursorTop) = newCursor;
         }
     }

@@ -339,6 +339,14 @@ internal sealed class SimpleTextLine
             buffer = buffer.Slice(2);
         }
 
+
+        if (removedWidth == 0)
+        {// coi
+            buffer[0] = ' ';
+            written += 1;
+            buffer = buffer.Slice(1);
+        }
+
         if (eraseLine)
         {// Erase line
             /*if ((startCursor + totalWidth) % this.WindowWidth == 0)

@@ -4,7 +4,7 @@ using SimplePrompt.Internal;
 
 namespace SimplePrompt;
 
-internal sealed class SimpleLocation
+internal sealed class SimpleArrange
 {
     #region FieldAndProperty
 
@@ -16,7 +16,7 @@ internal sealed class SimpleLocation
 
     #endregion
 
-    public SimpleLocation(SimpleConsole simpleConsole)
+    public SimpleArrange(SimpleConsole simpleConsole)
     {
         this.simpleConsole = simpleConsole;
         this.Invalidate();
@@ -42,7 +42,7 @@ internal sealed class SimpleLocation
         // this.previousCursorTop = -1;
     }
 
-    public void RearrangeLines((int Left, int Top) newCursor)
+    public void Arrange((int Left, int Top) newCursor)
     {
         // this.Log($"({newCursor.Left}, {newCursor.Top}) {this.simpleConsole.WindowWidth}-{this.simpleConsole.WindowHeight}\r\n");
         if (this.previousInstance is null)
@@ -70,6 +70,7 @@ internal sealed class SimpleLocation
         var previousLeft = location.CursorPosition;
         var topDiff = newCursor.Top - previousTop;*/
 
+        Log($"Width:{this.simpleConsole.WindowWidth} Height:{this.simpleConsole.WindowHeight}\n");
         foreach (var x in lineList)
         {
             if (x.Rows.Count > 0)
@@ -77,6 +78,7 @@ internal sealed class SimpleLocation
                 bool rowChanged = false;
                 int widthDiff = 0;
                 x.Rows.ListChain[0].Arrange(ref rowChanged, ref widthDiff);
+                Log($"Arrange {x.Index} Row changed:{rowChanged} Width diff:{widthDiff}\n");
             }
         }
 
