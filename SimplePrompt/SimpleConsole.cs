@@ -1,14 +1,11 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Buffers;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Arc;
-using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
@@ -162,6 +159,11 @@ public partial class SimpleConsole : IConsoleService
             // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
             this.PrepareWindow();
             this.CheckCursor();
+            if (this.instanceList.Count > 0)
+            {
+                this.instanceList[^1].CurrentLocation.CursorLast();
+            }
+
             if (this.CursorLeft > 0)
             {
                 this.UnderlyingTextWriter.WriteLine();
