@@ -5,7 +5,6 @@ using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Collections;
 using Arc.Unit;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace SimplePrompt.Internal;
 
@@ -109,6 +108,8 @@ internal sealed class SimpleTextLine
     internal ReadOnlySpan<char> PromptSpan => this.charArray.AsSpan(0, this.PromptLength);
 
     internal ReadOnlySpan<char> InputSpan => this.charArray.AsSpan(this.PromptLength, this.InputLength);
+
+    public bool EndsWithEmptyRow => this.Rows.Count > 0 && this.Rows.ListChain[this.Rows.Count - 1].Length == 0;
 
     public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
@@ -338,14 +339,6 @@ internal sealed class SimpleTextLine
             written += 2;
             buffer = buffer.Slice(2);
         }
-
-
-        /*if (removedWidth == 0)
-        {// coi
-            buffer[0] = ' ';
-            written += 1;
-            buffer = buffer.Slice(1);
-        }*/
 
         if (eraseLine)
         {// Erase line

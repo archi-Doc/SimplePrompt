@@ -191,6 +191,15 @@ internal sealed partial class SimpleTextRow
         }
     }
 
+    internal void ArrayPositionToCursorPosition(int arrayPosition)
+    {
+        var cursorPosition = 0;
+        while (arrayPosition > 0)
+        {
+            arrayPosition
+        }
+    }
+
     private void ChangeStartPosition(int newStart, int lengthDiff, int widthDiff)
     {
         this.Start = newStart;

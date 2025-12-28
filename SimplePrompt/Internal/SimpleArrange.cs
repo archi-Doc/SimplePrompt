@@ -89,12 +89,13 @@ internal sealed class SimpleArrange
             }
         }
 
-        var currentCursor = line.GetCursor(location.ArrayPosition);
+        /*var currentCursor = line.GetCursor(location.ArrayPosition);
         var currentTop = currentCursor.Top - currentCursor.RowIndex;
         location.CursorPosition = currentCursor.Left;
         if (location.CursorPosition != newCursor.Left)
         {
-        }
+        }*/
+
         /*if (line.Rows.Count > 0)
         {
             row = line.Rows.ListChain[line.Rows.Count - 1];
@@ -119,11 +120,11 @@ internal sealed class SimpleArrange
         }*/
 
 
-        if (currentTop < 0)
+        /*if (currentTop < 0)
         {
             location.Reset();
             return;
-        }
+        }*/
 
         if (!redraw)
         {
@@ -133,7 +134,7 @@ internal sealed class SimpleArrange
         Log($"Redraw\n");
 
 
-        var top = currentTop;
+        /*var top = currentTop;
         for (var i = location.LineIndex; i >= 0; i--)
         {
             lineList[i].Top = top;
@@ -148,15 +149,17 @@ internal sealed class SimpleArrange
         {
             lineList[i].Top = top;
             top += lineList[i].Height;
-        }
+        }*/
 
-
-        foreach (var x in lineList)
+        this.previousInstance.ResetCursor(CursorOperation.None);
+        this.previousInstance.Redraw();
+        this.previousInstance.CurrentLocation.Restore(CursorOperation.None);
+        /*foreach (var x in lineList)
         {
             x.Redraw();
         }
 
-        this.previousInstance.Scroll();
+        this.previousInstance.Scroll();*/
     }
 
     private static void Log(string message)

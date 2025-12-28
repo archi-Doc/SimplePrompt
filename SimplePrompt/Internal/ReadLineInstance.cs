@@ -573,7 +573,16 @@ internal sealed class ReadLineInstance
             }
 
             SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
-            SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
+            if (line.EndsWithEmptyRow)
+            {
+                // SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
+                SimplePromptHelper.TryCopy(SimplePromptHelper.ForceNewLineCursor, ref span);
+                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
+            }
+            else
+            {
+                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
+            }
 
             line.Top = y;
             y += line.Height;

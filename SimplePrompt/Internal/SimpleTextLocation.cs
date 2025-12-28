@@ -419,12 +419,61 @@ internal sealed record class SimpleTextLocation
 
     internal void Restore(CursorOperation cursorOperation)
     {
-        if (!this.TryGetLineAndRow(out var line, out var row))
+        if (!this.TryGetLine(out var line) ||
+            line.Rows.Count == 0)
         {
             this.Reset(cursorOperation);
             return;
         }
 
-        this.LocationToCursor(row, cursorOperation);
+        var row = line.Rows.ListChain[line.Rows.Count - 1];
+        var top = -1;
+        var left = -1;
+        if (this.ArrayPosition >= row.Start &&
+            this.ArrayPosition <= row.End)
+        {
+            top = row.Top;
+            left = row.G
+        }
+        else
+        {
+            for (var i = 0; i < line.Rows.Count - 1; i++)
+            {
+                row = line.Rows.ListChain[i];
+                if (arrayPosition >= row.Start &&
+                    arrayPosition < row.End)
+                {
+                    currentTop = newCursor.Top - i;
+                    break;
+                }
+            }
+        }
+
+
+
+        if (this.ArrayPosition < row.Start ||
+            row.End < this.ArrayPosition)
+        {
+            this.Reset(cursorOperation);
+            return;
+        }
+
+        var top = row.Line.Top + this.RowIndex;
+        top = top < 0 ? 0 : top;
+        top = top >= this.simpleConsole.WindowHeight ? this.simpleConsole.WindowHeight - 1 : top;
+
+        var left = this.CursorPosition;
+        // left = left < 0 ? 0 : left;
+        left = left >= this.simpleConsole.WindowWidth ? this.simpleConsole.WindowWidth - 1 : left;
+
+        if (this.simpleConsole.CursorTop != top ||
+            this.simpleConsole.CursorLeft != left)
+        {
+            this.simpleConsole.SetCursorPosition(left, top, cursorOperation);
+        }
+        else if (cursorOperation == CursorOperation.Show)
+        {
+            this.simpleConsole.ShowCursor();
+        }
     }
 }
