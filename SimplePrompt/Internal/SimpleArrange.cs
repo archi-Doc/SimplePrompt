@@ -60,6 +60,12 @@ internal sealed class SimpleArrange
             }
         }
 
+        if (this.simpleConsole.CursorTop != newCursor.Top ||
+                this.simpleConsole.CursorLeft != newCursor.Left)
+        {
+            redraw = true;
+        }
+
         if (!redraw)
         {
             return;
