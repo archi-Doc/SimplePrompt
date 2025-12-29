@@ -38,7 +38,6 @@ internal sealed class RawConsole
     private SafeHandle? handle;
     private byte posixDisableValue;
     private byte veraseCharacter;
-    private FieldInfo? cursorTopField;
 
     public Span<char> CharsSpan => this.chars.AsSpan(this.charsStartIndex, this.charsEndIndex - this.charsStartIndex);
 
@@ -51,21 +50,6 @@ internal sealed class RawConsole
 
         try
         {
-            var coreLib = typeof(Console).Assembly;
-            var consolePalType = coreLib.GetType("System.ConsolePal");
-            if (consolePalType is not null)
-            {
-                // var method = consolePalType.GetMethod("TryGetCachedCursorPosition", BindingFlags.NonPublic | BindingFlags.Static, [typeof(int), typeof(int),])!;
-                this.cursorTopField = consolePalType.GetField("s_cursorTop", BindingFlags.NonPublic | BindingFlags.Static);
-            }
-        }
-        catch
-        {
-
-        }
-
-        try
-        {
             this.InitializeStdin();
             this.db = TermInfo.DatabaseFactory.ReadActiveDatabase();
             // Console.WriteLine("Stdin");
@@ -75,24 +59,6 @@ internal sealed class RawConsole
         }
 
         this.terminalFormatStrings = new(this.db);
-    }
-
-    public bool TryGetCursorTop(out int top)
-    {
-        if (this.cursorTopField is not null)
-        {
-            try
-            {
-                top = (int)this.cursorTopField.GetValue(null)!;
-                return true;
-            }
-            catch
-            {
-            }
-        }
-
-        top = 0;
-        return false;
     }
 
     public unsafe bool TryRead(out ConsoleKeyInfo keyInfo)
@@ -431,7 +397,7 @@ internal sealed class RawConsole
             return true;
         }
 
-        // If Sequence Number is not followed by the VT Seqence End Tag,
+        // If Sequence Number is not followed by the VT Sequence End Tag,
         // it can be followed only by a Modifier Separator, Modifier (2-8) and Key ID or VT Sequence End Tag.
         if (input[SequencePrefixLength + digitCount] is not ModifierSeparator
             || SequencePrefixLength + digitCount + 2 >= input.Length
