@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -9,6 +10,7 @@ using System.Runtime.InteropServices;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
+using static Arc.Unit.UnitMessage;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
@@ -371,11 +373,11 @@ CancelOrTerminate:
             else
             {
 
-                if (this.TryGetActiveInstance(out activeInstance))
+                /*if (this.TryGetActiveInstance(out activeInstance))
                 {
                     activeInstance.CurrentLocation.CursorFirst();
-                    this.RawConsole.WriteInternal("\e[J");
-                }
+                    this.RawConsole.WriteInternal("\e[0J");
+                }*/
 
                 this.RawConsole.WriteInternal("\e[2J");
                 this.SetCursorPosition(0, 0, CursorOperation.None);
