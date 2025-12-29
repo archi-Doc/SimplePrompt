@@ -453,7 +453,7 @@ CancelOrTerminate:
     [Conditional("DEBUG")]
     internal void CheckCursor()
     {
-        try
+        /*try
         {
             if (this.RawConsole.UseStdin)
             {// With Interop.Sys.Write(), changes are not applied immediately, so the cursor position cannot be retrieved.
@@ -471,7 +471,7 @@ CancelOrTerminate:
         }
         catch
         {
-        }
+        }*/
     }
 
     internal void AdvanceCursor(ReadOnlySpan<char> text, bool newLine)
