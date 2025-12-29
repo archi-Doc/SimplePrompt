@@ -102,7 +102,7 @@ internal sealed class Program
             }
             else if (string.Equals(result.Text, "clear", StringComparison.OrdinalIgnoreCase))
             {// clear
-                simpleConsole.Clear(true);
+                simpleConsole.Clear(false);
                 continue;
             }
             else if (string.IsNullOrEmpty(result.Text))
@@ -172,7 +172,7 @@ internal sealed class Program
             }
             else if (keyInfo.Key == ConsoleKey.F4)
             {
-                simpleConsole.Clear(true);
+                simpleConsole.Clear(false);
                 return KeyInputHookResult.Handled;
             }
 

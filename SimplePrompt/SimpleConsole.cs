@@ -359,17 +359,29 @@ CancelOrTerminate:
 
     public void Clear(bool clearBuffer)
     {
-        this.RawConsole.WriteInternal("\e[2J");
-        this.SetCursorPosition(0, 0, CursorOperation.None);
-
-        // Console.Clear();
-
+        ReadLineInstance? activeInstance;
         using (this.syncObject.EnterScope())
         {
-            this.CursorTop = 0;
-            this.CursorLeft = 0;
+            if (clearBuffer)
+            {
+                Console.Clear();
+                this.CursorTop = 0;
+                this.CursorLeft = 0;
+            }
+            else
+            {
 
-            if (this.TryGetActiveInstance(out var activeInstance))
+                if (this.TryGetActiveInstance(out activeInstance))
+                {
+                    activeInstance.CurrentLocation.CursorFirst();
+                    this.RawConsole.WriteInternal("\e[J");
+                }
+
+                this.RawConsole.WriteInternal("\e[2J");
+                this.SetCursorPosition(0, 0, CursorOperation.None);
+            }
+
+            if (this.TryGetActiveInstance(out activeInstance))
             {
                 activeInstance.Redraw();
                 activeInstance.CurrentLocation.Restore(CursorOperation.None);

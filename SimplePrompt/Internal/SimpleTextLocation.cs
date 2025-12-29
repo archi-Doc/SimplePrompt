@@ -474,6 +474,24 @@ internal sealed record class SimpleTextLocation
         }
     }
 
+    internal void CursorFirst()
+    {
+        if (this.readLineInstance.LineList.Count == 0)
+        {
+            return;
+        }
+
+        var line = this.readLineInstance.LineList[0];
+        var top = line.Top;
+        var left = 0;
+
+        if (this.simpleConsole.CursorTop != top ||
+            this.simpleConsole.CursorLeft != left)
+        {
+            this.simpleConsole.SetCursorPosition(left, top, CursorOperation.None);
+        }
+    }
+
     internal void CursorLast()
     {
         if (this.readLineInstance.LineList.Count == 0)
