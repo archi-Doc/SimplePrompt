@@ -100,6 +100,11 @@ internal sealed class Program
                 ThreadCore.Root.Terminate(); // Send a termination signal to the root.
                 break;
             }
+            else if (string.Equals(result.Text, "clear", StringComparison.OrdinalIgnoreCase))
+            {// clear
+                simpleConsole.Clear();
+                continue;
+            }
             else if (string.IsNullOrEmpty(result.Text))
             {// continue
                 continue;
@@ -163,6 +168,11 @@ internal sealed class Program
                     Console.WriteLine($"Nested: {result.Text}");
                 });
 
+                return KeyInputHookResult.Handled;
+            }
+            else if (keyInfo.Key == ConsoleKey.F4)
+            {
+                simpleConsole.Clear();
                 return KeyInputHookResult.Handled;
             }
 

@@ -19,32 +19,15 @@ internal sealed class SimpleArrange
     public SimpleArrange(SimpleConsole simpleConsole)
     {
         this.simpleConsole = simpleConsole;
-        this.Invalidate();
     }
 
     public void Update(ReadLineInstance readLineInstance)
     {
-        /*if (this.simpleConsole.CursorLeft == this.previousCursorLeft &&
-            this.simpleConsole.CursorTop == this.previousCursorTop)
-        {// Identical cursor position
-            return;
-        }*/
-
         this.previousInstance = readLineInstance;
-        // this.previousCursorLeft = this.simpleConsole.CursorLeft;
-        // this.previousCursorTop = this.simpleConsole.CursorTop;
-        // this.previousInstance.PrepareLocation();
-    }
-
-    public void Invalidate()
-    {
-        // this.previousCursorLeft = -1;
-        // this.previousCursorTop = -1;
     }
 
     public void Arrange((int Left, int Top) newCursor)
     {
-        // this.Log($"({newCursor.Left}, {newCursor.Top}) {this.simpleConsole.WindowWidth}-{this.simpleConsole.WindowHeight}\r\n");
         if (this.previousInstance is null)
         {
             return;
@@ -52,26 +35,14 @@ internal sealed class SimpleArrange
 
         var lineList = this.previousInstance.LineList;
         var location = this.previousInstance.CurrentLocation;
-
         if (location.LineIndex >= lineList.Count)
         {// Invalid line index
             location.Reset();
             return;
         }
 
-        var line = lineList[location.LineIndex];
-        /*if (location.RowIndex >= line.Rows.Count)
-        {// Invalid row index
-            location.Reset();
-            return;
-        }
-
-        var previousTop = line.Top + location.RowIndex;
-        var previousLeft = location.CursorPosition;
-        var topDiff = newCursor.Top - previousTop;*/
-
         bool redraw = false;
-        Log($"Width:{this.simpleConsole.WindowWidth} Height:{this.simpleConsole.WindowHeight}\n");
+        // Log($"Width:{this.simpleConsole.WindowWidth} Height:{this.simpleConsole.WindowHeight}\n");
         foreach (var x in lineList)
         {
             if (x.Rows.Count > 0)
@@ -85,81 +56,19 @@ internal sealed class SimpleArrange
                     redraw = true;
                 }
 
-                Log($"Arrange {x.Index} Row changed:{rowChanged} Width diff:{widthDiff}\n");
+                // Log($"Arrange {x.Index} Row changed:{rowChanged} Width diff:{widthDiff}\n");
             }
         }
-
-        /*var currentCursor = line.GetCursor(location.ArrayPosition);
-        var currentTop = currentCursor.Top - currentCursor.RowIndex;
-        location.CursorPosition = currentCursor.Left;
-        if (location.CursorPosition != newCursor.Left)
-        {
-        }*/
-
-        /*if (line.Rows.Count > 0)
-        {
-            row = line.Rows.ListChain[line.Rows.Count - 1];
-            if (arrayPosition >= row.Start &&
-                arrayPosition <= row.End)
-            {
-                currentTop = newCursor.Top - line.Rows.Count + 1;
-            }
-            else
-            {
-                for (var i = 0; i < line.Rows.Count - 1; i++)
-                {
-                    row = line.Rows.ListChain[i];
-                    if (arrayPosition >= row.Start &&
-                        arrayPosition < row.End)
-                    {
-                        currentTop = newCursor.Top - i;
-                        break;
-                    }
-                }
-            }
-        }*/
-
-
-        /*if (currentTop < 0)
-        {
-            location.Reset();
-            return;
-        }*/
 
         if (!redraw)
         {
             return;
         }
 
-        Log($"Redraw\n");
-
-
-        /*var top = currentTop;
-        for (var i = location.LineIndex; i >= 0; i--)
-        {
-            lineList[i].Top = top;
-            if (i > 0)
-            {
-                top -= lineList[i - 1].Height;
-            }
-        }
-
-        top = currentTop + lineList[location.LineIndex].Height;
-        for (var i = location.LineIndex + 1; i < lineList.Count; i++)
-        {
-            lineList[i].Top = top;
-            top += lineList[i].Height;
-        }*/
-
+        // Log($"Redraw\n");
         this.previousInstance.ResetCursor(CursorOperation.None);
         this.previousInstance.Redraw();
         this.previousInstance.CurrentLocation.Restore(CursorOperation.None);
-        /*foreach (var x in lineList)
-        {
-            x.Redraw();
-        }
-
-        this.previousInstance.Scroll();*/
     }
 
     private static void Log(string message)

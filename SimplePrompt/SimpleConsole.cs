@@ -231,8 +231,6 @@ public partial class SimpleConsole : IConsoleService
                 }
 
 ProcessKeyInfo:
-                this.simpleArrange.Invalidate();
-
                 if (keyInfo.KeyChar == '\n' ||
                     keyInfo.Key == ConsoleKey.Enter)
                 {
@@ -358,6 +356,24 @@ ProcessKeyInfo:
 
 CancelOrTerminate:
         return new(inputResultKind);
+    }
+
+    public void Clear()
+    {
+        // this.RawConsole.WriteInternal("\e[2J");
+        Console.Clear();
+
+        using (this.syncObject.EnterScope())
+        {
+            this.CursorTop = 0;
+            this.CursorLeft = 0;
+
+            if (this.TryGetActiveInstance(out var activeInstance))
+            {
+                activeInstance.Redraw();
+                activeInstance.CurrentLocation.Restore(CursorOperation.None);
+            }
+        }
     }
 
     Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
@@ -777,8 +793,6 @@ CancelOrTerminate:
 
         if (activeInstance is not null)
         {
-            // this.Location.Redraw();
-
             var newCursor = Console.GetCursorPosition();
             this.simpleArrange.Arrange(newCursor);
             (this.CursorLeft, this.CursorTop) = newCursor;
