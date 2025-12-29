@@ -432,6 +432,7 @@ internal sealed record class SimpleTextLocation
         if (this.ArrayPosition >= row.Start &&
             this.ArrayPosition <= row.End)
         {
+            this.RowIndex = row.ListLink.Index;
             top = row.Top;
             left = row.ArrayPositionToCursorPosition(this.ArrayPosition);
         }
@@ -443,6 +444,7 @@ internal sealed record class SimpleTextLocation
                 if (this.ArrayPosition >= row.Start &&
                     this.ArrayPosition < row.End)
                 {
+                    this.RowIndex = i;
                     top = row.Top;
                     left = row.ArrayPositionToCursorPosition(this.ArrayPosition);
                     break;
@@ -458,8 +460,8 @@ internal sealed record class SimpleTextLocation
 
         top = top < 0 ? 0 : top;
         top = top >= this.simpleConsole.WindowHeight ? this.simpleConsole.WindowHeight - 1 : top;
-
         left = left >= this.simpleConsole.WindowWidth ? this.simpleConsole.WindowWidth - 1 : left;
+        this.CursorPosition = left;
 
         if (this.simpleConsole.CursorTop != top ||
             this.simpleConsole.CursorLeft != left)
