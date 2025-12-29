@@ -124,7 +124,7 @@ public partial class SimpleConsole : IConsoleService
                         var currentInstance = this.instanceList[^1];
                         if (currentInstance.CorrectCursorTop())
                         {// Since the cursor position has been corrected, redraw the prompt.
-                            this.Clear();
+                            this.Clear(false);
                             // currentInstance.Redraw();
                             // currentInstance.CurrentLocation.Restore(CursorOperation.None);
                         }
@@ -357,10 +357,12 @@ CancelOrTerminate:
         return new(inputResultKind);
     }
 
-    public void Clear()
+    public void Clear(bool clearBuffer)
     {
-        // this.RawConsole.WriteInternal("\e[2J");
-        Console.Clear();
+        this.RawConsole.WriteInternal("\e[2J");
+        this.SetCursorPosition(0, 0, CursorOperation.None);
+
+        // Console.Clear();
 
         using (this.syncObject.EnterScope())
         {

@@ -90,11 +90,12 @@ internal sealed class SimpleArrange
             return;
         }
 
+        this.simpleConsole.Clear(false);
+
         // Log($"Redraw\n");
-        this.readLineInstance.ResetCursor(CursorOperation.None);
-        // this.simpleConsole.SetCursorPosition(0, newCursor.Top, CursorOperation.None);
+        /*this.readLineInstance.ResetCursor(CursorOperation.None);
         this.readLineInstance.Redraw();
-        this.readLineInstance.CurrentLocation.Restore(CursorOperation.None);
+        this.readLineInstance.CurrentLocation.Restore(CursorOperation.None);*/
     }
 
     private static void Log(string message)
