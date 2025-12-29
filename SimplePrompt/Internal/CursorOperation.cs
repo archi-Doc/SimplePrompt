@@ -7,4 +7,5 @@ internal enum CursorOperation
     None,
     Show,
     Hide,
+    ForceSet,
 }

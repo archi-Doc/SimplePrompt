@@ -560,8 +560,11 @@ internal sealed class SimpleTextLine
 
     private void ClearLine()
     {
+        var totalLength = this.PromptWidth + this.InputWidth;
+        this.EnsureBuffer(totalLength);
         Array.Fill<char>(this.charArray, ' ', this.PromptWidth, this.InputWidth);
         Array.Fill<byte>(this.widthArray, 1, this.PromptWidth, this.InputWidth);
+        this._inputLength = this.InputWidth;
         this.Write(this.PromptWidth, this.TotalWidth, false, 0);
 
         if (this.Rows.Count > 1)
@@ -571,7 +574,7 @@ internal sealed class SimpleTextLine
         }
 
         this.Clear();
-        this.ReadLineInstance.CurrentLocation.Reset(this);
+        this.ReadLineInstance.CurrentLocation.Reset(this, CursorOperation.ForceSet);
     }
 
     internal void Clear()
