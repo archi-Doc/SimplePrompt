@@ -124,10 +124,9 @@ public partial class SimpleConsole : IConsoleService
                         var currentInstance = this.instanceList[^1];
                         if (currentInstance.CorrectCursorTop())
                         {// Since the cursor position has been corrected, redraw the prompt.
-                            // this.UnderlyingTextWriter.WriteLine();
-                            // this.NewLineCursor();
-                            currentInstance.Redraw();
-                            currentInstance.CurrentLocation.Restore(CursorOperation.None);
+                            this.Clear();
+                            // currentInstance.Redraw();
+                            // currentInstance.CurrentLocation.Restore(CursorOperation.None);
                         }
                     }
 
