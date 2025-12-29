@@ -219,7 +219,7 @@ internal sealed partial class SimpleTextRow
     private void ChangeStartPosition(int newStart, int lengthDiff, int widthDiff)
     {
         this.Start = newStart;
-        this.InputStart = newStart; // coi
+        this.InputStart = newStart;
         this._length += lengthDiff;
         this._width += widthDiff;
     }

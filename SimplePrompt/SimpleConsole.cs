@@ -463,7 +463,7 @@ CancelOrTerminate:
             var cursor = Console.GetCursorPosition();
             if (cursor.Left != this.CursorLeft ||
                 cursor.Top != this.CursorTop)
-            {// Inconsisitent cursor position
+            {// Inconsistent cursor position
                 var st = $"({this.CursorLeft}, {this.CursorTop})->({cursor.Left},{cursor.Top})";
                 this.UnderlyingTextWriter.WriteLine(st);
                 this.SyncCursor();
@@ -785,7 +785,7 @@ CancelOrTerminate:
         {// Window size not changed
             if (activeInstance is not null)
             {
-                this.simpleArrange.Update(activeInstance);
+                this.simpleArrange.Set(activeInstance);
             }
 
             return;

@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using SimplePrompt.Internal;
+using static Arc.Unit.UnitMessage;
 
 namespace SimplePrompt;
 
@@ -9,10 +10,7 @@ internal sealed class SimpleArrange
     #region FieldAndProperty
 
     private readonly SimpleConsole simpleConsole;
-
-    private ReadLineInstance? previousInstance;
-    // private int previousCursorLeft;
-    // private int previousCursorTop;
+    private ReadLineInstance? readLineInstance;
 
     #endregion
 
@@ -21,20 +19,20 @@ internal sealed class SimpleArrange
         this.simpleConsole = simpleConsole;
     }
 
-    public void Update(ReadLineInstance readLineInstance)
+    public void Set(ReadLineInstance readLineInstance)
     {
-        this.previousInstance = readLineInstance;
+        this.readLineInstance = readLineInstance;
     }
 
     public void Arrange((int Left, int Top) newCursor)
     {
-        if (this.previousInstance is null)
+        if (this.readLineInstance is null)
         {
             return;
         }
 
-        var lineList = this.previousInstance.LineList;
-        var location = this.previousInstance.CurrentLocation;
+        var lineList = this.readLineInstance.LineList;
+        var location = this.readLineInstance.CurrentLocation;
         if (location.LineIndex >= lineList.Count)
         {// Invalid line index
             location.Reset();
@@ -66,16 +64,37 @@ internal sealed class SimpleArrange
             redraw = true;
         }
 
+        /*if (!location.TryGetLineAndRow(out var line, out var row))
+        {// Invalid location
+            location.Reset();
+            return;
+
+        }
+
+        if (row.Top != newCursor.Top)
+        {
+            redraw = true;
+            var total = 0;
+            for (var i = 0; i < line.Index; i++)
+            {
+                total += lineList[i].Height;
+            }
+
+            lineList[0].Top = newCursor.Top - row.ListLink.Index - total;
+
+        }*/
+
         if (!redraw)
         {
-            this.previousInstance.CurrentLocation.Restore(CursorOperation.None);
+            this.readLineInstance.CurrentLocation.Restore(CursorOperation.None);
             return;
         }
 
         // Log($"Redraw\n");
-        this.previousInstance.ResetCursor(CursorOperation.None);
-        this.previousInstance.Redraw();
-        this.previousInstance.CurrentLocation.Restore(CursorOperation.None);
+        this.readLineInstance.ResetCursor(CursorOperation.None);
+        // this.simpleConsole.SetCursorPosition(0, newCursor.Top, CursorOperation.None);
+        this.readLineInstance.Redraw();
+        this.readLineInstance.CurrentLocation.Restore(CursorOperation.None);
     }
 
     private static void Log(string message)
