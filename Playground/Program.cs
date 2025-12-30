@@ -1,7 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
-using System.Threading;
+using System.Runtime.InteropServices;
 using Arc;
 using Arc.Threading;
 using Arc.Unit;
@@ -10,7 +9,7 @@ using SimplePrompt;
 
 namespace Playground;
 
-internal class Program
+internal sealed class Program
 {
     public static async Task Main(string[] args)
     {
@@ -45,7 +44,6 @@ internal class Program
                 });
             });
 
-
         var product = builder.Build();
         var logger = product.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
         logger.TryGet()?.Log("Start");
@@ -54,17 +52,31 @@ internal class Program
         var simpleConsole = SimpleConsole.GetOrCreate();
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {
+            // MaxInputLength = 4,
+            Prompt = "Prompt\n>>> ",
             InputColor = ConsoleColor.Yellow,
-            MultilineIdentifier = "|",
+            MultilineDelimiter = "|",
             CancelOnEscape = true,
             // MaskingCharacter = '?',
+            KeyInputHook = keyInfo => KeyInputHook(keyInfo),
         };
 
-        // ThreadPool.GetMinThreads(out var worker, out var io);
-        // Console.WriteLine($"Worker:{worker} Io:{io}");
-        // ThreadPool.SetMinThreads(Math.Max(worker, 8), io)
+        _ = Task.Run(async () =>
+        {
+            while (!ThreadCore.Root.IsTerminated)
+            {
+                await ThreadCore.Root.Delay(5000);
 
-        Console.WriteLine(Environment.OSVersion.ToString());
+                if (ThreadCore.Root.IsTerminated)
+                {
+                    break;
+                }
+                else
+                {
+                    // Console.WriteLine("12345 - ABCDEF - あいうえお");
+                }
+            }
+        });
 
         while (!ThreadCore.Root.IsTerminated)
         {
@@ -83,16 +95,21 @@ internal class Program
                 simpleConsole.WriteLine("Canceled");
                 continue;
             }
-            else if (string.Equals(result.Text, "exit", StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(result.Text, "exit", StringComparison.OrdinalIgnoreCase))
             {// exit
                 ThreadCore.Root.Terminate(); // Send a termination signal to the root.
                 break;
+            }
+            else if (string.Equals(result.Text, "clear", StringComparison.OrdinalIgnoreCase))
+            {// clear
+                simpleConsole.Clear(false);
+                continue;
             }
             else if (string.IsNullOrEmpty(result.Text))
             {// continue
                 continue;
             }
-            else if (string.Equals(result.Text, "a", StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(result.Text, "a", StringComparison.OrdinalIgnoreCase))
             {
                 _ = Task.Run(async () =>
                 {
@@ -100,7 +117,7 @@ internal class Program
                     simpleConsole.WriteLine("AAAAA");
                 });
             }
-            else if (string.Equals(result.Text, "b", StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(result.Text, "b", StringComparison.OrdinalIgnoreCase))
             {
                 _ = Task.Run(async () =>
                 {
@@ -123,5 +140,43 @@ internal class Program
         }
 
         ThreadCore.Root.TerminationEvent.Set(); // The termination process is complete (#1).
+
+        KeyInputHookResult KeyInputHook(ConsoleKeyInfo keyInfo)
+        {
+            if (keyInfo.Key == ConsoleKey.F1)
+            {
+                simpleConsole.WriteLine("Inserted text");
+                return KeyInputHookResult.Handled;
+            }
+            else if (keyInfo.Key == ConsoleKey.F2)
+            {
+                simpleConsole.WriteLine("Text1\nText2");
+                return KeyInputHookResult.Handled;
+            }
+            else if (keyInfo.Key == ConsoleKey.F3)
+            {
+                var options2 = ReadLineOptions.SingleLine with
+                {
+                    Prompt = "Nested>>> ",
+                    KeyInputHook = keyInfo => KeyInputHook(keyInfo),
+                };
+
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(100);
+                    var result = await simpleConsole.ReadLine(options2);
+                    Console.WriteLine($"Nested: {result.Text}");
+                });
+
+                return KeyInputHookResult.Handled;
+            }
+            else if (keyInfo.Key == ConsoleKey.F4)
+            {
+                simpleConsole.Clear(false);
+                return KeyInputHookResult.Handled;
+            }
+
+            return KeyInputHookResult.NotHandled;
+        }
     }
 }

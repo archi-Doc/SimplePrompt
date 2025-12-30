@@ -1,22 +1,22 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using Arc;
-using Arc.Unit;
 using SimplePrompt;
+using Arc.Unit;
 
 namespace QuickStart;
 
-internal class Program
+internal sealed class Program
 {
     public static async Task Main(string[] args)
     {
         var simpleConsole = SimpleConsole.GetOrCreate(); // Create the singleton SimplePrompt instance. Note that all Console calls (such as Console.Out) will go through SimpleConsole.
         simpleConsole.DefaultOptions = new ReadLineOptions()
-        {// Set ReadLine() options.
+        {// Set the default ReadLine options.
             InputColor = ConsoleColor.Yellow,
             Prompt = "> ",
             MultilinePrompt = "# ",
-            MultilineIdentifier = "|",
+            MultilineDelimiter = "|",
             CancelOnEscape = true,
             AllowEmptyLineInput = true,
         };
@@ -34,7 +34,12 @@ internal class Program
                 simpleConsole.WriteLine("Canceled");
                 continue;
             }
-            else if (string.Equals(result.Text, "Exit", StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(result.Text, "Clear", StringComparison.OrdinalIgnoreCase))
+            {// Clear
+                simpleConsole.Clear(false);
+                continue;
+            }
+            else if (string.Equals(result.Text, "Exit", StringComparison.OrdinalIgnoreCase))
             {// Exit
                 break;
             }
@@ -42,7 +47,7 @@ internal class Program
             {// Enter pressed without input
                 continue;
             }
-            else if (string.Equals(result.Text, "Test", StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(result.Text, "Test", StringComparison.OrdinalIgnoreCase))
             {// Test command: Delayed output
                 _ = Task.Run(async () =>
                 {

@@ -5,11 +5,10 @@ using Arc.Threading;
 using Arc.Unit;
 using Microsoft.Extensions.DependencyInjection;
 using SimplePrompt;
-using static SimpleCommandLine.SimpleParser;
 
 namespace Playground;
 
-internal class Program
+internal sealed class Program
 {
     public static async Task Main(string[] args)
     {
@@ -83,40 +82,40 @@ internal class Program
             {
                 break;
             }
-            else if (string.Equals(result.Text, "n", StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(result.Text, "n", StringComparison.OrdinalIgnoreCase))
             {
                 _ = NestedPrompt();
             }
-            else if (string.Equals(result.Text, "y", StringComparison.InvariantCultureIgnoreCase))
+            else if (string.Equals(result.Text, "y", StringComparison.OrdinalIgnoreCase))
             {
                 _ = YesOrNoPrompt();
             }
         }
 
-        bool KeyInputHook(ConsoleKeyInfo keyInfo)
+        KeyInputHookResult KeyInputHook(ConsoleKeyInfo keyInfo)
         {
             if (keyInfo.Key == ConsoleKey.F1)
             {
                 simpleConsole.WriteLine("Inserted text");
-                return true;
+                return KeyInputHookResult.Handled;
             }
             else if (keyInfo.Key == ConsoleKey.F2)
             {
                 simpleConsole.WriteLine("Text1\nText2");
-                return true;
+                return KeyInputHookResult.Handled;
             }
             else if (keyInfo.Key == ConsoleKey.F3)
             {
                 _ = NestedPrompt();
-                return true;
+                return KeyInputHookResult.Handled;
             }
             else if (keyInfo.Key == ConsoleKey.F4)
             {
                 _ = YesOrNoPrompt();
-                return true;
+                return KeyInputHookResult.Handled;
             }
 
-            return false;
+            return KeyInputHookResult.NotHandled;
         }
 
         async Task NestedPrompt()
@@ -137,7 +136,7 @@ internal class Program
             var options = ReadLineOptions.MultiLine with
             {
                 Prompt = "Yes or No?\r\n[Y/n] ",
-                MultilineIdentifier = "|",
+                MultilineDelimiter = "|",
                 MaxInputLength = 5,
                 TextInputHook = text =>
                 {
@@ -167,7 +166,7 @@ internal class Program
             {
                 Prompt = "Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input> ",
                 MultilinePrompt = ">> ",
-                MultilineIdentifier = "...",
+                MultilineDelimiter = "...",
                 InputColor = ConsoleColor.Cyan,
                 CancelOnEscape = false,
                 AllowEmptyLineInput = true,
@@ -178,19 +177,19 @@ internal class Program
                     if (keyInfo.Key == ConsoleKey.F1)
                     {
                         simpleConsole.WriteLine("Inserted text");
-                        return true;
+                        return KeyInputHookResult.Handled;
                     }
                     else if (keyInfo.Key == ConsoleKey.F2)
                     {
                         simpleConsole.WriteLine("Text1\nText2");
-                        return true;
+                        return KeyInputHookResult.Handled;
                     }
                     else if (keyInfo.Key == ConsoleKey.F3)
                     {
-                        return true;
+                        return KeyInputHookResult.Handled;
                     }
 
-                    return false;
+                    return KeyInputHookResult.NotHandled;
                 },
             };
 
@@ -213,7 +212,7 @@ internal class Program
         {
             simpleConsole.WriteLine("Canceled");
         }
-        else if (string.Equals(result.Text, "exit", StringComparison.InvariantCultureIgnoreCase))
+        else if (string.Equals(result.Text, "exit", StringComparison.OrdinalIgnoreCase))
         {// exit
             ThreadCore.Root.Terminate(); // Send a termination signal to the root.
             return false;
@@ -221,7 +220,7 @@ internal class Program
         else if (string.IsNullOrEmpty(result.Text))
         {
         }
-        else if (string.Equals(result.Text, "a", StringComparison.InvariantCultureIgnoreCase))
+        else if (string.Equals(result.Text, "a", StringComparison.OrdinalIgnoreCase))
         {
             _ = Task.Run(async () =>
             {
@@ -229,7 +228,7 @@ internal class Program
                 simpleConsole.WriteLine("AAAAA");
             });
         }
-        else if (string.Equals(result.Text, "b", StringComparison.InvariantCultureIgnoreCase))
+        else if (string.Equals(result.Text, "b", StringComparison.OrdinalIgnoreCase))
         {
             _ = Task.Run(async () =>
             {

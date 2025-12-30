@@ -2,10 +2,11 @@
 
 namespace SimplePrompt.Internal;
 
-internal enum CursorOperation
+internal enum ReadLineMode
 {
-    None,
-    Show,
-    Hide,
-    ForceSet,
+    Singleline,
+
+    Delimiter,
+
+    LineContinuation,
 }

@@ -1,7 +1,10 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System;
 using System.Buffers;
 using System.Diagnostics;
+using System.Globalization;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using Arc;
@@ -10,6 +13,8 @@ namespace SimplePrompt.Internal;
 
 internal sealed class RawConsole
 {
+    public bool UseStdin { get; private set; }
+
     private const int BufferCapacity = 1024;
     private const int MinimalSequenceLength = 3;
     private const int SequencePrefixLength = 2; // ^[[ ("^[" stands for Escape)
@@ -26,12 +31,11 @@ internal sealed class RawConsole
     private readonly Lock bufferLock = new();
     private readonly byte[] bytes = new byte[BufferCapacity];
     private readonly char[] chars = new char[BufferCapacity];
-    private int bytesLength = 0;
-    private int charsStartIndex = 0;
-    private int charsEndIndex = 0;
+    private int bytesLength;
+    private int charsStartIndex;
+    private int charsEndIndex;
 
     private SafeHandle? handle;
-    private bool useStdin;
     private byte posixDisableValue;
     private byte veraseCharacter;
 
@@ -49,7 +53,6 @@ internal sealed class RawConsole
             this.InitializeStdin();
             this.db = TermInfo.DatabaseFactory.ReadActiveDatabase();
             // Console.WriteLine("Stdin");
-            Console.WriteLine();
         }
         catch
         {
@@ -62,7 +65,7 @@ internal sealed class RawConsole
     {
         try
         {
-            if (this.useStdin)
+            if (this.UseStdin)
             {// Stdin
                 if (this.TryConsumeBuffer(out keyInfo))
                 {
@@ -133,8 +136,8 @@ internal sealed class RawConsole
     public unsafe void WriteInternal(ReadOnlySpan<char> data)
     {
         try
-        {//
-            /*if (this.handle is not null)
+        {
+            if (this.handle is not null)
             {
                 var length = Encoding.UTF8.GetMaxByteCount(data.Length);
 
@@ -159,7 +162,7 @@ internal sealed class RawConsole
                     }
                 }
             }
-            else*/
+            else
             {
                 this.simpleConsole.UnderlyingTextWriter.Write(data);
             }
@@ -217,17 +220,17 @@ internal sealed class RawConsole
         if (span.Length == 2 && span[0] == Escape && span[1] != Escape)
         {
             this.charsStartIndex++;
-            keyInfo = this.ParseFromSingleChar(span[0], isAlt: true);
+            keyInfo = ParseFromSingleChar(span[0], isAlt: true);
             this.charsStartIndex++;
             return true;
         }
 
-        keyInfo = this.ParseFromSingleChar(span[0], isAlt: false);
+        keyInfo = ParseFromSingleChar(span[0], isAlt: false);
         this.charsStartIndex++;
         return true;
     }
 
-    private ConsoleKeyInfo ParseFromSingleChar(char single, bool isAlt)
+    private static ConsoleKeyInfo ParseFromSingleChar(char single, bool isAlt)
     {
         bool isShift = false, isCtrl = false;
         char keyChar = single;
@@ -376,7 +379,7 @@ internal sealed class RawConsole
             int sequenceLength = SequencePrefixLength + digitCount + 1;
             if (!terminfoDb.TryGetValue(this.chars.AsSpan(this.charsStartIndex, sequenceLength), out parsed))
             {
-                key = MapEscapeSequenceNumber(byte.Parse(input.Slice(SequencePrefixLength, digitCount)));
+                key = MapEscapeSequenceNumber(byte.Parse(input.Slice(SequencePrefixLength, digitCount), default, CultureInfo.InvariantCulture));
                 if (key == default)
                 {
                     return false; // it was not a known sequence
@@ -394,7 +397,7 @@ internal sealed class RawConsole
             return true;
         }
 
-        // If Sequence Number is not followed by the VT Seqence End Tag,
+        // If Sequence Number is not followed by the VT Sequence End Tag,
         // it can be followed only by a Modifier Separator, Modifier (2-8) and Key ID or VT Sequence End Tag.
         if (input[SequencePrefixLength + digitCount] is not ModifierSeparator
             || SequencePrefixLength + digitCount + 2 >= input.Length
@@ -407,7 +410,7 @@ internal sealed class RawConsole
         modifiers = MapXtermModifiers(input[SequencePrefixLength + digitCount + 1]);
 
         key = input[SequencePrefixLength + digitCount + 2] is VtSequenceEndTag
-            ? MapEscapeSequenceNumber(byte.Parse(input.Slice(SequencePrefixLength, digitCount)))
+            ? MapEscapeSequenceNumber(byte.Parse(input.Slice(SequencePrefixLength, digitCount), default, CultureInfo.InvariantCulture))
             : MapKeyIdOXterm(input[SequencePrefixLength + digitCount + 2], this.terminalFormatStrings.IsRxvtTerm).Key;
 
         if (key == default)
@@ -575,6 +578,6 @@ internal sealed class RawConsole
         Interop.Sys.InitializeConsoleBeforeRead();
         Interop.Sys.UninitializeConsoleAfterRead();
 
-        this.useStdin = true;
+        this.UseStdin = true;
     }
 }

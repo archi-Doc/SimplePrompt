@@ -2,13 +2,11 @@
 
 namespace Playground;
 
-internal class Interop
+internal sealed class Interop
 {
-#pragma warning disable SA1310 // Field names should not contain underscore
     private const int STD_OUTPUT_HANDLE = -11;
     private const uint ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004;
     private const uint DISABLE_NEWLINE_AUTO_RETURN = 0x0008;
-#pragma warning restore SA1310 // Field names should not contain underscore
 
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern IntPtr GetStdHandle(int nStdHandle);

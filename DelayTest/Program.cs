@@ -1,8 +1,28 @@
 ﻿namespace DelayTest;
 
-internal class Program
+internal sealed class Program
 {
     public static async Task Main(string[] args)
+    {
+        await TaskDelay();
+        // await Log();
+    }
+
+    private static async Task Log()
+    {
+        Console.WriteLine("Log test");
+        var homeDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        Console.WriteLine(homeDirectory);
+        while (true)
+        {
+            await Task.Delay(1_000).ConfigureAwait(false);
+
+            var st = $"Cursor {Console.CursorLeft}, {Console.CursorTop} Window {Console.WindowWidth}, {Console.WindowHeight}\n";
+            File.AppendAllText($"{homeDirectory}\\log.txt", st);
+        }
+    }
+
+    private static async Task TaskDelay()
     {
         while (true)
         {
@@ -10,5 +30,13 @@ internal class Program
             await Task.Delay(100).ConfigureAwait(false);
             Console.Write("e");
         }
+    }
+
+
+    private static async Task ReadLine()
+    {
+        Console.Write("> ");
+        var st = Console.ReadLine();
+        Console.Write(st);
     }
 }
