@@ -97,6 +97,8 @@ public partial class SimpleConsole : IConsoleService
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
+    private int previousWindowWidth;
+    private int previousWindowHeight;
 
     #endregion
 
@@ -111,15 +113,41 @@ public partial class SimpleConsole : IConsoleService
         this.PrepareWindow();
         this.SyncCursor();
 
-        /*try
+        try
         {
 #pragma warning disable CA1416 // Validate platform compatibility
             _ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
+            {
+                using (this.syncObject.EnterScope())
+                {// Adjusts the cursor position when attached to a console.
+                    var windowWidth = Console.WindowWidth;
+                    var windowHeight = Console.WindowHeight;
+                    Console.WriteLine($"SIGWINCH Height:{windowHeight}({this.previousWindowHeight}) Width:{windowWidth}({this.previousWindowWidth})");
+
+                    if (this.previousWindowWidth != windowWidth &&
+                        this.previousWindowHeight != windowHeight)
+                    {
+                        this.previousWindowWidth = windowWidth;
+                        this.previousWindowHeight = windowHeight;
+                        return;
+                    }
+
+                    var newCursor = Console.GetCursorPosition();
+                    this.simpleArrange.Arrange(newCursor);
+                    (this.CursorLeft, this.CursorTop) = newCursor;
+                }
+            });
+
+            /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
                 // Console.WriteLine($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop}");
 
                 using (this.syncObject.EnterScope())
                 {// Adjusts the cursor position when attached to a console.
+                    var newCursor = Console.GetCursorPosition();
+                    this.simpleArrange.Arrange(newCursor);
+                    (this.CursorLeft, this.CursorTop) = newCursor;
+
                     if (this.instanceList.Count > 0)
                     {
                         var currentInstance = this.instanceList[^1];
@@ -132,12 +160,12 @@ public partial class SimpleConsole : IConsoleService
                     }
 
                 }
-            });
+            });*/
 #pragma warning restore CA1416 // Validate platform compatibility
         }
         catch
         {
-        }*/
+        }
     }
 
     /// <summary>
@@ -626,8 +654,8 @@ CancelOrTerminate:
             written += span.Length;
         }
 
-        this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written)); // coi
-        // this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written)); // coi
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
 
         this.CursorLeft = cursorLeft;
