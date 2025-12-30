@@ -1,7 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using SimplePrompt.Internal;
-using static Arc.Unit.UnitMessage;
 
 namespace SimplePrompt;
 
@@ -39,6 +38,7 @@ internal sealed class SimpleArrange
             return;
         }
 
+        var line = lineList[location.LineIndex];
         bool redraw = false;
         // Log($"Width:{this.simpleConsole.WindowWidth} Height:{this.simpleConsole.WindowHeight}\n");
         foreach (var x in lineList)
@@ -64,25 +64,24 @@ internal sealed class SimpleArrange
             redraw = true;
         }
 
-        /*if (!location.TryGetLineAndRow(out var line, out var row))
-        {// Invalid location
-            location.Reset();
-            return;
-
-        }
-
-        if (row.Top != newCursor.Top)
+        if (line.TryGetRowFromArrayPosition(location.ArrayPosition, out var row) &&
+            row.Top != newCursor.Top)
         {
             redraw = true;
             var total = 0;
             for (var i = 0; i < line.Index; i++)
             {
-                total += lineList[i].Height;
+                foreach (var x in lineList[i].Rows)
+                {
+                    if (x.Length > 0)
+                    {
+                        total++;
+                    }
+                }
             }
 
             lineList[0].Top = newCursor.Top - row.ListLink.Index - total;
-
-        }*/
+        }
 
         if (!redraw)
         {
@@ -90,12 +89,11 @@ internal sealed class SimpleArrange
             return;
         }
 
-        this.simpleConsole.Clear(false);
-
-        // Log($"Redraw\n");
-        /*this.readLineInstance.ResetCursor(CursorOperation.None);
+        this.readLineInstance.ResetCursor(CursorOperation.None);
         this.readLineInstance.Redraw();
-        this.readLineInstance.CurrentLocation.Restore(CursorOperation.None);*/
+        this.readLineInstance.CurrentLocation.Restore(CursorOperation.None);
+
+        // this.simpleConsole.Clear(false);
     }
 
     private static void Log(string message)

@@ -10,7 +10,6 @@ using System.Runtime.InteropServices;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
-using static Arc.Unit.UnitMessage;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
@@ -379,7 +378,7 @@ CancelOrTerminate:
                     this.RawConsole.WriteInternal("\e[0J");
                 }*/
 
-                this.RawConsole.WriteInternal("\e[2J");
+                this.RawConsole.WriteInternal($"\e[2J");
                 this.SetCursorPosition(0, 0, CursorOperation.None);
             }
 

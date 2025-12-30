@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using Arc;
@@ -214,6 +215,35 @@ internal sealed class SimpleTextLine
                 return $"{this.rows.Count} lines: {this.rows.ListChain[0].ToString()}";
             }
         }
+    }
+
+    internal bool TryGetRowFromArrayPosition(int arrayPosition, [MaybeNullWhen(false)] out SimpleTextRow row)
+    {
+        if (this.Rows.Count == 0)
+        {
+            row = default;
+            return false;
+        }
+
+        row = this.Rows.ListChain[this.Rows.Count - 1];
+        if (arrayPosition >= row.Start &&
+            arrayPosition <= row.End)
+        {
+            return true;
+        }
+
+        for (var i = 0; i < this.Rows.Count - 1; i++)
+        {
+            row = this.Rows.ListChain[i];
+            if (arrayPosition >= row.Start &&
+                arrayPosition < row.End)
+            {
+                return true;
+            }
+        }
+
+        row = default;
+        return false;
     }
 
     internal void Redraw()
