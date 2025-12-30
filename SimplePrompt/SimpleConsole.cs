@@ -94,6 +94,7 @@ public partial class SimpleConsole : IConsoleService
 
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly SimpleArrange simpleArrange;
+    private readonly SingleTask attachedTask;
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
@@ -113,30 +114,38 @@ public partial class SimpleConsole : IConsoleService
         this.PrepareWindow();
         this.SyncCursor();
 
+        this.attachedTask = new();
+
+
         try
         {
 #pragma warning disable CA1416 // Validate platform compatibility
-            /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
+            _ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
-                using (this.syncObject.EnterScope())
-                {// Adjusts the cursor position when attached to a console.
-                    var windowWidth = Console.WindowWidth;
-                    var windowHeight = Console.WindowHeight;
-                    Console.WriteLine($"SIGWINCH Height:{windowHeight}({this.previousWindowHeight}) Width:{windowWidth}({this.previousWindowWidth})");
+                this.attachedTask.TryRun(async () =>
+                {
+                    await Task.Delay(200);
 
-                    if (this.previousWindowWidth != windowWidth &&
-                        this.previousWindowHeight != windowHeight)
-                    {
-                        this.previousWindowWidth = windowWidth;
-                        this.previousWindowHeight = windowHeight;
-                        return;
+                    using (this.syncObject.EnterScope())
+                    {// Adjusts the cursor position when attached to a console.
+                        var windowWidth = Console.WindowWidth;
+                        var windowHeight = Console.WindowHeight;
+                        Console.WriteLine($"SIGWINCH Height:{windowHeight}({this.previousWindowHeight}) Width:{windowWidth}({this.previousWindowWidth})");
+
+                        if (this.previousWindowWidth != windowWidth &&
+                            this.previousWindowHeight != windowHeight)
+                        {
+                            this.previousWindowWidth = windowWidth;
+                            this.previousWindowHeight = windowHeight;
+                            return;
+                        }
+
+                        var newCursor = Console.GetCursorPosition();
+                        this.simpleArrange.Arrange(newCursor);
+                        (this.CursorLeft, this.CursorTop) = newCursor;
                     }
-
-                    var newCursor = Console.GetCursorPosition();
-                    this.simpleArrange.Arrange(newCursor);
-                    (this.CursorLeft, this.CursorTop) = newCursor;
-                }
-            });*/
+                });
+            });
 
             /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
