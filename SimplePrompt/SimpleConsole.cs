@@ -248,6 +248,37 @@ public partial class SimpleConsole : IConsoleService
 
                     if (this.queue.TryDequeue(out var queuedMessage))
                     {
+                        var queuedSpan = queuedMessage.AsSpan();
+                        do
+                        {
+                            var length = Math.Min(queuedSpan.Length, currentInstance.CharBuffer.Length);
+                            var charSpan = currentInstance.CharBuffer.AsSpan(0, length);
+                            queuedSpan.Slice(0, length).CopyTo(charSpan);
+                            queuedSpan = queuedSpan.Slice(length);
+
+                            if (queuedSpan.Length == 0)
+                            {
+                                var result = currentInstance.ProcessInput(SimplePromptHelper.EnterKeyInfo, charSpan);
+                                if (result is not null)
+                                {
+                                    result = ProcessTextInputHook(result);
+                                    if (result is null)
+                                    {// Rejected
+                                        break;
+                                    }
+                                }
+
+                                if (result is not null)
+                                {
+                                    return new(result);
+                                }
+                            }
+                            else
+                            {
+                                currentInstance.ProcessInput(keyInfo, charSpan);
+                            }
+                        }
+                        while (queuedSpan.Length > 0);
                     }
 
                     if (!this.RawConsole.TryRead(out keyInfo))
@@ -434,6 +465,13 @@ CancelOrTerminate:
         }
     }
 
+    /// <summary>
+    /// Enqueues a string input message to be processed by the console input queue.
+    /// This allows programmatic injection of input as if it were typed by the user.
+    /// </summary>
+    /// <param name="message">
+    /// The input message to enqueue. If <c>null</c>, a null message is enqueued.
+    /// </param>
     public void EnqueueInput(string? message)
     {
         this.queue.Enqueue(message);

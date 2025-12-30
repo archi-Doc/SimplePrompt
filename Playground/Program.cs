@@ -56,6 +56,7 @@ internal sealed class Program
             Prompt = "Prompt\n>>> ",
             InputColor = ConsoleColor.Yellow,
             MultilineDelimiter = "|",
+            AllowEmptyLineInput = true,
             CancelOnEscape = true,
             // MaskingCharacter = '?',
             KeyInputHook = keyInfo => KeyInputHook(keyInfo),
@@ -67,6 +68,8 @@ internal sealed class Program
         {
             await Task.Delay(1000);
             simpleConsole.EnqueueInput("Queued");
+            await Task.Delay(1000);
+            simpleConsole.EnqueueInput(null);
         });
         
 
