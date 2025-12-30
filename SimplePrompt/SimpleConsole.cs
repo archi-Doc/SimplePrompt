@@ -22,7 +22,7 @@ namespace SimplePrompt;
 #pragma warning disable CA1001 // Types that own disposable fields should be disposable
 public partial class SimpleConsole : IConsoleService
 #pragma warning restore CA1001 // Types that own disposable fields should be disposable
-{//
+{
     private const int DelayInMilliseconds = 10;
     private const int WindowBufferSize = 32 * 1024;
     private static SimpleConsole? _instance;
@@ -265,13 +265,6 @@ ProcessKeyInfo:
                     }
                 }
 
-                /*else if (keyInfo.Key == ConsoleKey.C &&
-                    keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control))
-                { // Ctrl+C
-                    ThreadCore.Root.Terminate(); // Send a termination signal to the root.
-                    return null;
-                }*/
-
                 bool processInput = true;
                 if (IsControl(keyInfo))
                 {// Control
@@ -358,6 +351,13 @@ CancelOrTerminate:
         return new(inputResultKind);
     }
 
+    /// <summary>
+    /// Clears the console display or buffer, depending on the specified parameter.
+    /// </summary>
+    /// <param name="clearBuffer">
+    /// If <see langword="true"/>, clears the entire console buffer and resets the cursor position to the top-left corner.
+    /// If <see langword="false"/>, clears only the visible console area and resets the cursor position to the top-left corner.
+    /// </param>
     public void Clear(bool clearBuffer)
     {
         ReadLineInstance? activeInstance;
@@ -413,6 +413,14 @@ CancelOrTerminate:
         }
     }
 
+    /// <summary>
+    /// Writes the specified message to the console followed by a newline.<br/>
+    /// If a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress,<br/>
+    /// the message is written with proper cursor management and the active input instance is redrawn.
+    /// </summary>
+    /// <param name="message">
+    /// The message to write. If <c>null</c>, only a newline is written.
+    /// </param>
     public void WriteLine(string? message = null)
     {
         using (this.syncObject.EnterScope())
@@ -573,12 +581,6 @@ CancelOrTerminate:
 
     internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
     {// Move and show cursor.
-        /*if (this.CursorLeft == cursorLeft &&
-            this.CursorTop == cursorTop)
-        {
-            return;
-        }*/
-
         if (cursorLeft > (this.WindowWidth - 1))
         {
             cursorLeft = this.WindowWidth - 1;
@@ -624,8 +626,8 @@ CancelOrTerminate:
             written += span.Length;
         }
 
-        this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written));
-        // this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written));
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
 
         this.CursorLeft = cursorLeft;
