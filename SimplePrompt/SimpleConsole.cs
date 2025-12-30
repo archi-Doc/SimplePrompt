@@ -111,7 +111,7 @@ public partial class SimpleConsole : IConsoleService
         this.PrepareWindow();
         this.SyncCursor();
 
-        try
+        /*try
         {
 #pragma warning disable CA1416 // Validate platform compatibility
             _ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
@@ -137,7 +137,7 @@ public partial class SimpleConsole : IConsoleService
         }
         catch
         {
-        }
+        }*/
     }
 
     /// <summary>
@@ -807,6 +807,7 @@ CancelOrTerminate:
             return;
         }
 
+        // Window size changed
         if (activeInstance is not null)
         {
             var newCursor = Console.GetCursorPosition();
@@ -829,7 +830,8 @@ CancelOrTerminate:
 
         var moveCursor = this.CursorTop != top || this.CursorLeft != 0;
         if (moveCursor)
-        {// Save cursor
+        {
+            // Save cursor
             span = ConsoleHelper.SaveCursorSpan;
             span.CopyTo(buffer);
             written += span.Length;
