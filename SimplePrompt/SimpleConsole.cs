@@ -116,7 +116,7 @@ public partial class SimpleConsole : IConsoleService
         try
         {
 #pragma warning disable CA1416 // Validate platform compatibility
-            _ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
+            /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
                 using (this.syncObject.EnterScope())
                 {// Adjusts the cursor position when attached to a console.
@@ -136,7 +136,7 @@ public partial class SimpleConsole : IConsoleService
                     this.simpleArrange.Arrange(newCursor);
                     (this.CursorLeft, this.CursorTop) = newCursor;
                 }
-            });
+            });*/
 
             /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
