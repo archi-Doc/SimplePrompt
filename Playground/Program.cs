@@ -56,12 +56,22 @@ internal sealed class Program
             Prompt = "Prompt\n>>> ",
             InputColor = ConsoleColor.Yellow,
             MultilineDelimiter = "|",
+            AllowEmptyLineInput = true,
             CancelOnEscape = true,
             // MaskingCharacter = '?',
             KeyInputHook = keyInfo => KeyInputHook(keyInfo),
         };
 
         Console.WriteLine("\u001b[90m[\u001b[39m\u001b[22m\u001b[40m\u001b[1m\u001b[37mINF\u001b[39m\u001b[22m\u001b[49m ITestInterface\u001b[90m] \u001b[39m\u001b[22m\u001b[1m\u001b[37mtttttttttttttttttttttttttttttttttttttttttttttttttttttt\u001b[39m\u001b[22m");
+
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(1000);
+            simpleConsole.EnqueueInput("Queued");
+            await Task.Delay(1000);
+            simpleConsole.EnqueueInput(null);
+        });
+        
 
         while (!ThreadCore.Root.IsTerminated)
         {
@@ -160,8 +170,38 @@ internal sealed class Program
                 simpleConsole.Clear(false);
                 return KeyInputHookResult.Handled;
             }
+            else if (keyInfo.Key == ConsoleKey.F5)
+            {
+                _ = YesOrNoPrompt();
+                return KeyInputHookResult.Handled;
+            }
 
             return KeyInputHookResult.NotHandled;
+        }
+
+        async Task YesOrNoPrompt()
+        {
+            var options = ReadLineOptions.MultiLine with
+            {
+                Prompt = "Yes or No?\r\n[Y/n] ",
+                MultilineDelimiter = "|",
+                MaxInputLength = 3,
+                MaskingCharacter = '*',
+                TextInputHook = text =>
+                {
+                    var lower = text.ToLowerInvariant();
+                    if (lower == "y" || lower == "n" || lower == "yes" || lower == "no")
+                    {
+                        return text;
+                    }
+
+                    return null;
+                },
+            };
+
+            await Task.Delay(100);
+            var result = await simpleConsole.ReadLine(options);
+            Console.WriteLine($"Yes or No: {result.Text}");
         }
     }
 }

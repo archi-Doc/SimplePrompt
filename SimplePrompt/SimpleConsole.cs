@@ -2,6 +2,7 @@
 
 using System;
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -10,6 +11,7 @@ using System.Runtime.InteropServices;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
+using static FastExpressionCompiler.ExpressionCompiler;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
@@ -94,6 +96,7 @@ public partial class SimpleConsole : IConsoleService
 
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly SimpleArrange simpleArrange;
+    private readonly ConcurrentQueue<string?> queue = new();
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
@@ -243,6 +246,41 @@ public partial class SimpleConsole : IConsoleService
                         currentInstance.CurrentLocation.Restore(CursorOperation.None);
                     }*/
 
+                    if (this.queue.TryDequeue(out var queuedMessage))
+                    {
+                        var queuedSpan = queuedMessage.AsSpan();
+                        do
+                        {
+                            var length = Math.Min(queuedSpan.Length, currentInstance.CharBuffer.Length);
+                            var charSpan = currentInstance.CharBuffer.AsSpan(0, length);
+                            queuedSpan.Slice(0, length).CopyTo(charSpan);
+                            queuedSpan = queuedSpan.Slice(length);
+
+                            if (queuedSpan.Length == 0)
+                            {
+                                var result = currentInstance.ProcessInput(SimplePromptHelper.EnterKeyInfo, charSpan);
+                                if (result is not null)
+                                {
+                                    result = ProcessTextInputHook(result);
+                                    if (result is null)
+                                    {// Rejected
+                                        break;
+                                    }
+                                }
+
+                                if (result is not null)
+                                {
+                                    return new(result);
+                                }
+                            }
+                            else
+                            {
+                                currentInstance.ProcessInput(keyInfo, charSpan);
+                            }
+                        }
+                        while (queuedSpan.Length > 0);
+                    }
+
                     if (!this.RawConsole.TryRead(out keyInfo))
                     {
                         delayFlag = true;
@@ -324,17 +362,11 @@ ProcessKeyInfo:
                     using (this.syncObject.EnterScope())
                     {
                         result = currentInstance.ProcessInput(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
-                        if (result is not null &&
-                            currentInstance.Options.TextInputHook is not null)
+                        if (result is not null)
                         {
-                            result = currentInstance.Options.TextInputHook(result);
+                            result = ProcessTextInputHook(result);
                             if (result is null)
-                            {// Rejected by the hook delegate.
-                                this.UnderlyingTextWriter.WriteLine();
-                                this.NewLineCursor();
-                                currentInstance.Reset();
-                                currentInstance.Redraw();
-                                currentInstance.CurrentLocation.Reset();
+                            {// Rejected
                                 continue;
                             }
                         }
@@ -361,14 +393,37 @@ ProcessKeyInfo:
                 currentInstance.CurrentLocation.MoveToEnd();
                 this.UnderlyingTextWriter.WriteLine();
                 this.NewLineCursor();
+
+                this.RemoveInstance(currentInstance);
             }
 
-            this.RemoveInstance(currentInstance);
             ReadLineInstance.Return(currentInstance);
         }
 
 CancelOrTerminate:
         return new(inputResultKind);
+
+        string? ProcessTextInputHook(string result)
+        {
+            if (currentInstance.Options.TextInputHook is { } textInputHook)
+            {
+                var newResult = currentInstance.Options.TextInputHook(result);
+                if (newResult is null)
+                {// Rejected by the hook delegate.
+                    this.UnderlyingTextWriter.WriteLine();
+                    this.NewLineCursor();
+                    currentInstance.Reset();
+                    currentInstance.Redraw();
+                    currentInstance.CurrentLocation.Reset();
+                }
+
+                return newResult;
+            }
+            else
+            {
+                return result;
+            }
+        }
     }
 
     /// <summary>
@@ -408,6 +463,18 @@ CancelOrTerminate:
                 activeInstance.CurrentLocation.Restore(CursorOperation.None);
             }
         }
+    }
+
+    /// <summary>
+    /// Enqueues a string input message to be processed by the console input queue.<br/>
+    /// This allows programmatic injection of input as if it were typed by the user.
+    /// </summary>
+    /// <param name="message">
+    /// The input message to enqueue. If <c>null</c>, a null message is enqueued.
+    /// </param>
+    public void EnqueueInput(string? message)
+    {
+        this.queue.Enqueue(message);
     }
 
     Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
@@ -696,16 +763,13 @@ Exit:
 
     private void RemoveInstance(ReadLineInstance target)
     {
-        using (this.syncObject.EnterScope())
-        {
-            target.Clear();
-            this.instanceList.Remove(target);
+        target.Clear();
+        this.instanceList.Remove(target);
 
-            if (this.TryGetActiveInstance(out var activeInstance))
-            {
-                activeInstance.Redraw();
-                activeInstance.CurrentLocation.Restore(CursorOperation.None);
-            }
+        if (this.TryGetActiveInstance(out var activeInstance))
+        {
+            activeInstance.Redraw();
+            activeInstance.CurrentLocation.Restore(CursorOperation.None);
         }
     }
 

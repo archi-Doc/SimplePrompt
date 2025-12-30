@@ -11,6 +11,7 @@ A simple console interface with advanced input handling capabilities including m
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
 - [ReadLineOptions](#readlineoptions)
+- [Features](#features)
 
 
 
@@ -178,3 +179,8 @@ public record class ReadLineOptions
 }
 ```
 
+## Features
+
+### Nested ReadLine
+
+### Queued Input
