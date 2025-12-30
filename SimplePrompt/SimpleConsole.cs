@@ -466,7 +466,7 @@ CancelOrTerminate:
     }
 
     /// <summary>
-    /// Enqueues a string input message to be processed by the console input queue.
+    /// Enqueues a string input message to be processed by the console input queue.<br/>
     /// This allows programmatic injection of input as if it were typed by the user.
     /// </summary>
     /// <param name="message">
