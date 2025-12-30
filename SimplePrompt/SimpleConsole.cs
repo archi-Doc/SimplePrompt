@@ -94,12 +94,9 @@ public partial class SimpleConsole : IConsoleService
 
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly SimpleArrange simpleArrange;
-    private readonly SingleTask attachedTask;
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
-    private int previousWindowWidth;
-    private int previousWindowHeight;
 
     #endregion
 
@@ -114,12 +111,25 @@ public partial class SimpleConsole : IConsoleService
         this.PrepareWindow();
         this.SyncCursor();
 
-        this.attachedTask = new();
 
 
         try
         {
 #pragma warning disable CA1416 // Validate platform compatibility
+            _ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
+            {
+                using (this.syncObject.EnterScope())
+                {// Adjusts the cursor position when attached to a console.
+                    using (this.syncObject.EnterScope())
+                    {
+                        if (this.instanceList.Count > 0)
+                        {
+                            this.AdjustWindow(this.instanceList[^1]);
+                        }
+                    }
+                }
+            });
+
             /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
                 this.attachedTask.TryRun(async () =>
