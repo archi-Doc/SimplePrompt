@@ -1,7 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Globalization;
-using System.Reflection;
 using Arc;
 using Arc.Collections;
 using Arc.Unit;
@@ -512,17 +511,6 @@ internal sealed class ReadLineInstance
 
         this.ReleaseLines();
     }
-
-    /*public void Restore()
-    {
-        this.simpleConsole.SyncCursor();
-        var y = this.simpleConsole.CursorTop;
-        foreach (var x in this.LineList)
-        {
-            x.Top = y;
-            y += x.Height;
-        }
-    }*/
 
     public void Redraw()
     {
