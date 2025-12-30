@@ -626,8 +626,8 @@ CancelOrTerminate:
             written += span.Length;
         }
 
-        // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written)); // coi
-        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written)); // coi
+        // this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
 
         this.CursorLeft = cursorLeft;
