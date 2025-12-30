@@ -132,33 +132,6 @@ public partial class SimpleConsole : IConsoleService
 
             /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
-                this.attachedTask.TryRun(async () =>
-                {
-                    await Task.Delay(200);
-
-                    using (this.syncObject.EnterScope())
-                    {// Adjusts the cursor position when attached to a console.
-                        var windowWidth = Console.WindowWidth;
-                        var windowHeight = Console.WindowHeight;
-                        // Console.WriteLine($"SIGWINCH Height:{windowHeight}({this.previousWindowHeight}) Width:{windowWidth}({this.previousWindowWidth})");
-
-                        if (this.previousWindowWidth != windowWidth &&
-                            this.previousWindowHeight != windowHeight)
-                        {
-                            this.previousWindowWidth = windowWidth;
-                            this.previousWindowHeight = windowHeight;
-                            return;
-                        }
-
-                        var newCursor = Console.GetCursorPosition();
-                        this.simpleArrange.Arrange(newCursor);
-                        (this.CursorLeft, this.CursorTop) = newCursor;
-                    }
-                });
-            });*/
-
-            /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
-            {
                 // Console.WriteLine($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop}");
 
                 using (this.syncObject.EnterScope())
