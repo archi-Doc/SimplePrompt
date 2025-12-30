@@ -120,7 +120,7 @@ public partial class SimpleConsole : IConsoleService
         try
         {
 #pragma warning disable CA1416 // Validate platform compatibility
-            _ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
+            /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
                 this.attachedTask.TryRun(async () =>
                 {
@@ -130,7 +130,7 @@ public partial class SimpleConsole : IConsoleService
                     {// Adjusts the cursor position when attached to a console.
                         var windowWidth = Console.WindowWidth;
                         var windowHeight = Console.WindowHeight;
-                        Console.WriteLine($"SIGWINCH Height:{windowHeight}({this.previousWindowHeight}) Width:{windowWidth}({this.previousWindowWidth})");
+                        // Console.WriteLine($"SIGWINCH Height:{windowHeight}({this.previousWindowHeight}) Width:{windowWidth}({this.previousWindowWidth})");
 
                         if (this.previousWindowWidth != windowWidth &&
                             this.previousWindowHeight != windowHeight)
@@ -145,7 +145,7 @@ public partial class SimpleConsole : IConsoleService
                         (this.CursorLeft, this.CursorTop) = newCursor;
                     }
                 });
-            });
+            });*/
 
             /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
