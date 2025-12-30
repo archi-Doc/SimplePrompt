@@ -525,6 +525,27 @@ CancelOrTerminate:
 
         for (var i = 0; i < text.Length; i++)
         {
+
+            while (text[i] == '\e')
+            {// Skip ANSI escape code
+                i++;
+                while (i < text.Length)
+                {
+                    if (char.IsAsciiLetter(text[i]))
+                    {
+                        i++;
+                        break;
+                    }
+
+                    i++;
+                }
+
+                if (i >= text.Length)
+                {
+                    goto Exit;
+                }
+            }
+
             int width;
             var c = text[i];
             if (char.IsHighSurrogate(c) && (i + 1) < text.Length && char.IsLowSurrogate(text[i + 1]))
@@ -548,6 +569,7 @@ CancelOrTerminate:
             }
         }
 
+Exit:
         if (newLine)
         {
             left = 0;
