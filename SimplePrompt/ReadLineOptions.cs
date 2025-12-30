@@ -56,7 +56,7 @@ public record class ReadLineOptions
     /// Gets the character used to indicate that the current line should be continued onto the next line (e.g. '\').<br/>
     /// Default is <c><see langword="default"/></c> (no line continuation).
     /// </summary>
-    public char LineContinuation { get; init; } = '\\';
+    public char LineContinuation { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether to cancel the ReadLine operation when the Escape key is pressed.

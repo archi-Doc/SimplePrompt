@@ -12,7 +12,7 @@ internal sealed class Program
     {
         var simpleConsole = SimpleConsole.GetOrCreate(); // Create the singleton SimplePrompt instance. Note that all Console calls (such as Console.Out) will go through SimpleConsole.
         simpleConsole.DefaultOptions = new ReadLineOptions()
-        {// Set ReadLine() options.
+        {// Set the default ReadLine options.
             InputColor = ConsoleColor.Yellow,
             Prompt = "> ",
             MultilinePrompt = "# ",
@@ -32,6 +32,11 @@ internal sealed class Program
             if (result.Kind == InputResultKind.Canceled)
             {// Esc pressed
                 simpleConsole.WriteLine("Canceled");
+                continue;
+            }
+            else if (string.Equals(result.Text, "Clear", StringComparison.OrdinalIgnoreCase))
+            {// Clear
+                simpleConsole.Clear(false);
                 continue;
             }
             else if (string.Equals(result.Text, "Exit", StringComparison.OrdinalIgnoreCase))
