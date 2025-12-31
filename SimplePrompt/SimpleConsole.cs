@@ -902,11 +902,11 @@ Exit:
         if (!this.PrepareWindow() &&
             !redraw)
         {// Window size not changed
-            if (activeInstance.CorrectCursorTop())
-            {
-                activeInstance.ResetCursor(CursorOperation.None);
-                activeInstance.Redraw();
-                activeInstance.CurrentLocation.Restore(CursorOperation.None);
+            var cursor = Console.GetCursorPosition();
+            if (cursor.Top != this.CursorTop ||
+                cursor.Left != this.CursorLeft)
+            {// Cursor changed
+                this.simpleArrange.Arrange(cursor, true);
             }
 
             return;
