@@ -894,20 +894,19 @@ Exit:
         return true;
     }
 
-    private void AdjustWindow(ReadLineInstance activeInstance, bool forceArrange)
+    private void AdjustWindow(ReadLineInstance activeInstance, bool redraw)
     {
         this.simpleArrange.Set(activeInstance);
 
         if (!this.PrepareWindow() &&
-            !forceArrange)
+            !redraw)
         {// Window size not changed
             return;
         }
 
         // Window size changed
         var newCursor = Console.GetCursorPosition();
-        this.simpleArrange.Arrange(newCursor);
-        (this.CursorLeft, this.CursorTop) = newCursor;
+        this.simpleArrange.Arrange(newCursor, redraw);
     }
 
     internal void ClearRow(int top)

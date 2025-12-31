@@ -23,7 +23,7 @@ internal sealed class SimpleArrange
         this.readLineInstance = readLineInstance;
     }
 
-    public void Arrange((int Left, int Top) newCursor)
+    public void Arrange((int Left, int Top) newCursor, bool redraw)
     {
         if (this.readLineInstance is null)
         {
@@ -39,7 +39,6 @@ internal sealed class SimpleArrange
         }
 
         var line = lineList[location.LineIndex];
-        bool redraw = false;
         // Log($"Width:{this.simpleConsole.WindowWidth} Height:{this.simpleConsole.WindowHeight}\n");
         foreach (var x in lineList)
         {
