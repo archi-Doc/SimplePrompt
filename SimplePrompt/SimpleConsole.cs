@@ -895,12 +895,12 @@ Exit:
         return true;
     }
 
-    private void AdjustWindow(ReadLineInstance activeInstance, bool forceArrange)
+    private void AdjustWindow(ReadLineInstance activeInstance, bool redraw)
     {
         this.simpleArrange.Set(activeInstance);
 
         if (!this.PrepareWindow() &&
-            !forceArrange)
+            !redraw)
         {// Window size not changed
             return;
         }
