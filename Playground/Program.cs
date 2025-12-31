@@ -175,6 +175,19 @@ internal sealed class Program
                 _ = YesOrNoPrompt();
                 return KeyInputHookResult.Handled;
             }
+            else if (keyInfo.Key == ConsoleKey.F12)
+            {
+                if (Console.CursorTop >= 10)
+                {
+                    Console.CursorTop = 0;
+                }
+                else
+                {
+                    Console.CursorTop = 10;
+                }
+
+                return KeyInputHookResult.Handled;
+            }
 
             return KeyInputHookResult.NotHandled;
         }

@@ -104,6 +104,8 @@ public partial class SimpleConsole : IConsoleService
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
+    private DateTime adjustWindowTime;
+    private DateTime adjustCursorTime;
 
     #endregion
 
@@ -130,7 +132,23 @@ public partial class SimpleConsole : IConsoleService
                     // Console.WriteLine($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop}");
                     if (this.instanceList.Count > 0)
                     {
-                        this.AdjustWindow(this.instanceList[^1], true);
+                        // this.AdjustWindow(this.instanceList[^1], true);
+
+                        var activeInstance = this.instanceList[^1];
+                        var cursor = Console.GetCursorPosition();
+                        if (cursor.Top != this.CursorTop ||
+                            cursor.Left != this.CursorLeft)
+                        {// Cursor changed
+                            if (activeInstance.LineList.Count > 0)
+                            {
+                                activeInstance.LineList[0].Top = cursor.Top;
+                                activeInstance.ResetCursor(CursorOperation.None);
+                                activeInstance.Redraw();
+                                activeInstance.CurrentLocation.Restore(CursorOperation.None);
+                            }
+
+                            // this.simpleArrange.Arrange(cursor, true);
+                        }
                     }
                 }
             });
@@ -897,13 +915,44 @@ Exit:
 
     private void AdjustWindow(ReadLineInstance activeInstance, bool redraw)
     {
-        this.simpleArrange.Set(activeInstance);
+        var current = DateTime.UtcNow;
+        if ((current - this.adjustWindowTime) < TimeSpan.FromSeconds(0.1))
+        {
+            return;
+        }
 
+        this.adjustWindowTime = current;
+
+        this.simpleArrange.Set(activeInstance);
         if (!this.PrepareWindow() &&
             !redraw)
         {// Window size not changed
+            /*if ((current - this.adjustCursorTime) < TimeSpan.FromSeconds(0.3))
+            {
+                return;
+            }
+
+            this.adjustCursorTime = current;
+
+            var cursor = Console.GetCursorPosition();
+            if (cursor.Top != this.CursorTop ||
+                cursor.Left != this.CursorLeft)
+            {// Cursor changed
+                if (activeInstance.LineList.Count > 0)
+                {
+                    activeInstance.LineList[0].Top = cursor.Top;
+                    activeInstance.ResetCursor(CursorOperation.None);
+                    activeInstance.Redraw();
+                    activeInstance.CurrentLocation.Restore(CursorOperation.None);
+                }
+
+                // this.simpleArrange.Arrange(cursor, true);
+            }*/
+
             return;
         }
+
+        this.adjustCursorTime = current;
 
         // Window size changed
         var newCursor = Console.GetCursorPosition();
