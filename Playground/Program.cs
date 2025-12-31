@@ -53,7 +53,7 @@ internal sealed class Program
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {
             // MaxInputLength = 4,
-            Prompt = "Prompt\n>>> ",
+            Prompt = "> ",
             InputColor = ConsoleColor.Yellow,
             MultilineDelimiter = "|",
             AllowEmptyLineInput = true,

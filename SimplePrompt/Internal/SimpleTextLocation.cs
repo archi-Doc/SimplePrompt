@@ -385,8 +385,16 @@ internal sealed record class SimpleTextLocation
         if (this.ArrayPosition < row.Start ||
             row.End < this.ArrayPosition)
         {
-            this.Reset(cursorOperation);
-            return;
+            Console.WriteLine($"Array position {this.ArrayPosition} Row({row.ListLink.Index}) {row.Start}-{row.End}");
+            throw new Exception();
+
+            // this.Reset(cursorOperation);
+            // return;
+
+            row = row.Line.Rows.ListChain[row.Line.InitialRowIndex];
+            this.RowIndex = row.ListLink.Index;
+            this.ArrayPosition = row.Line.PromptLength;
+            this.CursorPosition = row.Line.InitialCursorPosition;
         }
 
         var top = row.Line.Top + this.RowIndex;
