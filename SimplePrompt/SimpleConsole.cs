@@ -11,7 +11,6 @@ using System.Runtime.InteropServices;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
-using static FastExpressionCompiler.ExpressionCompiler;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
@@ -128,12 +127,9 @@ public partial class SimpleConsole : IConsoleService
             {
                 using (this.syncObject.EnterScope())
                 {// Adjusts the cursor position when attached to a console.
-                    using (this.syncObject.EnterScope())
+                    if (this.instanceList.Count > 0)
                     {
-                        if (this.instanceList.Count > 0)
-                        {
-                            this.AdjustWindow(this.instanceList[^1]);
-                        }
+                        this.AdjustWindow(this.instanceList[^1], true);
                     }
                 }
             });
@@ -240,18 +236,11 @@ public partial class SimpleConsole : IConsoleService
                     }
 
                     // Active instance: Prepare window and read key input.
-                    this.AdjustWindow(currentInstance);
+                    this.AdjustWindow(currentInstance, false);
 
-                    // Adjusts the cursor position when attached to a console, but it is disabled because Console.GetCursorPosition() may freeze.
-                    /*if (currentInstance.CorrectCursorTop())
-                    {// Since the cursor position has been corrected, redraw the prompt.
-                        this.UnderlyingTextWriter.WriteLine();
-                        this.NewLineCursor();
-                        currentInstance.Redraw();
-                        currentInstance.CurrentLocation.Restore(CursorOperation.None);
-                    }*/
-
-                    if (this.queue.TryDequeue(out var queuedMessage))
+                    if (!this.queue.IsEmpty &&
+                        currentInstance.IsEmptyInput() &&
+                        this.queue.TryDequeue(out var queuedMessage))
                     {
                         var queuedSpan = queuedMessage.AsSpan();
                         do
@@ -905,26 +894,20 @@ Exit:
         return true;
     }
 
-    private void AdjustWindow(ReadLineInstance activeInstance)
+    private void AdjustWindow(ReadLineInstance activeInstance, bool forceArrange)
     {
+        this.simpleArrange.Set(activeInstance);
 
-        if (!this.PrepareWindow())
+        if (!this.PrepareWindow() &&
+            !forceArrange)
         {// Window size not changed
-            if (activeInstance is not null)
-            {
-                this.simpleArrange.Set(activeInstance);
-            }
-
             return;
         }
 
         // Window size changed
-        if (activeInstance is not null)
-        {
-            var newCursor = Console.GetCursorPosition();
-            this.simpleArrange.Arrange(newCursor);
-            (this.CursorLeft, this.CursorTop) = newCursor;
-        }
+        var newCursor = Console.GetCursorPosition();
+        this.simpleArrange.Arrange(newCursor);
+        (this.CursorLeft, this.CursorTop) = newCursor;
     }
 
     internal void ClearRow(int top)
