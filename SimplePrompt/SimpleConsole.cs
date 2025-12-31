@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
@@ -124,17 +125,33 @@ public partial class SimpleConsole : IConsoleService
         try
         {
 #pragma warning disable CA1416 // Validate platform compatibility
-            /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
+            _ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
                 using (this.syncObject.EnterScope())
                 {// Adjusts the cursor position when attached to a console.
                     // Console.WriteLine($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop}");
                     if (this.instanceList.Count > 0)
                     {
-                        this.AdjustWindow(this.instanceList[^1], true);
+                        // this.AdjustWindow(this.instanceList[^1], true);
+
+                        var activeInstance = this.instanceList[^1];
+                        var cursor = Console.GetCursorPosition();
+                        if (cursor.Top != this.CursorTop ||
+                            cursor.Left != this.CursorLeft)
+                        {// Cursor changed
+                            if (activeInstance.LineList.Count > 0)
+                            {
+                                activeInstance.LineList[0].Top = cursor.Top;
+                                activeInstance.ResetCursor(CursorOperation.None);
+                                activeInstance.Redraw();
+                                activeInstance.CurrentLocation.Restore(CursorOperation.None);
+                            }
+
+                            // this.simpleArrange.Arrange(cursor, true);
+                        }
                     }
                 }
-            });*/
+            });
 
             /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
@@ -731,8 +748,8 @@ Exit:
             written += span.Length;
         }
 
-        this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written));
-        // this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written)); // coi
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
 
         this.CursorLeft = cursorLeft;
@@ -910,7 +927,7 @@ Exit:
         if (!this.PrepareWindow() &&
             !redraw)
         {// Window size not changed
-            if ((current - this.adjustCursorTime) < TimeSpan.FromSeconds(0.3))
+            /*if ((current - this.adjustCursorTime) < TimeSpan.FromSeconds(0.3))
             {
                 return;
             }
@@ -930,7 +947,7 @@ Exit:
                 }
 
                 // this.simpleArrange.Arrange(cursor, true);
-            }
+            }*/
 
             return;
         }
