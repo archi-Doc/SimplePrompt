@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
@@ -104,6 +103,8 @@ public partial class SimpleConsole : IConsoleService
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
+    private DateTime adjustWindowTime;
+    private DateTime adjustCursorTime;
 
     #endregion
 
@@ -897,20 +898,44 @@ Exit:
 
     private void AdjustWindow(ReadLineInstance activeInstance, bool redraw)
     {
-        this.simpleArrange.Set(activeInstance);
+        var current = DateTime.UtcNow;
+        if ((current - this.adjustWindowTime) < TimeSpan.FromSeconds(0.1))
+        {
+            return;
+        }
 
+        this.adjustWindowTime = current;
+
+        this.simpleArrange.Set(activeInstance);
         if (!this.PrepareWindow() &&
             !redraw)
         {// Window size not changed
+            if ((current - this.adjustCursorTime) < TimeSpan.FromSeconds(0.3))
+            {
+                return;
+            }
+
+            this.adjustCursorTime = current;
+
             var cursor = Console.GetCursorPosition();
             if (cursor.Top != this.CursorTop ||
                 cursor.Left != this.CursorLeft)
             {// Cursor changed
-                this.simpleArrange.Arrange(cursor, true);
+                if (activeInstance.LineList.Count > 0)
+                {
+                    activeInstance.LineList[0].Top = cursor.Top;
+                    activeInstance.ResetCursor(CursorOperation.None);
+                    activeInstance.Redraw();
+                    activeInstance.CurrentLocation.Restore(CursorOperation.None);
+                }
+
+                // this.simpleArrange.Arrange(cursor, true);
             }
 
             return;
         }
+
+        this.adjustCursorTime = current;
 
         // Window size changed
         var newCursor = Console.GetCursorPosition();
