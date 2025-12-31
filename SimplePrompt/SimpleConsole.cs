@@ -130,7 +130,7 @@ public partial class SimpleConsole : IConsoleService
                     Console.WriteLine($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop}");
                     if (this.instanceList.Count > 0)
                     {
-                        this.AdjustWindow(this.instanceList[^1], false);
+                        this.AdjustWindow(this.instanceList[^1], true);
                     }
                 }
             });
@@ -908,6 +908,7 @@ Exit:
         // Window size changed
         var newCursor = Console.GetCursorPosition();
         this.simpleArrange.Arrange(newCursor, redraw);
+        (this.CursorLeft, this.CursorTop) = newCursor;
     }
 
     internal void ClearRow(int top)
