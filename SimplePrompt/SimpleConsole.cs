@@ -907,8 +907,7 @@ Exit:
 
         // Window size changed
         var newCursor = Console.GetCursorPosition();
-        this.simpleArrange.Arrange(newCursor);
-        // (this.CursorLeft, this.CursorTop) = newCursor;
+        this.simpleArrange.Arrange(newCursor, redraw);
     }
 
     internal void ClearRow(int top)
