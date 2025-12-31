@@ -130,7 +130,7 @@ public partial class SimpleConsole : IConsoleService
                     Console.WriteLine($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop}");
                     if (this.instanceList.Count > 0)
                     {
-                        this.AdjustWindow(this.instanceList[^1], true);
+                        this.AdjustWindow(this.instanceList[^1], false);
                     }
                 }
             });
