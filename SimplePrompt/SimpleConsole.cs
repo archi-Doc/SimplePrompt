@@ -902,6 +902,13 @@ Exit:
         if (!this.PrepareWindow() &&
             !redraw)
         {// Window size not changed
+            if (activeInstance.CorrectCursorTop())
+            {
+                activeInstance.ResetCursor(CursorOperation.None);
+                activeInstance.Redraw();
+                activeInstance.CurrentLocation.Restore(CursorOperation.None);
+            }
+
             return;
         }
 

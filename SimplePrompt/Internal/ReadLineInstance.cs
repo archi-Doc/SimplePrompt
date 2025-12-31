@@ -669,7 +669,7 @@ internal sealed class ReadLineInstance
             return false;
         }
 
-        //  this.RawConsole.WriteInternal($"<Cursor top {this.simpleConsole.CursorTop} -> {newCursorTop}>");
+        // this.RawConsole.WriteInternal($"<Cursor top {this.simpleConsole.CursorTop} -> {newCursorTop}>");
 
         var topDiff = newCursorTop - this.simpleConsole.CursorTop;
         foreach (var x in this.LineList)
@@ -677,7 +677,7 @@ internal sealed class ReadLineInstance
             x.Top += topDiff;
         }
 
-        this.simpleConsole.CursorTop = newCursorTop;
+        // this.simpleConsole.CursorTop = newCursorTop;
         return true;
     }
 }
