@@ -27,6 +27,11 @@ public partial class SimpleConsole : IConsoleService
 {
     private const int DelayInMilliseconds = 10;
     private const int WindowBufferSize = 32 * 1024;
+    private const int InitialWindowWidth = 120;
+    private const int InitialWindowHeight = 30;
+    private const int MinimumWindowWidth = 30;
+    private const int MinimumWindowHeight = 10;
+
     private static SimpleConsole? _instance;
 
     /// <summary>
@@ -867,8 +872,8 @@ Exit:
 
     private bool PrepareWindow()
     {
-        var windowWidth = 120;
-        var windowHeight = 30;
+        var windowWidth = InitialWindowWidth;
+        var windowHeight = InitialWindowHeight;
 
         try
         {
@@ -879,14 +884,14 @@ Exit:
         {
         }
 
-        if (windowWidth <= 0)
+        if (windowWidth < MinimumWindowWidth)
         {
-            windowWidth = 1;
+            windowWidth = MinimumWindowWidth;
         }
 
-        if (windowHeight <= 0)
+        if (windowHeight < MinimumWindowHeight)
         {
-            windowHeight = 1;
+            windowHeight = MinimumWindowHeight;
         }
 
         if (windowWidth == this.WindowWidth &&
