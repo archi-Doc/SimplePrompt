@@ -90,16 +90,14 @@ internal sealed class ReadLineInstance
     {
         foreach (var x in this.LineList)
         {
-            if (!x.IsInput)
+            if (x.IsInput)
             {
-                continue;
-            }
-
-            foreach (var y in x.Rows)
-            {
-                if (y.IsInput && y.InputStart < y.End)
-                {// Not empty
-                    return false;
+                foreach (var y in x.Rows)
+                {
+                    if (y.IsInput && y.InputStart < y.End)
+                    {// Not empty
+                        return false;
+                    }
                 }
             }
         }
@@ -108,7 +106,7 @@ internal sealed class ReadLineInstance
         return true;
     }
 
-    public void Prepare()
+    internal void Prepare()
     {
         var top = this.simpleConsole.CursorTop;
         var prompt = this.Options.Prompt.AsSpan();
@@ -665,25 +663,7 @@ internal sealed class ReadLineInstance
 
     internal bool CorrectCursorTop()
     {
-        /*var current = DateTime.UtcNow;
-        if ((current - this.correctedCursorTime) < TimeSpan.FromSeconds(1))
-        {
-            return false;
-        }
-
-        this.correctedCursorTime = current;*/
-
-        /*if (Console.IsInputRedirected || Console.IsOutputRedirected)
-        {
-            return false;
-        }*/
-
-        /*if (!this.RawConsole.TryGetCursorTop(out var newCursorTop))
-        {
-            return false;
-        }*/
-
-        var (_, newCursorTop) = Console.GetCursorPosition(); // I have just got a new theory of eternity in this method, so an interval was added between calls.
+        var (_, newCursorTop) = Console.GetCursorPosition(); // I have just got a new theory of eternity in this method.
         if (newCursorTop == this.simpleConsole.CursorTop)
         {
             return false;
