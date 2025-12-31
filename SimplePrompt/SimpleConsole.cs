@@ -127,6 +127,7 @@ public partial class SimpleConsole : IConsoleService
             {
                 using (this.syncObject.EnterScope())
                 {// Adjusts the cursor position when attached to a console.
+                    Console.WriteLine($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop}");
                     if (this.instanceList.Count > 0)
                     {
                         this.AdjustWindow(this.instanceList[^1], true);
