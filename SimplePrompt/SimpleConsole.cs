@@ -153,6 +153,8 @@ public partial class SimpleConsole : IConsoleService
                 }
             });
 
+            this.UnderlyingTextWriter.Write($"SIGWINCH Registered"); // coi
+
             /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
                 // Console.WriteLine($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop}");
