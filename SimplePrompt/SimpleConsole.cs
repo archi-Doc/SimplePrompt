@@ -101,6 +101,7 @@ public partial class SimpleConsole : IConsoleService
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly SimpleArrange simpleArrange;
     private readonly ConcurrentQueue<string?> queue = new();
+    private readonly PosixSignalRegistration? posixSignalRegistration;
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
@@ -120,16 +121,14 @@ public partial class SimpleConsole : IConsoleService
         this.PrepareWindow();
         this.SyncCursor();
 
-
-
         try
         {
 #pragma warning disable CA1416 // Validate platform compatibility
-            _ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
+            this.posixSignalRegistration = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
                 using (this.syncObject.EnterScope())
                 {// Adjusts the cursor position when attached to a console.
-                    this.UnderlyingTextWriter.Write($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop} {this.instanceList.Count}"); // coi
+                    // this.UnderlyingTextWriter.Write($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop} {this.instanceList.Count}");
                     if (this.instanceList.Count > 0)
                     {
                         // this.AdjustWindow(this.instanceList[^1], true);
@@ -152,8 +151,6 @@ public partial class SimpleConsole : IConsoleService
                     }
                 }
             });
-
-            this.UnderlyingTextWriter.Write($"SIGWINCH Registered"); // coi
 
             /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
