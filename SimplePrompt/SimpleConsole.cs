@@ -129,7 +129,7 @@ public partial class SimpleConsole : IConsoleService
             {
                 using (this.syncObject.EnterScope())
                 {// Adjusts the cursor position when attached to a console.
-                    this.UnderlyingTextWriter.Write($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop} {this.instanceList.Count}");
+                    this.UnderlyingTextWriter.Write($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop} {this.instanceList.Count}"); // coi
                     if (this.instanceList.Count > 0)
                     {
                         // this.AdjustWindow(this.instanceList[^1], true);
@@ -151,8 +151,6 @@ public partial class SimpleConsole : IConsoleService
                         }
                     }
                 }
-
-                this.UnderlyingTextWriter.Write("SIGWINCH registered"); // coi
             });
 
             /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
