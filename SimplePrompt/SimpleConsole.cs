@@ -8,9 +8,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Arc;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
+using static System.Net.Mime.MediaTypeNames;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
@@ -200,7 +202,7 @@ public partial class SimpleConsole : IConsoleService
         {
             // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
             this.PrepareWindow();
-            this.CheckCursor();
+            // this.CheckCursor();
             if (this.instanceList.Count > 0)
             {
                 this.instanceList[^1].CurrentLocation.CursorLast();
@@ -216,7 +218,7 @@ public partial class SimpleConsole : IConsoleService
             currentInstance = ReadLineInstance.Rent(this, options ?? this.DefaultOptions);
             this.instanceList.Add(currentInstance);
             currentInstance.Prepare();
-            this.CheckCursor();
+            // this.CheckCursor();
         }
 
         try
@@ -492,25 +494,132 @@ CancelOrTerminate:
     Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
         => this.ReadLine(default, cancellationToken);
 
+    #region Write
+
+    public void Write(bool value)
+        => this.WriteSpan(value.ToString(), false);
+
+    public void WriteLine(bool value)
+        => this.WriteSpan(value.ToString(), true);
+
+    public void Write(char value)
+        => this.WriteSpan([value], false);
+
+    public void WriteLine(char value)
+        => this.WriteSpan([value], true);
+
+    public void Write(decimal value)
+    {
+        Span<char> buffer = stackalloc char[64];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(decimal value)
+    {
+        Span<char> buffer = stackalloc char[64];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+
+    }
+
+    public void Write(double value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(double value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+    }
+
+    public void Write(float value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(float value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+    }
+
+    public void Write(int value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(int value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+    }
+
+    public void Write(uint value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(uint value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+    }
+
+    public void Write(long value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(long value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+    }
+
+    public void Write(ulong value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(ulong value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+    }
+
+    public void Write(ReadOnlySpan<char> value)
+        => this.WriteSpan(value, false);
+
+    public void WriteLine(ReadOnlySpan<char> value)
+        => this.WriteSpan(value, true);
+
     /// <summary>
     /// Writes the specified message to the console without a newline.<br/>
-    /// Note that while <b>ReadLine()</b> is waiting for input, messages will not be displayed.
+    /// Note that when ReadLine() is waiting for input, a newline is inserted after the message is displayed.
     /// </summary>
     /// <param name="message">The message to write. If null, nothing is written.</param>
     public void Write(string? message)
-    {
-        using (this.syncObject.EnterScope())
-        {
-            if (!this.IsReadLineInProgress)
-            {
-                this.CheckCursor();
-
-                this.WriteInternal(message, false);
-
-                this.CheckCursor();
-            }
-        }
-    }
+        => this.WriteSpan(message, false);
 
     /// <summary>
     /// Writes the specified message to the console followed by a newline.<br/>
@@ -521,28 +630,9 @@ CancelOrTerminate:
     /// The message to write. If <c>null</c>, only a newline is written.
     /// </param>
     public void WriteLine(string? message = null)
-    {
-        using (this.syncObject.EnterScope())
-        {
-            this.CheckCursor();
-            if (!this.TryGetActiveInstance(out var activeInstance))
-            {
-                this.WriteInternal(message, true);
+        => this.WriteSpan(message, true);
 
-                this.CheckCursor();
-                return;
-            }
-
-            activeInstance.ResetCursor(CursorOperation.Hide);
-
-            this.WriteInternal(message, true);
-
-            activeInstance.Redraw();
-            activeInstance.CurrentLocation.Restore(CursorOperation.Show);
-
-            this.CheckCursor();
-        }
-    }
+    #endregion
 
     ConsoleKeyInfo IConsoleService.ReadKey(bool intercept)
     {
@@ -574,7 +664,7 @@ CancelOrTerminate:
     [Conditional("DEBUG")]
     internal void CheckCursor()
     {
-        /*try
+        try
         {
             if (this.RawConsole.UseStdin)
             {// With Interop.Sys.Write(), changes are not applied immediately, so the cursor position cannot be retrieved.
@@ -592,7 +682,7 @@ CancelOrTerminate:
         }
         catch
         {
-        }*/
+        }
     }
 
     internal void AdvanceCursor(ReadOnlySpan<char> text, bool newLine)
@@ -773,6 +863,36 @@ Exit:
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
     }
 
+    internal void WriteSpan(ReadOnlySpan<char> message, bool newLine)
+    {
+        using (this.syncObject.EnterScope())
+        {
+            // this.CheckCursor();
+            if (!this.TryGetActiveInstance(out var activeInstance))
+            {
+                this.WriteInternal(message, newLine);
+
+                // this.CheckCursor();
+                return;
+            }
+
+            if (message.Length == 0 &&
+                !newLine)
+            {
+                return;
+            }
+
+            activeInstance.ResetCursor(CursorOperation.Hide);
+
+            this.WriteInternal(message, true);
+
+            activeInstance.Redraw();
+            activeInstance.CurrentLocation.Restore(CursorOperation.Show);
+
+            // this.CheckCursor();
+        }
+    }
+
     private void RemoveInstance(ReadLineInstance target)
     {
         target.Clear();
@@ -787,6 +907,12 @@ Exit:
 
     private void WriteInternal(ReadOnlySpan<char> message, bool newLine)
     {
+        if (message.Length == 0)
+        {
+            this.AdvanceCursor([], true);
+            this.RawConsole.WriteInternal(ConsoleHelper.EraseEntireLineAndNewLineSpan);
+        }
+
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
 
