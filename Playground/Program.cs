@@ -6,6 +6,7 @@ using Arc.Threading;
 using Arc.Unit;
 using Microsoft.Extensions.DependencyInjection;
 using SimplePrompt;
+using static SimpleCommandLine.SimpleParser;
 
 namespace Playground;
 
@@ -74,7 +75,7 @@ internal sealed class Program
             await Task.Delay(1000);
             simpleConsole.EnqueueInput(null);
         });
-        
+
 
         while (!ThreadCore.Root.IsTerminated)
         {
@@ -183,6 +184,25 @@ internal sealed class Program
                 Console.WriteLine(2.34d);
                 Console.WriteLine();
                 Console.WriteLine(false);
+                return KeyInputHookResult.Handled;
+            }
+            else if (keyInfo.Key == ConsoleKey.F7)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(100);
+
+                    simpleConsole.Write(true);
+                    simpleConsole.WriteLine('y');
+                    simpleConsole.Write(decimal.MaxValue);
+                    simpleConsole.WriteLine(1.23d);
+                    simpleConsole.Write(-123.456f);
+                    simpleConsole.WriteLine(123);
+                    simpleConsole.Write(123u);
+                    simpleConsole.WriteLine(100L);
+                    simpleConsole.Write(456ul);
+                });
+
                 return KeyInputHookResult.Handled;
             }
             else if (keyInfo.Key == ConsoleKey.F12)

@@ -496,11 +496,122 @@ CancelOrTerminate:
 
     #region Write
 
-    public void Write([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0, object? arg1)
-        => this.WriteSpan(string.Format(this.UnderlyingTextWriter.FormatProvider, format, arg0), false);
+    public void Write(bool value)
+        => this.WriteSpan(value.ToString(), false);
 
-    public void WriteLine([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0, object? arg1)
-        => this.WriteSpan(string.Format(this.UnderlyingTextWriter.FormatProvider, format, arg0), true);
+    public void WriteLine(bool value)
+        => this.WriteSpan(value.ToString(), true);
+
+    public void Write(char value)
+        => this.WriteSpan([value], false);
+
+    public void WriteLine(char value)
+        => this.WriteSpan([value], true);
+
+    public void Write(decimal value)
+    {
+        Span<char> buffer = stackalloc char[64];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(decimal value)
+    {
+        Span<char> buffer = stackalloc char[64];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+
+    }
+
+    public void Write(double value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(double value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+    }
+
+    public void Write(float value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(float value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+    }
+
+    public void Write(int value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(int value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+    }
+
+    public void Write(uint value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(uint value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+    }
+
+    public void Write(long value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(long value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+    }
+
+    public void Write(ulong value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), false);
+    }
+
+    public void WriteLine(ulong value)
+    {
+        Span<char> buffer = stackalloc char[32];
+        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
+        this.WriteSpan(buffer.Slice(0, written), true);
+    }
+
+    public void Write(ReadOnlySpan<char> value)
+        => this.WriteSpan(value, false);
+
+    public void WriteLine(ReadOnlySpan<char> value)
+        => this.WriteSpan(value, true);
 
     /// <summary>
     /// Writes the specified message to the console without a newline.<br/>
@@ -752,7 +863,7 @@ Exit:
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
     }
 
-    private void WriteSpan(ReadOnlySpan<char> message, bool newLine)
+    internal void WriteSpan(ReadOnlySpan<char> message, bool newLine)
     {
         using (this.syncObject.EnterScope())
         {
@@ -765,7 +876,7 @@ Exit:
                 return;
             }
 
-            if (message.Length == 0&&
+            if (message.Length == 0 &&
                 !newLine)
             {
                 return;
