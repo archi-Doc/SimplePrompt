@@ -117,7 +117,7 @@ internal sealed class SimpleTextLine
         if (charBuffer.Length > 0)
         {
             this.ProcessCharBuffer(charBuffer);
-            this.SimpleConsole.CheckCursor();
+            // this.SimpleConsole.CheckCursor();
         }
 
         if (keyInfo.Key != ConsoleKey.None)

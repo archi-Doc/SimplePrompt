@@ -202,7 +202,7 @@ public partial class SimpleConsole : IConsoleService
         {
             // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
             this.PrepareWindow();
-            this.CheckCursor();
+            // this.CheckCursor();
             if (this.instanceList.Count > 0)
             {
                 this.instanceList[^1].CurrentLocation.CursorLast();
@@ -218,7 +218,7 @@ public partial class SimpleConsole : IConsoleService
             currentInstance = ReadLineInstance.Rent(this, options ?? this.DefaultOptions);
             this.instanceList.Add(currentInstance);
             currentInstance.Prepare();
-            this.CheckCursor();
+            // this.CheckCursor();
         }
 
         try
@@ -494,13 +494,21 @@ CancelOrTerminate:
     Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
         => this.ReadLine(default, cancellationToken);
 
+    #region Write
+
+    public void Write([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0, object? arg1)
+        => this.WriteSpan(string.Format(this.UnderlyingTextWriter.FormatProvider, format, arg0), false);
+
+    public void WriteLine([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0, object? arg1)
+        => this.WriteSpan(string.Format(this.UnderlyingTextWriter.FormatProvider, format, arg0), true);
+
     /// <summary>
     /// Writes the specified message to the console without a newline.<br/>
-    /// Note that while <b>ReadLine()</b> is waiting for input, messages will not be displayed.
+    /// Note that when ReadLine() is waiting for input, a newline is inserted after the message is displayed.
     /// </summary>
     /// <param name="message">The message to write. If null, nothing is written.</param>
     public void Write(string? message)
-        => this.Write(message, false);
+        => this.WriteSpan(message, false);
 
     /// <summary>
     /// Writes the specified message to the console followed by a newline.<br/>
@@ -511,7 +519,9 @@ CancelOrTerminate:
     /// The message to write. If <c>null</c>, only a newline is written.
     /// </param>
     public void WriteLine(string? message = null)
-        => this.Write(message, true);
+        => this.WriteSpan(message, true);
+
+    #endregion
 
     ConsoleKeyInfo IConsoleService.ReadKey(bool intercept)
     {
@@ -543,7 +553,7 @@ CancelOrTerminate:
     [Conditional("DEBUG")]
     internal void CheckCursor()
     {
-        /*try
+        try
         {
             if (this.RawConsole.UseStdin)
             {// With Interop.Sys.Write(), changes are not applied immediately, so the cursor position cannot be retrieved.
@@ -561,7 +571,7 @@ CancelOrTerminate:
         }
         catch
         {
-        }*/
+        }
     }
 
     internal void AdvanceCursor(ReadOnlySpan<char> text, bool newLine)
@@ -742,16 +752,22 @@ Exit:
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
     }
 
-    private void Write(string? message, bool newLine)
+    private void WriteSpan(ReadOnlySpan<char> message, bool newLine)
     {
         using (this.syncObject.EnterScope())
         {
-            this.CheckCursor();
+            // this.CheckCursor();
             if (!this.TryGetActiveInstance(out var activeInstance))
             {
                 this.WriteInternal(message, newLine);
 
-                this.CheckCursor();
+                // this.CheckCursor();
+                return;
+            }
+
+            if (message.Length == 0&&
+                !newLine)
+            {
                 return;
             }
 
@@ -762,7 +778,7 @@ Exit:
             activeInstance.Redraw();
             activeInstance.CurrentLocation.Restore(CursorOperation.Show);
 
-            this.CheckCursor();
+            // this.CheckCursor();
         }
     }
 
