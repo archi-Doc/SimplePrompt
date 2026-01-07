@@ -24,8 +24,20 @@ internal sealed class SimpleTextWriter : TextWriter
     public override void Write(string? value)
         => this.SimpleConsole.Write(value);
 
+    public override void WriteLine(double value)
+        => this.SimpleConsole.WriteLine(value.ToString(this.FormatProvider));
+
+    public override void Write(double value)
+        => this.SimpleConsole.Write(value.ToString(this.FormatProvider));
+
+    public override void WriteLine(bool value)
+        => this.SimpleConsole.WriteLine(value.ToString());
+
+    public override void Write(bool value)
+        => this.SimpleConsole.Write(value.ToString());
+
     public override void Write(char value)
-    {
+    {// coi char char[]? decimal float int uint long ulong object? ReadOnlySpan<char>
         if (!this.SimpleConsole.IsReadLineInProgress)
         {
             this.UnderlyingTextWriter.Write(value);

@@ -64,6 +64,9 @@ internal sealed class Program
 
         Console.WriteLine("\u001b[90m[\u001b[39m\u001b[22m\u001b[40m\u001b[1m\u001b[37mINF\u001b[39m\u001b[22m\u001b[49m ITestInterface\u001b[90m] \u001b[39m\u001b[22m\u001b[1m\u001b[37mtttttttttttttttttttttttttttttttttttttttttttttttttttttt\u001b[39m\u001b[22m");
 
+        Console.WriteLine(true);
+        Console.WriteLine(1.23d);
+
         _ = Task.Run(async () =>
         {
             await Task.Delay(1000);
@@ -173,6 +176,13 @@ internal sealed class Program
             else if (keyInfo.Key == ConsoleKey.F5)
             {
                 _ = YesOrNoPrompt();
+                return KeyInputHookResult.Handled;
+            }
+            else if (keyInfo.Key == ConsoleKey.F6)
+            {
+                Console.WriteLine(2.34d);
+                Console.WriteLine();
+                Console.WriteLine(false);
                 return KeyInputHookResult.Handled;
             }
             else if (keyInfo.Key == ConsoleKey.F12)

@@ -8,9 +8,11 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Arc;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
+using static System.Net.Mime.MediaTypeNames;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
@@ -498,19 +500,7 @@ CancelOrTerminate:
     /// </summary>
     /// <param name="message">The message to write. If null, nothing is written.</param>
     public void Write(string? message)
-    {
-        using (this.syncObject.EnterScope())
-        {
-            if (!this.IsReadLineInProgress)
-            {
-                this.CheckCursor();
-
-                this.WriteInternal(message, false);
-
-                this.CheckCursor();
-            }
-        }
-    }
+        => this.Write(message, false);
 
     /// <summary>
     /// Writes the specified message to the console followed by a newline.<br/>
@@ -521,28 +511,7 @@ CancelOrTerminate:
     /// The message to write. If <c>null</c>, only a newline is written.
     /// </param>
     public void WriteLine(string? message = null)
-    {
-        using (this.syncObject.EnterScope())
-        {
-            this.CheckCursor();
-            if (!this.TryGetActiveInstance(out var activeInstance))
-            {
-                this.WriteInternal(message, true);
-
-                this.CheckCursor();
-                return;
-            }
-
-            activeInstance.ResetCursor(CursorOperation.Hide);
-
-            this.WriteInternal(message, true);
-
-            activeInstance.Redraw();
-            activeInstance.CurrentLocation.Restore(CursorOperation.Show);
-
-            this.CheckCursor();
-        }
-    }
+        => this.Write(message, true);
 
     ConsoleKeyInfo IConsoleService.ReadKey(bool intercept)
     {
@@ -773,6 +742,30 @@ Exit:
         (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
     }
 
+    private void Write(string? message, bool newLine)
+    {
+        using (this.syncObject.EnterScope())
+        {
+            this.CheckCursor();
+            if (!this.TryGetActiveInstance(out var activeInstance))
+            {
+                this.WriteInternal(message, newLine);
+
+                this.CheckCursor();
+                return;
+            }
+
+            activeInstance.ResetCursor(CursorOperation.Hide);
+
+            this.WriteInternal(message, true);
+
+            activeInstance.Redraw();
+            activeInstance.CurrentLocation.Restore(CursorOperation.Show);
+
+            this.CheckCursor();
+        }
+    }
+
     private void RemoveInstance(ReadLineInstance target)
     {
         target.Clear();
@@ -787,6 +780,12 @@ Exit:
 
     private void WriteInternal(ReadOnlySpan<char> message, bool newLine)
     {
+        if (message.Length == 0)
+        {
+            this.AdvanceCursor([], true);
+            this.RawConsole.WriteInternal(ConsoleHelper.EraseEntireLineAndNewLineSpan);
+        }
+
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
 
