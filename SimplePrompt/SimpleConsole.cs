@@ -114,7 +114,14 @@ public partial class SimpleConsole : IConsoleService
 
     private SimpleConsole()
     {
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        try
+        {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+        }
+        catch
+        {
+        }
+
         this.simpleTextWriter = new(this, Console.Out);
         this.RawConsole = new(this);
         this.simpleArrange = new(this);
@@ -136,19 +143,25 @@ public partial class SimpleConsole : IConsoleService
                         // this.AdjustWindow(this.instanceList[^1], true);
 
                         var activeInstance = this.instanceList[^1];
-                        var cursor = Console.GetCursorPosition();
-                        if (cursor.Top != this.CursorTop ||
-                            cursor.Left != this.CursorLeft)
-                        {// Cursor changed
-                            if (activeInstance.LineList.Count > 0)
-                            {
-                                activeInstance.LineList[0].Top = cursor.Top;
-                                activeInstance.ResetCursor(CursorOperation.None);
-                                activeInstance.Redraw();
-                                activeInstance.CurrentLocation.Restore(CursorOperation.None);
-                            }
+                        try
+                        {
+                            var cursor = Console.GetCursorPosition();
+                            if (cursor.Top != this.CursorTop ||
+                                cursor.Left != this.CursorLeft)
+                            {// Cursor changed
+                                if (activeInstance.LineList.Count > 0)
+                                {
+                                    activeInstance.LineList[0].Top = cursor.Top;
+                                    activeInstance.ResetCursor(CursorOperation.None);
+                                    activeInstance.Redraw();
+                                    activeInstance.CurrentLocation.Restore(CursorOperation.None);
+                                }
 
-                            // this.simpleArrange.Arrange(cursor, true);
+                                // this.simpleArrange.Arrange(cursor, true);
+                            }
+                        }
+                        catch
+                        {
                         }
                     }
                 }
@@ -454,7 +467,14 @@ CancelOrTerminate:
         {
             if (clearBuffer)
             {
-                Console.Clear();
+                try
+                {
+                    Console.Clear();
+                }
+                catch
+                {
+                }
+
                 this.CursorTop = 0;
                 this.CursorLeft = 0;
             }
@@ -860,7 +880,13 @@ Exit:
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal void SyncCursor()
     {
-        (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+        try
+        {
+            (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+        }
+        catch
+        {
+        }
     }
 
     internal void WriteSpan(ReadOnlySpan<char> message, bool newLine)
@@ -975,7 +1001,13 @@ Exit:
 
     private void Initialize()
     {
-        Console.SetOut(this.simpleTextWriter);
+        try
+        {
+            Console.SetOut(this.simpleTextWriter);
+        }
+        catch
+        {
+        }
     }
 
     private static bool IsControl(ConsoleKeyInfo keyInfo)
@@ -1080,9 +1112,15 @@ Exit:
         this.adjustCursorTime = current;
 
         // Window size changed
-        var newCursor = Console.GetCursorPosition();
-        this.simpleArrange.Arrange(newCursor, redraw);
-        // (this.CursorLeft, this.CursorTop) = newCursor;
+        try
+        {
+            var newCursor = Console.GetCursorPosition();
+            this.simpleArrange.Arrange(newCursor, redraw);
+            // (this.CursorLeft, this.CursorTop) = newCursor;
+        }
+        catch
+        {
+        }
     }
 
     internal void ClearRow(int top)

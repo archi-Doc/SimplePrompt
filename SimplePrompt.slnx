@@ -4,4 +4,5 @@
   <Project Path="QuickStart/QuickStart.csproj" Id="d185ef33-62f4-40ab-b836-0681d8805331" />
   <Project Path="SimplePrompt/SimplePrompt.csproj" />
   <Project Path="Test/Test.csproj" Id="1050e6c0-3dc2-42b6-9a8e-fb632c3d9b51" />
+  <Project Path="xUnitTest/xUnitTest.csproj" Id="97195d3f-8d04-4e44-8865-3b5ea0df1436" />
 </Solution>
