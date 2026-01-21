@@ -2,8 +2,6 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
-using Tinyhand.Tree;
-using static FastExpressionCompiler.ImTools.SmallMap;
 
 namespace SimplePrompt.Internal;
 

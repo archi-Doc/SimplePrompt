@@ -12,7 +12,6 @@ using Arc;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
-using static System.Net.Mime.MediaTypeNames;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
