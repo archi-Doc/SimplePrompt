@@ -40,14 +40,14 @@ internal sealed record class SimpleTextLocation
         }
 
         line = this.readLineInstance.LineList[this.LineIndex];
-        if (this.RowIndex >= line.Rows.ListChain.Count)
+        if (this.RowIndex >= line.Rows.Count)
         {
             line = default;
             row = default;
             return false;
         }
 
-        row = line.Rows.ListChain[this.RowIndex];
+        row = line.Rows[this.RowIndex];
         return true;
     }
 
@@ -72,7 +72,7 @@ internal sealed record class SimpleTextLocation
             if (lastPosition)
             {
                 this.RowIndex = line.Rows.Count - 1;
-                var row = line.Rows.ListChain[this.RowIndex];
+                var row = line.Rows[this.RowIndex];
                 this.ArrayPosition = row.End;
                 this.CursorPosition = row.Width;
                 this.LocationToCursor(row, cursorOperation);
@@ -82,7 +82,7 @@ internal sealed record class SimpleTextLocation
                 this.RowIndex = line.InitialRowIndex;
                 this.ArrayPosition = line.PromptLength;
                 this.CursorPosition = line.InitialCursorPosition;
-                this.LocationToCursor(line.Rows.ListChain[0], cursorOperation);
+                this.LocationToCursor(line.Rows[0], cursorOperation);
             }
 
             return true;
@@ -108,7 +108,7 @@ internal sealed record class SimpleTextLocation
             return;
         }
 
-        var row = line.Rows.ListChain[this.RowIndex];
+        var row = line.Rows[this.RowIndex];
         this.LocationToCursor(row);
     }
 
@@ -136,7 +136,7 @@ internal sealed record class SimpleTextLocation
         }
 
         this.RowIndex = line.Rows.Count - 1;
-        var row = line.Rows.ListChain[this.RowIndex];
+        var row = line.Rows[this.RowIndex];
         this.ArrayPosition = line.TotalLength;
         this.CursorPosition = row.Width;
 
@@ -174,9 +174,9 @@ internal sealed record class SimpleTextLocation
             if (this.RowIndex > 0)
             {
                 this.RowIndex--;
-                row = line.Rows.ListChain[this.RowIndex];
+                row = line.Rows[this.RowIndex];
                 this.ArrayPosition -= length;
-                this.CursorPosition = line.Rows.ListChain[this.RowIndex].Width - width;
+                this.CursorPosition = line.Rows[this.RowIndex].Width - width;
             }
         }
         else
@@ -287,7 +287,7 @@ internal sealed record class SimpleTextLocation
             }
         }
 
-        row = line.Rows.ListChain[this.RowIndex];
+        row = line.Rows[this.RowIndex];
         var cursorPosition = this.CursorPosition;
         row.TrimCursorPosition(ref cursorPosition, out var arrayPosition);
         this.ArrayPosition = arrayPosition;
@@ -305,12 +305,10 @@ internal sealed record class SimpleTextLocation
         if (this.CursorPosition >= this.simpleConsole.WindowWidth)
         {
             var line = this.readLineInstance.LineList[this.LineIndex];
-            var chain = line.Rows.ListChain;
-
             do
             {
-                var row = chain[this.RowIndex];
-                if (this.RowIndex >= (chain.Count - 1))
+                var row = line.Rows[this.RowIndex];
+                if (this.RowIndex >= (line.Rows.Count - 1))
                 {
                     this.ArrayPosition = row.End;
                     this.CursorPosition = row.Width;
@@ -339,7 +337,7 @@ internal sealed record class SimpleTextLocation
         }
 
         this.RowIndex = line.Rows.Count - 1;
-        var row = line.Rows.ListChain[this.RowIndex];
+        var row = line.Rows[this.RowIndex];
 
         this.ArrayPosition = row.End;
         this.CursorPosition = row.Width;
@@ -385,8 +383,8 @@ internal sealed record class SimpleTextLocation
         if (this.ArrayPosition < row.Start ||
             row.End < this.ArrayPosition)
         {
-            row = row.Line.Rows.ListChain[row.Line.InitialRowIndex];
-            this.RowIndex = row.ListLink.Index;
+            row = row.Line.Rows[row.Line.InitialRowIndex];
+            this.RowIndex = row.Index;
             this.ArrayPosition = row.Line.PromptLength;
             this.CursorPosition = row.Line.InitialCursorPosition;
         }
@@ -428,13 +426,13 @@ internal sealed record class SimpleTextLocation
             return;
         }
 
-        var row = line.Rows.ListChain[line.Rows.Count - 1];
+        var row = line.Rows[line.Rows.Count - 1];
         var top = -1;
         var left = -1;
         if (this.ArrayPosition >= row.Start &&
             this.ArrayPosition <= row.End)
         {
-            this.RowIndex = row.ListLink.Index;
+            this.RowIndex = row.Index;
             top = row.Top;
             left = row.ArrayPositionToCursorPosition(this.ArrayPosition);
         }
@@ -442,7 +440,7 @@ internal sealed record class SimpleTextLocation
         {
             for (var i = 0; i < line.Rows.Count - 1; i++)
             {
-                row = line.Rows.ListChain[i];
+                row = line.Rows[i];
                 if (this.ArrayPosition >= row.Start &&
                     this.ArrayPosition < row.End)
                 {
@@ -504,9 +502,9 @@ internal sealed record class SimpleTextLocation
         var line = this.readLineInstance.LineList[this.readLineInstance.LineList.Count - 1];
         var top = line.Top + line.Height - 1;
         var left = 0;
-        if (line.Rows.ListChain.Count > 0)
+        if (line.Rows.Count > 0)
         {
-            left = line.Rows.ListChain[line.Rows.ListChain.Count - 1].Width;
+            left = line.Rows[line.Rows.Count - 1].Width;
         }
 
         if (this.simpleConsole.CursorTop != top ||

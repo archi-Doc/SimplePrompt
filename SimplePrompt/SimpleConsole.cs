@@ -8,7 +8,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Arc;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
