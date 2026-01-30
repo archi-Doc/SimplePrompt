@@ -1,10 +1,11 @@
 <Solution>
-  <Project Path="DelayTest/DelayTest.csproj" Id="8fb2657f-fba2-4e3b-8c86-51c277b000dd" />
-  <Project Path="Playground/Playground.csproj" Id="04e2665c-8e1f-415e-a517-a4a22e0c73d9" />
-  <Project Path="QuickStart/QuickStart.csproj" Id="d185ef33-62f4-40ab-b836-0681d8805331" />
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+  </Folder>
+  <Project Path="DelayTest/DelayTest.csproj" />
+  <Project Path="Playground/Playground.csproj" />
+  <Project Path="QuickStart/QuickStart.csproj" />
   <Project Path="SimplePrompt/SimplePrompt.csproj" />
-  <Project Path="Test/Test.csproj" Id="1050e6c0-3dc2-42b6-9a8e-fb632c3d9b51" />
-  <Project Path="xUnitTest/xUnitTest.csproj" Id="97195d3f-8d04-4e44-8865-3b5ea0df1436">
-    <Build Solution="Debug|*" Project="false" />
-  </Project>
+  <Project Path="Test/Test.csproj" />
+  <Project Path="xUnitTest/xUnitTest.csproj" />
 </Solution>
