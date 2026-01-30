@@ -8,11 +8,9 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using Arc;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
-using static System.Net.Mime.MediaTypeNames;
 
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
@@ -857,7 +855,7 @@ Exit:
             written += span.Length;
         }
 
-        // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written)); // coi
+        // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written));
         this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
 

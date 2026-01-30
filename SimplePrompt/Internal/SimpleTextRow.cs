@@ -2,11 +2,9 @@
 
 using Arc;
 using Arc.Collections;
-using ValueLink;
 
 namespace SimplePrompt.Internal;
 
-[ValueLinkObject]
 internal sealed partial class SimpleTextRow
 {
     #region ObjectPool
@@ -36,9 +34,11 @@ internal sealed partial class SimpleTextRow
 
     public SimpleTextLine Line { get; private set; }
 
+    public int Index { get; private set; }
+
     public bool IsInput => this.InputStart >= 0;
 
-    public int Top => this.Line.Top + this.ListLink.Index;
+    public int Top => this.Line.Top + this.Index;
 
     public int Start { get; private set; }
 
@@ -52,7 +52,6 @@ internal sealed partial class SimpleTextRow
 
     #endregion
 
-    [Link(Primary = true, Type = ChainType.List, Name = "List")]
     private SimpleTextRow()
     {
         this.Line = default!;
@@ -107,14 +106,9 @@ internal sealed partial class SimpleTextRow
     {
         // This is the core functionality of SimpleTextRow.
         // If a row is too short, it pulls data from the next row; if it is too long, it pushes excess data to the next row, maintaining the correct line/ row structure.
-        var chain = this.Line.Rows.ListChain;
-        if (chain is null)
-        {
-            return;
-        }
 
-        var nextIndex = this.ListLink.Index + 1;
-        var nextRow = nextIndex >= chain.Count ? null : chain[nextIndex];
+        var nextIndex = this.Index + 1;
+        var nextRow = nextIndex >= this.Line.Rows.Count ? null : this.Line.Rows[nextIndex];
         if (this.Width < this.Line.WindowWidth)
         {// The width is within WindowWidth. If necessary, the array is moved starting from the next row.
             if (nextRow is null)
@@ -227,12 +221,20 @@ internal sealed partial class SimpleTextRow
     private void Initialize(SimpleTextLine simpleTextLine)
     {
         this.Line = simpleTextLine;
-        this.Goshujin = simpleTextLine.Rows;
+        this.Index = simpleTextLine.Rows.Count;
+        simpleTextLine.Rows.Add(this);
     }
 
     private void Uninitialize()
     {
+        var list = this.Line.Rows;
+        list.RemoveAt(this.Index);
+        for (var i = this.Index; i < list.Count; i++)
+        {
+            list[i].Index--;
+        }
+
+        this.Index = 0;
         this.Line = default!;
-        this.Goshujin = default;
     }
 }

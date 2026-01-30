@@ -47,7 +47,7 @@ internal sealed class SimpleArrange
                 bool rowChanged = false;
                 int widthDiff = 0;
                 bool emptyRow = false;
-                x.Rows.ListChain[0].Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
+                x.Rows[0].Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
                 if (rowChanged || emptyRow)
                 {
                     redraw = true;
@@ -79,7 +79,7 @@ internal sealed class SimpleArrange
                 }
             }
 
-            lineList[0].Top = newCursor.Top - row.ListLink.Index - total;
+            lineList[0].Top = newCursor.Top - row.Index - total;
         }
 
         if (!redraw)

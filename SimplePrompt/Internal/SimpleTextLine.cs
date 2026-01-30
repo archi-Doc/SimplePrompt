@@ -35,7 +35,7 @@ internal sealed class SimpleTextLine
 
     #region FiendAndProperty
 
-    private readonly SimpleTextRow.GoshujinClass rows = new();
+    private readonly List<SimpleTextRow> rows = new();
     private char[] charArray = new char[InitialBufferSize];
     private byte[] widthArray = new byte[InitialBufferSize];
     private int _promptLength;
@@ -90,7 +90,7 @@ internal sealed class SimpleTextLine
 
     public int TotalWidth => this.PromptWidth + this.InputWidth;
 
-    internal SimpleTextRow.GoshujinClass Rows => this.rows;
+    internal List<SimpleTextRow> Rows => this.rows;
 
     internal char[] CharArray => this.charArray;
 
@@ -110,7 +110,7 @@ internal sealed class SimpleTextLine
 
     internal ReadOnlySpan<char> InputSpan => this.charArray.AsSpan(this.PromptLength, this.InputLength);
 
-    public bool EndsWithEmptyRow => this.Rows.Count > 0 && this.Rows.ListChain[this.Rows.Count - 1].Length == 0;
+    public bool EndsWithEmptyRow => this.Rows.Count > 0 && this.Rows[this.Rows.Count - 1].Length == 0;
 
     public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
@@ -212,7 +212,7 @@ internal sealed class SimpleTextLine
             }
             else
             {
-                return $"{this.rows.Count} lines: {this.rows.ListChain[0].ToString()}";
+                return $"{this.rows.Count} lines: {this.rows[0].ToString()}";
             }
         }
     }
@@ -225,7 +225,7 @@ internal sealed class SimpleTextLine
             return false;
         }
 
-        row = this.Rows.ListChain[this.Rows.Count - 1];
+        row = this.Rows[this.Rows.Count - 1];
         if (arrayPosition >= row.Start &&
             arrayPosition <= row.End)
         {
@@ -234,7 +234,7 @@ internal sealed class SimpleTextLine
 
         for (var i = 0; i < this.Rows.Count - 1; i++)
         {
-            row = this.Rows.ListChain[i];
+            row = this.Rows[i];
             if (arrayPosition >= row.Start &&
                 arrayPosition < row.End)
             {
@@ -438,7 +438,7 @@ internal sealed class SimpleTextLine
 
         for (var i = 0; i < this.Rows.Count; i++)
         {
-            var row = this.Rows.ListChain[i];
+            var row = this.Rows[i];
             if (row.Start <= arrayIndex &&
                 arrayIndex < row.End)
             {
@@ -459,7 +459,7 @@ internal sealed class SimpleTextLine
             return (this.InitialCursorPosition, this.Top + this.InitialRowIndex, this.InitialRowIndex);
         }
 
-        return (this.Rows.ListChain[lastIndex].Width, this.Top + lastIndex, lastIndex);
+        return (this.Rows[lastIndex].Width, this.Top + lastIndex, lastIndex);
     }
 
     private void ResetRows()
@@ -510,7 +510,7 @@ internal sealed class SimpleTextLine
 
             if (inputStart >= 0)
             {
-                this.InitialRowIndex = row.ListLink.Index;
+                this.InitialRowIndex = row.Index;
                 this.InitialCursorPosition = width;
             }
         }
@@ -599,7 +599,7 @@ internal sealed class SimpleTextLine
 
         if (this.Rows.Count > 1)
         {
-            var row = this.Rows.ListChain[0];
+            var row = this.Rows[0];
             this.ReadLineInstance.HeightChanged(row, 1 - this.Rows.Count);
         }
 
