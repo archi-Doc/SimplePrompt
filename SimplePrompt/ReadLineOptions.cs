@@ -21,6 +21,23 @@ public record class ReadLineOptions
     {
     };
 
+    public static readonly ReadLineOptions YesNo = new()
+    {
+        MaxInputLength = 3,
+        MultilineDelimiter = default,
+        CancelOnEscape = false,
+        TextInputHook = text =>
+        {
+            var st = text.Trim().ToLowerInvariant();
+            if (st == "y" || st == "yes" || st == "n" || st == "no")
+            {
+                return text;
+            }
+
+            return null;
+        },
+    };
+
     /// <summary>
     /// Gets the color used for user input in the console.
     /// Default is <see cref="ConsoleColor.Yellow"/>.
