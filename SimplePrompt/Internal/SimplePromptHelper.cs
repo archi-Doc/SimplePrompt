@@ -18,17 +18,6 @@ internal static class SimplePromptHelper
         public bool IsMultiline => mode != ReadLineMode.Singleline;
     }
 
-    extension(InputResultKind inputResultKind)
-    {
-        public bool IsPositive => inputResultKind == InputResultKind.Success;
-
-        public bool IsNegative => inputResultKind == InputResultKind.No;
-
-        public bool IsCanceled => inputResultKind == InputResultKind.Canceled;
-
-        public bool IsTerminated => inputResultKind == InputResultKind.Terminated;
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)
     {
