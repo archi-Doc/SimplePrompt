@@ -24,7 +24,9 @@ internal static class SimplePromptHelper
 
         public bool IsNegative => inputResultKind == InputResultKind.No;
 
-        public bool IsCanceled => inputResultKind == InputResultKind.Canceled || inputResultKind == InputResultKind.Terminated;
+        public bool IsCanceled => inputResultKind == InputResultKind.Canceled;
+
+        public bool IsTerminated => inputResultKind == InputResultKind.Terminated;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
