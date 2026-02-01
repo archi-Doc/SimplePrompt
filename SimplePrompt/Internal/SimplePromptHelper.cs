@@ -2,6 +2,7 @@
 
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using Arc.Unit;
 
 namespace SimplePrompt.Internal;
 
@@ -15,6 +16,15 @@ internal static class SimplePromptHelper
     extension(ReadLineMode mode)
     {
         public bool IsMultiline => mode != ReadLineMode.Singleline;
+    }
+
+    extension(InputResultKind inputResultKind)
+    {
+        public bool IsPositive => inputResultKind == InputResultKind.Success;
+
+        public bool IsNegative => inputResultKind == InputResultKind.No;
+
+        public bool IsCanceled => inputResultKind == InputResultKind.Canceled || inputResultKind == InputResultKind.Terminated;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
