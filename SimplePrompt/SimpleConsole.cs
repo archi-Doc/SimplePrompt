@@ -745,22 +745,31 @@ CancelOrTerminate:
                 width = SimplePromptHelper.GetCharWidth(c);
             }
 
-            if (left + width >= windowWidth)
+            left += width;
+            if (left == windowWidth)
             {
-                left += width - windowWidth;
+                left = 0;
                 top++;
             }
-            else
+            else if (left > windowWidth)
             {
-                left += width;
+                left = width;
+                top++;
             }
         }
 
 Exit:
         if (newLine)
         {
-            left = 0;
-            top++;
+            if (top > this.CursorTop &&
+                left == 0)
+            {// Already on a new line.
+            }
+            else
+            {
+                left = 0;
+                top++;
+            }
         }
 
         this.CursorLeft = left;
