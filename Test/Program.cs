@@ -236,6 +236,12 @@ internal sealed class Program
                 Console.WriteLine("ABC123ABC123\r\nABC123ABC123\nABC123ABC123");
             });
         }
+        else if (string.Equals(result.Text, "c", StringComparison.OrdinalIgnoreCase))
+        {
+            simpleConsole.WriteLine("add-netnode         gc                  lp-create-credit    new-seedphrase      remove-authority    show-nodecontrol-st ");
+            simpleConsole.WriteLine("ああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああ");
+            simpleConsole.WriteLine("aああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああ");
+        }
         else
         {
             var text = BaseHelper.RemoveCrLf(result.Text);
