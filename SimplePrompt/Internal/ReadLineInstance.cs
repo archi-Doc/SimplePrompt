@@ -206,7 +206,7 @@ internal sealed class ReadLineInstance
         if (line.ProcessInternal(keyInfo, charBuffer))
         {// Exit input mode and return the concatenated string.
             if (!string.IsNullOrEmpty(this.Options.MultilineDelimiter) &&
-                (SimpleCommandLine.SimpleParserHelper.CountOccurrences(line.InputSpan, this.Options.MultilineDelimiter) % 2) > 0)
+                (BaseHelper.CountOccurrences(line.InputSpan, this.Options.MultilineDelimiter) % 2) > 0)
             {// Multiple line (Delimiter)
                 if (line.Index == this.FirstInputIndex)
                 {// Start
