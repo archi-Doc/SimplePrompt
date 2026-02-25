@@ -71,6 +71,8 @@ public partial class SimpleConsole : IConsoleService
     /// </summary>
     public ThreadCoreBase Core { get; set; } = ThreadCore.Root;
 
+    public bool EnableColor { get; set; } = true;
+
     /// <summary>
     /// Gets or sets the default options for <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/>.
     /// </summary>
@@ -636,7 +638,9 @@ CancelOrTerminate:
     /// Note that when ReadLine() is waiting for input, a newline is inserted after the message is displayed.
     /// </summary>
     /// <param name="message">The message to write. If null, nothing is written.</param>
-    public void Write(string? message)
+    /// <param name="color">Specify the message text color.<br/>
+    /// The color may not be applied depending on the implementation.</param>
+    public void Write(string? message, ConsoleColor color = ConsoleColor.Black)
         => this.WriteSpan(message, false);
 
     /// <summary>
@@ -647,7 +651,9 @@ CancelOrTerminate:
     /// <param name="message">
     /// The message to write. If <c>null</c>, only a newline is written.
     /// </param>
-    public void WriteLine(string? message = null)
+    /// /// <param name="color">Specify the message text color.<br/>
+    /// The color may not be applied depending on the implementation.</param>
+    public void WriteLine(string? message = null, ConsoleColor color = ConsoleColor.Black)
         => this.WriteSpan(message, true);
 
     #endregion
