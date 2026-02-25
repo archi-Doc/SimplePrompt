@@ -111,7 +111,7 @@ internal sealed class Program
                 _ = Task.Run(async () =>
                 {
                     await Task.Delay(1000);
-                    simpleConsole.WriteLine("AAAAA");
+                    simpleConsole.WriteLine("AAAAA", ConsoleColor.Green);
                 });
             }
             else if (string.Equals(result.Text, "b", StringComparison.OrdinalIgnoreCase))
