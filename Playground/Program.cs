@@ -89,7 +89,7 @@ internal sealed class Program
             }
             else if (result.Kind == InputResultKind.Canceled)
             {
-                simpleConsole.WriteLine("Canceled");
+                simpleConsole.WriteLine("Canceled", ConsoleColor.Red);
                 continue;
             }
             else if (string.Equals(result.Text, "exit", StringComparison.OrdinalIgnoreCase))
