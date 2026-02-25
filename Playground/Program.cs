@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Runtime.InteropServices;
 using Arc;
 using Arc.Threading;
 using Arc.Unit;
@@ -90,7 +89,7 @@ internal sealed class Program
             }
             else if (result.Kind == InputResultKind.Canceled)
             {
-                simpleConsole.WriteLine("Canceled");
+                simpleConsole.WriteLine("Canceled", ConsoleColor.Red);
                 continue;
             }
             else if (string.Equals(result.Text, "exit", StringComparison.OrdinalIgnoreCase))
@@ -112,7 +111,7 @@ internal sealed class Program
                 _ = Task.Run(async () =>
                 {
                     await Task.Delay(1000);
-                    simpleConsole.WriteLine("AAAAA");
+                    simpleConsole.WriteLine("AAAAA", ConsoleColor.Green);
                 });
             }
             else if (string.Equals(result.Text, "b", StringComparison.OrdinalIgnoreCase))

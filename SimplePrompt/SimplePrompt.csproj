@@ -18,8 +18,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Arc.Collections" Version="1.29.1" />
-    <PackageReference Include="Arc.Unit" Version="0.30.0" />
+    <PackageReference Include="Arc.Collections" Version="1.31.0" />
+    <PackageReference Include="Arc.Unit" Version="0.31.2" />
   </ItemGroup>
 
 </Project>

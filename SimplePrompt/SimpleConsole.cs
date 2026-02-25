@@ -71,6 +71,8 @@ public partial class SimpleConsole : IConsoleService
     /// </summary>
     public ThreadCoreBase Core { get; set; } = ThreadCore.Root;
 
+    public bool EnableColor { get; set; } = true;
+
     /// <summary>
     /// Gets or sets the default options for <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/>.
     /// </summary>
@@ -514,130 +516,132 @@ CancelOrTerminate:
 
     #region Write
 
-    public void Write(bool value)
-        => this.WriteSpan(value.ToString(), false);
+    public void Write(bool value, ConsoleColor color = ConsoleHelper.DefaultColor)
+        => this.WriteSpan(value.ToString(), false, color);
 
-    public void WriteLine(bool value)
-        => this.WriteSpan(value.ToString(), true);
+    public void WriteLine(bool value, ConsoleColor color = ConsoleHelper.DefaultColor)
+        => this.WriteSpan(value.ToString(), true, color);
 
-    public void Write(char value)
-        => this.WriteSpan([value], false);
+    public void Write(char value, ConsoleColor color = ConsoleHelper.DefaultColor)
+        => this.WriteSpan([value], false, color);
 
-    public void WriteLine(char value)
-        => this.WriteSpan([value], true);
+    public void WriteLine(char value, ConsoleColor color = ConsoleHelper.DefaultColor)
+        => this.WriteSpan([value], true, color);
 
-    public void Write(decimal value)
+    public void Write(decimal value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[64];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false);
+        this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
-    public void WriteLine(decimal value)
+    public void WriteLine(decimal value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[64];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true);
+        this.WriteSpan(buffer.Slice(0, written), true, color);
 
     }
 
-    public void Write(double value)
+    public void Write(double value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false);
+        this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
-    public void WriteLine(double value)
+    public void WriteLine(double value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true);
+        this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
-    public void Write(float value)
+    public void Write(float value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false);
+        this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
-    public void WriteLine(float value)
+    public void WriteLine(float value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true);
+        this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
-    public void Write(int value)
+    public void Write(int value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false);
+        this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
-    public void WriteLine(int value)
+    public void WriteLine(int value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true);
+        this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
-    public void Write(uint value)
+    public void Write(uint value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false);
+        this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
-    public void WriteLine(uint value)
+    public void WriteLine(uint value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true);
+        this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
-    public void Write(long value)
+    public void Write(long value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false);
+        this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
-    public void WriteLine(long value)
+    public void WriteLine(long value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true);
+        this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
-    public void Write(ulong value)
+    public void Write(ulong value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false);
+        this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
-    public void WriteLine(ulong value)
+    public void WriteLine(ulong value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true);
+        this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
-    public void Write(ReadOnlySpan<char> value)
-        => this.WriteSpan(value, false);
+    public void Write(ReadOnlySpan<char> value, ConsoleColor color = ConsoleHelper.DefaultColor)
+        => this.WriteSpan(value, false, color);
 
-    public void WriteLine(ReadOnlySpan<char> value)
-        => this.WriteSpan(value, true);
+    public void WriteLine(ReadOnlySpan<char> value, ConsoleColor color = ConsoleHelper.DefaultColor)
+        => this.WriteSpan(value, true, color);
 
     /// <summary>
     /// Writes the specified message to the console without a newline.<br/>
     /// Note that when ReadLine() is waiting for input, a newline is inserted after the message is displayed.
     /// </summary>
     /// <param name="message">The message to write. If null, nothing is written.</param>
-    public void Write(string? message)
-        => this.WriteSpan(message, false);
+    /// <param name="color">Specify the message text color.<br/>
+    /// The color may not be applied depending on the implementation.</param>
+    public void Write(string? message, ConsoleColor color = ConsoleHelper.DefaultColor)
+        => this.WriteSpan(message, false, color);
 
     /// <summary>
     /// Writes the specified message to the console followed by a newline.<br/>
@@ -647,8 +651,10 @@ CancelOrTerminate:
     /// <param name="message">
     /// The message to write. If <c>null</c>, only a newline is written.
     /// </param>
-    public void WriteLine(string? message = null)
-        => this.WriteSpan(message, true);
+    /// /// <param name="color">Specify the message text color.<br/>
+    /// The color may not be applied depending on the implementation.</param>
+    public void WriteLine(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
+        => this.WriteSpan(message, true, color);
 
     #endregion
 
@@ -896,14 +902,14 @@ Exit:
         }
     }
 
-    internal void WriteSpan(ReadOnlySpan<char> message, bool newLine)
+    internal void WriteSpan(ReadOnlySpan<char> message, bool newLine, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         using (this.syncObject.EnterScope())
         {
             // this.CheckCursor();
             if (!this.TryGetActiveInstance(out var activeInstance))
             {
-                this.WriteInternal(message, newLine);
+                this.WriteInternal(message, newLine, color);
 
                 // this.CheckCursor();
                 return;
@@ -917,7 +923,7 @@ Exit:
 
             activeInstance.ResetCursor(CursorOperation.Hide);
 
-            this.WriteInternal(message, true);
+            this.WriteInternal(message, true, color);
 
             activeInstance.Redraw();
             activeInstance.CurrentLocation.Restore(CursorOperation.Show);
@@ -938,7 +944,7 @@ Exit:
         }
     }
 
-    private void WriteInternal(ReadOnlySpan<char> message, bool newLine)
+    private void WriteInternal(ReadOnlySpan<char> message, bool newLine, ConsoleColor color)
     {
         if (message.Length == 0)
         {
@@ -948,6 +954,13 @@ Exit:
 
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
+
+        if (color >= 0)
+        {
+            var temp = ConsoleHelper.GetForegroundColorEscapeCode(color);
+            temp.CopyTo(span);
+            span = span.Slice(temp.Length);
+        }
 
         // SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref span);
 
@@ -997,6 +1010,11 @@ Exit:
             }
 
             this.AdvanceCursor(text, appendNewLine);
+        }
+
+        if (color >= 0)
+        {
+            SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span);
         }
 
         // SimplePromptHelper.TryCopy(ConsoleHelper.ShowCursorSpan, ref span);
