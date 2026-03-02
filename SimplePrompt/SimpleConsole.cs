@@ -242,8 +242,13 @@ public partial class SimpleConsole : IConsoleService
             ConsoleKeyInfo pendingKeyInfo = default;
             while (true)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (this.Core.IsTerminated)
+                if (cancellationToken.IsCancellationRequested)
+                {// Canceled
+                    inputResultKind = InputResultKind.Canceled;
+                    goto CancelOrTerminate;
+
+                }
+                else if (this.Core.IsTerminated)
                 {// Terminated
                     inputResultKind = InputResultKind.Terminated;
                     goto CancelOrTerminate;
