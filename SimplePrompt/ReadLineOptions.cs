@@ -50,6 +50,12 @@ public record class ReadLineOptions
     /// </summary>
     public int MaxInputLength { get; init; } = 1024 * 64;
 
+    /*/// <summary>
+    /// Gets the color used for the prompt in the console.
+    /// Default is <see cref="ConsoleColor.Red"/>.
+    /// </summary>
+    public ConsoleColor PromptColor { get; init; } = ConsoleColor.White;*/
+
     /// <summary>
     /// Gets the string displayed as the prompt for single-line input.<br/>
     /// Default is "&gt; ".

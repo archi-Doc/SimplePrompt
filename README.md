@@ -75,10 +75,9 @@ while (true)
         {
             simpleConsole.WriteLine("Test string");
             await Task.Delay(1000);
-            simpleConsole.WriteLine("abcdefgabcdefgabcdefg"); // Displayed above the prompt
+            simpleConsole.WriteLine("abcdefgabcdefgabcdefg", ConsoleColor.Green); // Displayed above the prompt
             await Task.Delay(1000);
             Console.Out.WriteLine("abcdefg0123456789abcdefg0123456789abcdefg0123456789"); // Output via Console.Out is also supported.
-            Console.Out.Write("Write:Not displayed"); // Not displayed while ReadLine is waiting for input.
         });
     }
     else
