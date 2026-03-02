@@ -145,7 +145,19 @@ internal sealed class ReadLineInstance
                 SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref span);
             }
 
+            /*if (this.Options.PromptColor != ConsoleHelper.DefaultColor)
+            {
+                SimplePromptHelper.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.PromptColor).AsSpan(), ref span); // Prompt color
+            }*/
+
             SimplePromptHelper.TryCopy(currentPrompt, ref span);
+
+            /*if (this.Options.PromptColor != ConsoleHelper.DefaultColor)
+            {
+                SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
+            }*/
+
+
             if (isInput)
             {
                 SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
@@ -539,7 +551,17 @@ internal sealed class ReadLineInstance
 
             if (line.PromptLength > 0)
             {
+                /*if (this.Options.PromptColor != ConsoleHelper.DefaultColor)
+                {
+                    SimplePromptHelper.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.PromptColor).AsSpan(), ref span); // Prompt color
+                }*/
+
                 SimplePromptHelper.TryCopy(line.PromptSpan, ref span);
+
+                /*if (this.Options.PromptColor != ConsoleHelper.DefaultColor)
+                {
+                    SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
+                }*/
             }
 
             SimplePromptHelper.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.InputColor).AsSpan(), ref span); // Input color
