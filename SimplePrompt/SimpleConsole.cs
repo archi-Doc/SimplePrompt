@@ -257,7 +257,15 @@ public partial class SimpleConsole : IConsoleService
                 if (delayFlag)
                 {
                     delayFlag = false;
-                    await Task.Delay(DelayInMilliseconds, cancellationToken).ConfigureAwait(false);
+                    try
+                    {
+                        await Task.Delay(DelayInMilliseconds, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        inputResultKind = InputResultKind.Canceled;
+                        goto CancelOrTerminate;
+                    }
                 }
 
                 using (this.syncObject.EnterScope())
