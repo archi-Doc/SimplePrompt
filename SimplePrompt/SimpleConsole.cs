@@ -640,13 +640,30 @@ CancelOrTerminate:
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
-    public void Write(ReadOnlySpan<char> value, ConsoleColor color = ConsoleHelper.DefaultColor)
-        => this.WriteSpan(value, false, color);
-
-    public void WriteLine(ReadOnlySpan<char> value, ConsoleColor color = ConsoleHelper.DefaultColor)
-        => this.WriteSpan(value, true, color);
+    /// <summary>
+    /// Writes the specified message to the console without a newline.<br/>
+    /// Note that when ReadLine() is waiting for input, a newline is inserted after the message is displayed.
+    /// </summary>
+    /// <param name="message">The message to write. If empty, nothing is written.</param>
+    /// <param name="color">Specify the message text color.<br/>
+    /// The color may not be applied depending on the implementation.</param>
+    public void Write(ReadOnlySpan<char> message = default, ConsoleColor color = ConsoleHelper.DefaultColor)
+        => this.WriteSpan(message, false, color);
 
     /// <summary>
+    /// Writes the specified message to the console followed by a newline.<br/>
+    /// If a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress,<br/>
+    /// the message is written with proper cursor management and the active input instance is redrawn.
+    /// </summary>
+    /// <param name="message">
+    /// The message to write. If <c>empty</c>, only a newline is written.
+    /// </param>
+    /// /// <param name="color">Specify the message text color.<br/>
+    /// The color may not be applied depending on the implementation.</param>
+    public void WriteLine(ReadOnlySpan<char> message = default, ConsoleColor color = ConsoleHelper.DefaultColor)
+        => this.WriteSpan(message, true, color);
+
+    /*/// <summary>
     /// Writes the specified message to the console without a newline.<br/>
     /// Note that when ReadLine() is waiting for input, a newline is inserted after the message is displayed.
     /// </summary>
@@ -667,7 +684,7 @@ CancelOrTerminate:
     /// /// <param name="color">Specify the message text color.<br/>
     /// The color may not be applied depending on the implementation.</param>
     public void WriteLine(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
-        => this.WriteSpan(message, true, color);
+        => this.WriteSpan(message, true, color);*/
 
     #endregion
 
