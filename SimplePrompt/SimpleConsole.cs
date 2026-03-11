@@ -660,10 +660,10 @@ CancelOrTerminate:
     /// </param>
     /// /// <param name="color">Specify the message text color.<br/>
     /// The color may not be applied depending on the implementation.</param>
-    public void WriteLine(ReadOnlySpan<char> message = default, ConsoleColor color = ConsoleHelper.DefaultColor)
+    public void WriteLine(ReadOnlySpan<char> message, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, true, color);
 
-    /*/// <summary>
+    /// <summary>
     /// Writes the specified message to the console without a newline.<br/>
     /// Note that when ReadLine() is waiting for input, a newline is inserted after the message is displayed.
     /// </summary>
@@ -684,7 +684,7 @@ CancelOrTerminate:
     /// /// <param name="color">Specify the message text color.<br/>
     /// The color may not be applied depending on the implementation.</param>
     public void WriteLine(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
-        => this.WriteSpan(message, true, color);*/
+        => this.WriteSpan(message, true, color);
 
     #endregion
 
