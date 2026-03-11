@@ -45,7 +45,7 @@ internal sealed class Program
 
         var product = builder.Build();
         var logger = product.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
-        logger.TryGet()?.Log("Start");
+        logger.GetWriter()?.Write("Start");
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         var simpleConsole = SimpleConsole.GetOrCreate();
@@ -58,7 +58,7 @@ internal sealed class Program
         await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.
         if (product.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
         {
-            logger.TryGet()?.Log("End");
+            logger.GetWriter()?.Write("End");
             await logUnit.FlushAndTerminate();
         }
 

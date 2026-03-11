@@ -19,7 +19,7 @@
 
   <ItemGroup>
     <PackageReference Include="Arc.Collections" Version="1.32.1" />
-    <PackageReference Include="Arc.Unit" Version="0.34.1" />
+    <PackageReference Include="Arc.Unit" Version="0.34.2" />
   </ItemGroup>
 
 </Project>
