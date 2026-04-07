@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Threading;
 using Arc.Unit;
@@ -8,8 +9,51 @@ using SimplePrompt;
 
 namespace Playground;
 
+public enum YesOrNo
+{
+    Invalid,
+    Yes,
+    No,
+}
+
 internal sealed class Program
 {
+    private static void WriteLineRaw(string? message = null)
+        => Console.WriteLine(message);
+
+    private static async Task<YesOrNo> RequestYesOrNoInternal(string message)
+    {
+        var description = message;
+        if (!string.IsNullOrEmpty(description))
+        {
+            WriteLineRaw(description + " [Y/n]");
+        }
+
+        while (true)
+        {
+            var input = Console.ReadLine();
+            if (input == null)
+            {// Ctrl+C
+                WriteLineRaw();
+                return YesOrNo.Invalid; // throw new PanicException();
+            }
+
+            input = input.ToLower(System.Globalization.CultureInfo.InvariantCulture);
+            if (input == "y" || input == "yes")
+            {
+                return YesOrNo.Yes;
+            }
+            else if (input == "n" || input == "no")
+            {
+                return YesOrNo.No;
+            }
+            else
+            {
+                WriteLineRaw("Yes or No [Y/n]");
+            }
+        }
+    }
+
     public static async Task Main(string[] args)
     {
         AppCloseHandler.Set(() =>
@@ -48,6 +92,17 @@ internal sealed class Program
         logger.GetWriter()?.Write("Start");
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
+        /*Console.Write("Input: ");
+        _ = Console.ReadLine();
+        _ = Task.Run(async () =>
+        {
+            WriteLineRaw("1");
+            await Task.Delay(10);
+            WriteLineRaw("2");
+            await Task.Delay(100);
+            WriteLineRaw("3");
+        });*/
+
         var simpleConsole = SimpleConsole.GetOrCreate();
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {
@@ -61,18 +116,32 @@ internal sealed class Program
             KeyInputHook = keyInfo => KeyInputHook(keyInfo),
         };
 
+        Console.Write("Input: ");
+        _ = Console.ReadLine();
+        /*_ = Task.Run(async () =>
+        {
+            WriteLineRaw("1");
+            await Task.Delay(10);
+            WriteLineRaw("2");
+            await Task.Delay(100);
+            WriteLineRaw("3");
+        });*/
+
         Console.WriteLine("\u001b[90m[\u001b[39m\u001b[22m\u001b[40m\u001b[1m\u001b[37mINF\u001b[39m\u001b[22m\u001b[49m ITestInterface\u001b[90m] \u001b[39m\u001b[22m\u001b[1m\u001b[37mtttttttttttttttttttttttttttttttttttttttttttttttttttttt\u001b[39m\u001b[22m");
 
         Console.WriteLine(true);
         Console.WriteLine(1.23d);
 
-        _ = Task.Run(async () =>
+        /*_ = Task.Run(async () =>
         {
             await Task.Delay(1000);
             simpleConsole.EnqueueInput("Queued");
             await Task.Delay(1000);
             simpleConsole.EnqueueInput(null);
-        });
+        });*/
+
+        // simpleConsole.Write("ABC");
+        // _ = await simpleConsole.ReadLine();
 
 
         while (!ThreadCore.Root.IsTerminated)
