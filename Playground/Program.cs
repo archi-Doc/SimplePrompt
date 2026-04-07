@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Threading;
 using Arc.Unit;
@@ -8,8 +9,51 @@ using SimplePrompt;
 
 namespace Playground;
 
+public enum YesOrNo
+{
+    Invalid,
+    Yes,
+    No,
+}
+
 internal sealed class Program
 {
+    private static void WriteLineRaw(string? message = null)
+        => Console.WriteLine(message);
+
+    private static async Task<YesOrNo> RequestYesOrNoInternal(string message)
+    {
+        var description = message;
+        if (!string.IsNullOrEmpty(description))
+        {
+            WriteLineRaw(description + " [Y/n]");
+        }
+
+        while (true)
+        {
+            var input = Console.ReadLine();
+            if (input == null)
+            {// Ctrl+C
+                WriteLineRaw();
+                return YesOrNo.Invalid; // throw new PanicException();
+            }
+
+            input = input.ToLower(System.Globalization.CultureInfo.InvariantCulture);
+            if (input == "y" || input == "yes")
+            {
+                return YesOrNo.Yes;
+            }
+            else if (input == "n" || input == "no")
+            {
+                return YesOrNo.No;
+            }
+            else
+            {
+                WriteLineRaw("Yes or No [Y/n]");
+            }
+        }
+    }
+
     public static async Task Main(string[] args)
     {
         AppCloseHandler.Set(() =>
@@ -23,6 +67,8 @@ internal sealed class Program
             e.Cancel = true;
             ThreadCore.Root.Terminate(); // Send a termination signal to the root.
         };
+
+        await RequestYesOrNoInternal("Y/n? ");
 
         var builder = new UnitBuilder()
             .Configure(context =>
