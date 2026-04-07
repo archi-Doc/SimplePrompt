@@ -69,6 +69,20 @@ internal sealed class Program
         };
 
         await RequestYesOrNoInternal("Y/n? ");
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(100);
+            WriteLineRaw("Ab");
+            await Task.Delay(1000);
+            WriteLineRaw("Ab");
+            await Task.Delay(1000);
+            WriteLineRaw("Ab");
+            await Task.Delay(100);
+            WriteLineRaw("Ab");
+        });
+
+        await RequestYesOrNoInternal("Y/n? ");
+
 
         var builder = new UnitBuilder()
             .Configure(context =>
