@@ -209,6 +209,14 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
+        try
+        {// Adjust the cursor top because Console.ReadLine() may change it.
+            this.CursorTop = Console.CursorTop;
+        }
+        catch
+        {
+        }
+
         InputResultKind inputResultKind;
         ReadLineInstance currentInstance;
         using (this.syncObject.EnterScope())
@@ -553,7 +561,6 @@ CancelOrTerminate:
         Span<char> buffer = stackalloc char[64];
         value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
         this.WriteSpan(buffer.Slice(0, written), true, color);
-
     }
 
     public void Write(double value, ConsoleColor color = ConsoleHelper.DefaultColor)

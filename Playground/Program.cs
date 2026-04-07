@@ -68,22 +68,6 @@ internal sealed class Program
             ThreadCore.Root.Terminate(); // Send a termination signal to the root.
         };
 
-        await RequestYesOrNoInternal("Y/n? ");
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(100);
-            WriteLineRaw("Ab");
-            await Task.Delay(1000);
-            WriteLineRaw("Ab");
-            await Task.Delay(1000);
-            WriteLineRaw("Ab");
-            await Task.Delay(100);
-            WriteLineRaw("Ab");
-        });
-
-        await RequestYesOrNoInternal("Y/n? ");
-
-
         var builder = new UnitBuilder()
             .Configure(context =>
             {
@@ -108,6 +92,17 @@ internal sealed class Program
         logger.GetWriter()?.Write("Start");
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
+        /*Console.Write("Input: ");
+        _ = Console.ReadLine();
+        _ = Task.Run(async () =>
+        {
+            WriteLineRaw("1");
+            await Task.Delay(10);
+            WriteLineRaw("2");
+            await Task.Delay(100);
+            WriteLineRaw("3");
+        });*/
+
         var simpleConsole = SimpleConsole.GetOrCreate();
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {
@@ -121,18 +116,32 @@ internal sealed class Program
             KeyInputHook = keyInfo => KeyInputHook(keyInfo),
         };
 
+        Console.Write("Input: ");
+        _ = Console.ReadLine();
+        /*_ = Task.Run(async () =>
+        {
+            WriteLineRaw("1");
+            await Task.Delay(10);
+            WriteLineRaw("2");
+            await Task.Delay(100);
+            WriteLineRaw("3");
+        });*/
+
         Console.WriteLine("\u001b[90m[\u001b[39m\u001b[22m\u001b[40m\u001b[1m\u001b[37mINF\u001b[39m\u001b[22m\u001b[49m ITestInterface\u001b[90m] \u001b[39m\u001b[22m\u001b[1m\u001b[37mtttttttttttttttttttttttttttttttttttttttttttttttttttttt\u001b[39m\u001b[22m");
 
         Console.WriteLine(true);
         Console.WriteLine(1.23d);
 
-        _ = Task.Run(async () =>
+        /*_ = Task.Run(async () =>
         {
             await Task.Delay(1000);
             simpleConsole.EnqueueInput("Queued");
             await Task.Delay(1000);
             simpleConsole.EnqueueInput(null);
-        });
+        });*/
+
+        // simpleConsole.Write("ABC");
+        // _ = await simpleConsole.ReadLine();
 
 
         while (!ThreadCore.Root.IsTerminated)
