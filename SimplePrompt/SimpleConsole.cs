@@ -209,13 +209,13 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
-        try
+        /*try
         {// Adjust the cursor top because Console.ReadLine() may change it.
             this.CursorTop = Console.CursorTop;
         }
         catch
         {
-        }
+        }*/
 
         InputResultKind inputResultKind;
         ReadLineInstance currentInstance;
