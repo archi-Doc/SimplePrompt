@@ -152,6 +152,12 @@ internal sealed class Program
             {
             };
 
+            var secondary = simpleConsole.DefaultOptions with
+            {
+                Prompt = "Secondary> ",
+            };
+
+            _ = simpleConsole.ReadLine(secondary);
             var result = await simpleConsole.ReadLine(options);
 
             if (result.Kind == InputResultKind.Terminated)
@@ -192,6 +198,12 @@ internal sealed class Program
                     await Task.Delay(1000);
                     Console.WriteLine("ABC123ABC123\r\nABC123ABC123\nABC123ABC123");
                 });
+            }
+            else if (string.Equals(result.Text, "c", StringComparison.OrdinalIgnoreCase))
+            {
+                simpleConsole.WriteLine("Freeze ->");
+                await Task.Delay(3_000);
+                simpleConsole.WriteLine("<-");
             }
             else
             {
