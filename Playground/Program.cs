@@ -148,11 +148,9 @@ internal sealed class Program
             KeyInputHook = keyInfo => KeyInputHook(keyInfo),
         };
 
-        var textReader = new HookedTextReader();
-        Console.SetIn(textReader);
-
         Console.Write("Input: ");
         _ = Console.ReadLine();
+
         /*_ = Task.Run(async () =>
         {
             WriteLineRaw("1");

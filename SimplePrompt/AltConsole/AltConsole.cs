@@ -1,10 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using System.Text;
-using Arc.Collections;
 using Arc.Threading;
 
 namespace SimplePrompt;
@@ -57,6 +53,11 @@ public static class AltConsole
     static AltConsole()
     {
         worker = new(ThreadCore.Root);
+
+        var job = new Job();
+        job.Kind = JobKind.Initial;
+        worker.Add(job);
+        job.Wait();
     }
 
     public static int CursorTop => cursorTop;
