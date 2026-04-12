@@ -131,6 +131,7 @@ internal sealed class Program
 
         Console.WriteLine(true);
         Console.WriteLine(1.23d);
+        var top = AltConsole.CursorTop;
 
         /*_ = Task.Run(async () =>
         {
