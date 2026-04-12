@@ -16,6 +16,38 @@ public enum YesOrNo
     No,
 }
 
+public sealed class HookedTextReader : TextReader
+{
+    private readonly SimpleConsole simpleConsole;
+    private readonly ReadLineOptions readLineOptions;
+
+    // private readonly TextReader inner;
+
+    public HookedTextReader()
+    {
+        this.simpleConsole = SimpleConsole.GetOrCreate();
+        this.readLineOptions = ReadLineOptions.SingleLine with
+        {
+            Prompt = string.Empty,
+        };
+    }
+
+    public override string? ReadLine()
+    {
+        /*Console.Error.WriteLine("[Hook] ReadLine called");
+        var line = this.inner.ReadLine();
+        Console.Error.WriteLine($"[Hook] Input: {line}");*/
+
+        var result = this.simpleConsole.ReadLine(this.readLineOptions).Result;
+        return result.Text;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        base.Dispose(disposing);
+    }
+}
+
 internal sealed class Program
 {
     private static void WriteLineRaw(string? message = null)
@@ -115,6 +147,9 @@ internal sealed class Program
             // MaskingCharacter = '?',
             KeyInputHook = keyInfo => KeyInputHook(keyInfo),
         };
+
+        var textReader = new HookedTextReader();
+        Console.SetIn(textReader);
 
         Console.Write("Input: ");
         _ = Console.ReadLine();
