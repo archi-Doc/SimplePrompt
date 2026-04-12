@@ -687,7 +687,7 @@ internal sealed class ReadLineInstance
     {
         try
         {
-            var (_, newCursorTop) = Console.GetCursorPosition(); // I have just got a new theory of eternity in this method.
+            var (_, newCursorTop) = AltConsole.GetCursorPosition(); // I have just got a new theory of eternity in this method.
             if (newCursorTop == this.simpleConsole.CursorTop)
             {
                 return false;

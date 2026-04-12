@@ -170,11 +170,11 @@ public partial class SimpleConsole : IConsoleService
 
             /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
-                // Console.WriteLine($"SIGWINCH Height:{Console.WindowHeight} Width:{Console.WindowWidth} Top:{Console.CursorTop}");
+                // Console.WriteLine($"SIGWINCH Height:{AltConsole.WindowHeight} Width:{AltConsole.WindowWidth} Top:{AltConsole.CursorTop}");
 
                 using (this.syncObject.EnterScope())
                 {// Adjusts the cursor position when attached to a console.
-                    var newCursor = Console.GetCursorPosition();
+                    var newCursor = AltConsole.GetCursorPosition();
                     this.simpleArrange.Arrange(newCursor);
                     (this.CursorLeft, this.CursorTop) = newCursor;
 
@@ -212,7 +212,7 @@ public partial class SimpleConsole : IConsoleService
     {
         /*try
         {// Adjust the cursor top because Console.ReadLine() may change it.
-            this.CursorTop = Console.CursorTop;
+            this.CursorTop = AltConsole.CursorTop;
         }
         catch
         {
@@ -723,7 +723,7 @@ CancelOrTerminate:
         }
     }
 
-    [Conditional("DEBUG")]
+    /*[Conditional("DEBUG")]
     internal void CheckCursor()
     {
         try
@@ -733,7 +733,7 @@ CancelOrTerminate:
                 return;
             }
 
-            var cursor = Console.GetCursorPosition();
+            var cursor = AltConsole.GetCursorPosition();
             if (cursor.Left != this.CursorLeft ||
                 cursor.Top != this.CursorTop)
             {// Inconsistent cursor position
@@ -745,7 +745,7 @@ CancelOrTerminate:
         catch
         {
         }
-    }
+    }*/
 
     internal void AdvanceCursor(ReadOnlySpan<char> text, bool newLine)
     {
@@ -1162,7 +1162,7 @@ Exit:
 
             this.adjustCursorTime = current;
 
-            var cursor = Console.GetCursorPosition();
+            var cursor = AltConsole.GetCursorPosition();
             if (cursor.Top != this.CursorTop ||
                 cursor.Left != this.CursorLeft)
             {// Cursor changed
