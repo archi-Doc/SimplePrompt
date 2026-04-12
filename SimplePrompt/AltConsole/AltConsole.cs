@@ -54,15 +54,40 @@ public static class AltConsole
     {
         worker = new(ThreadCore.Root);
 
-        var job = new Job();
+        cursorLeft = -1;
+        cursorTop = -1;
+
+        /*var job = new Job();
         job.Kind = JobKind.Initial;
         worker.Add(job);
-        job.Wait();
+        job.Wait();*/
     }
 
-    public static int CursorTop => cursorTop;
+    public static int CursorTop
+    {
+        get
+        {
+            if (cursorTop <= 0)
+            {
+                RunJob(JobKind.CursorTop);
+            }
 
-    public static int CursorLeft => cursorLeft;
+            return cursorTop;
+        }
+    }
+
+    public static int CursorLeft
+    {
+        get
+        {
+            if (cursorLeft <= 0)
+            {
+                RunJob(JobKind.CursorLeft);
+            }
+
+            return cursorLeft;
+        }
+    }
 
     public static void UpdateCursorTop()
         => RunJob(JobKind.CursorTop);

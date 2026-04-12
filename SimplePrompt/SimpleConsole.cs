@@ -101,6 +101,7 @@ public partial class SimpleConsole : IConsoleService
     internal int CursorTop { get; set; }
 
     private readonly SimpleTextWriter simpleTextWriter;
+    private readonly SimpleTextReader simpleTextReader;
     private readonly SimpleArrange simpleArrange;
     private readonly ConcurrentQueue<string?> queue = new();
     private readonly PosixSignalRegistration? posixSignalRegistration;
@@ -123,6 +124,7 @@ public partial class SimpleConsole : IConsoleService
         }
 
         this.simpleTextWriter = new(this, Console.Out);
+        this.simpleTextReader = new(this, Console.In);
         this.RawConsole = new(this);
         this.simpleArrange = new(this);
         this.DefaultOptions = new();
@@ -1066,6 +1068,14 @@ Exit:
         try
         {
             Console.SetOut(this.simpleTextWriter);
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            Console.SetIn(this.simpleTextReader);
         }
         catch
         {
