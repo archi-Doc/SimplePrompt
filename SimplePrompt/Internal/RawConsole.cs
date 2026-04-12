@@ -52,7 +52,6 @@ internal sealed class RawConsole
         {
             this.InitializeStdin();
             this.db = TermInfo.DatabaseFactory.ReadActiveDatabase();
-            // Console.WriteLine("Stdin");
         }
         catch
         {
@@ -115,7 +114,7 @@ internal sealed class RawConsole
                 }
             }
             else
-            {// Console.ReadKey
+            {// Console
                 if (!Console.KeyAvailable)
                 {// No key available
                     keyInfo = default;

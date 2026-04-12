@@ -11,9 +11,11 @@ public static class AltConsole
 
     private enum JobKind
     {
-        Initial,
+        Initialize,
         CursorTop,
         CursorLeft,
+        CursorPosition,
+        WindowSize,
     }
 
     private sealed record class Job : ReusableThreadJob
@@ -30,25 +32,44 @@ public static class AltConsole
 
         public override void ProcessJob(Job job)
         {
-            if (job.Kind == JobKind.Initial)
+            try
             {
-                cursorLeft = Console.CursorLeft;
-                cursorTop = Console.CursorTop;
+                if (job.Kind == JobKind.Initialize)
+                {
+                    (cursorLeft, cursorTop) = Console.GetCursorPosition();
+                    windowWidth = Console.WindowWidth;
+                    windowHeight = Console.WindowHeight;
+                }
+                else if (job.Kind == JobKind.CursorTop)
+                {
+                    cursorTop = Console.CursorTop;
+                }
+                else if (job.Kind == JobKind.CursorLeft)
+                {
+                    cursorLeft = Console.CursorLeft;
+                }
+                else if (job.Kind == JobKind.CursorPosition)
+                {
+                    (cursorLeft, cursorTop) = Console.GetCursorPosition();
+                }
+                else if (job.Kind == JobKind.WindowSize)
+                {
+                    windowWidth = Console.WindowWidth;
+                    windowHeight = Console.WindowHeight;
+                }
             }
-            else if (job.Kind == JobKind.CursorTop)
+            catch
             {
-                cursorTop = Console.CursorTop;
-            }
-            else if (job.Kind == JobKind.CursorLeft)
-            {
-                cursorLeft = Console.CursorLeft;
             }
         }
     }
 
     private static readonly Worker worker;
+    private static bool initialized;
     private static int cursorLeft;
     private static int cursorTop;
+    private static int windowWidth;
+    private static int windowHeight;
 
     static AltConsole()
     {
@@ -56,22 +77,26 @@ public static class AltConsole
 
         cursorLeft = -1;
         cursorTop = -1;
+    }
 
-        /*var job = new Job();
-        job.Kind = JobKind.Initial;
-        worker.Add(job);
-        job.Wait();*/
+    private static void Initialize()
+    {
+        if (!initialized)
+        {
+            initialized = true;
+
+            var job = new Job();
+            job.Kind = JobKind.Initialize;
+            worker.Add(job);
+            job.Wait();
+        }
     }
 
     public static int CursorTop
     {
         get
         {
-            if (cursorTop <= 0)
-            {
-                RunJob(JobKind.CursorTop);
-            }
-
+            Initialize();
             return cursorTop;
         }
     }
@@ -80,20 +105,34 @@ public static class AltConsole
     {
         get
         {
-            if (cursorLeft <= 0)
-            {
-                RunJob(JobKind.CursorLeft);
-            }
-
+            Initialize();
             return cursorLeft;
         }
     }
 
-    public static void UpdateCursorTop()
-        => RunJob(JobKind.CursorTop);
+    public static int GetCursorTop()
+    {
+        RunJob(JobKind.CursorTop);
+        return cursorTop;
+    }
 
-    public static void UpdateCursorLeft()
-        => RunJob(JobKind.CursorLeft);
+    public static int GetCursorLeft()
+    {
+        RunJob(JobKind.CursorLeft);
+        return cursorLeft;
+    }
+
+    public static (int Left, int Top) GetCursorPosition()
+    {
+        RunJob(JobKind.CursorPosition);
+        return (cursorLeft, cursorTop);
+    }
+
+    public static (int Width, int Height) GetWindowSize()
+    {
+        RunJob(JobKind.WindowSize);
+        return (windowWidth, windowHeight);
+    }
 
     private static void RunJob(JobKind jobKind)
     {

@@ -683,7 +683,7 @@ internal sealed class ReadLineInstance
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
     }
 
-    internal bool CorrectCursorTop()
+    /*internal bool CorrectCursorTop()
     {
         try
         {
@@ -695,13 +695,13 @@ internal sealed class ReadLineInstance
 
             // this.RawConsole.WriteInternal($"<Cursor top {this.simpleConsole.CursorTop} -> {newCursorTop}>");
 
-            /*var topDiff = newCursorTop - this.simpleConsole.CursorTop;
-            foreach (var x in this.LineList)
-            {
-                x.Top += topDiff;
-            }
+            // var topDiff = newCursorTop - this.simpleConsole.CursorTop;
+            // foreach (var x in this.LineList)
+            // {
+            //    x.Top += topDiff;
+            // }
 
-            this.simpleConsole.CursorTop = newCursorTop;*/
+            // this.simpleConsole.CursorTop = newCursorTop;
             return true;
         }
         catch
@@ -709,5 +709,5 @@ internal sealed class ReadLineInstance
             return false;
         }
 
-    }
+    }*/
 }

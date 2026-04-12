@@ -22,7 +22,7 @@ public class ConsoleBenchmark
     [Benchmark]
     public async Task<int> CursorTopAlt()
     {
-        AltConsole.UpdateCursorTop();
+        AltConsole.GetCursorTop();
         return AltConsole.CursorTop;
     }
 
