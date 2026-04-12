@@ -4,7 +4,7 @@ using Arc.Threading;
 
 namespace SimplePrompt;
 
-internal sealed record class AltConsoleJob : ReusableThreadJob
+internal sealed record class AltConsoleJob : ReusableTaskJob
 {
     public AltConsoleJobKind Kind { get; set; }
 }

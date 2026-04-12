@@ -47,28 +47,24 @@ public static class AltConsole
         worker = new(ThreadCore.Root);
     }
 
-    public static int CursorTop
+    public static int CursorTop => cursorTop;
+
+    public static int CursorLeft => cursorLeft;
+
+    public static void UpdateCursorTop()
     {
-        get
-        {
-            var job = worker.Rent();
-            job.Kind = AltConsoleJobKind.CursorTop;
-            TryAddAndWait(job);
-            worker.Return(job);
-            return cursorTop;
-        }
+        var job = worker.Rent();
+        job.Kind = AltConsoleJobKind.CursorTop;
+        TryAddAndWait(job);
+        worker.Return(job);
     }
 
-    public static int CursorLeft
+    public static void UpdateCursorLeft()
     {
-        get
-        {
-            var job = worker.Rent();
-            job.Kind = AltConsoleJobKind.CursorLeft;
-            TryAddAndWait(job);
-            worker.Return(job);
-            return cursorLeft;
-        }
+        var job = worker.Rent();
+        job.Kind = AltConsoleJobKind.CursorLeft;
+        TryAddAndWait(job);
+        worker.Return(job);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -77,7 +73,7 @@ public static class AltConsole
         if (worker.NumberOfPendingJobs < MaxPendingJobs)
         {
             worker.Add(job);
-            job.Wait();
+            job.Wait().Wait();
         }
     }
 }

@@ -20,8 +20,15 @@ public class ConsoleBenchmark
     }
 
     [Benchmark]
-    public int CursorTopAlt()
+    public async Task<int> CursorTopAlt()
     {
+        AltConsole.UpdateCursorTop();
         return AltConsole.CursorTop;
+    }
+
+    [Benchmark]
+    public async Task<int> CursorLeftAlt()
+    {
+        return AltConsole.CursorLeft;
     }
 }

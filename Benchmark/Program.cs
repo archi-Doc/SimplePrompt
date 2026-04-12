@@ -8,6 +8,7 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using Arc.Threading;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using FastSerialization;
@@ -30,6 +31,7 @@ public class Program
         ]);
 
         switcher.Run(args);
+        ThreadCore.Root.Terminate();
     }
 
     public static void DebugRun<T>()
