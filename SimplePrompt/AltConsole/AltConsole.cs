@@ -13,25 +13,37 @@ public static class AltConsole
 {
     private const int MaxPendingJobs = 32;
 
-    private sealed class Worker : ReusableJobWorker<AltConsoleJob>
+    private enum JobKind
+    {
+        Initial,
+        CursorTop,
+        CursorLeft,
+    }
+
+    private sealed record class Job : ReusableThreadJob
+    {
+        public JobKind Kind { get; set; }
+    }
+
+    private sealed class Worker : ReusableJobWorker<Job>
     {
         public Worker(ThreadCoreBase? parent)
             : base(parent, default, MaxPendingJobs, true)
         {
         }
 
-        public override void ProcessJob(AltConsoleJob job)
+        public override void ProcessJob(Job job)
         {
-            if (job.Kind == AltConsoleJobKind.Initial)
+            if (job.Kind == JobKind.Initial)
             {
                 cursorLeft = Console.CursorLeft;
                 cursorTop = Console.CursorTop;
             }
-            else if (job.Kind == AltConsoleJobKind.CursorTop)
+            else if (job.Kind == JobKind.CursorTop)
             {
                 cursorTop = Console.CursorTop;
             }
-            else if (job.Kind == AltConsoleJobKind.CursorLeft)
+            else if (job.Kind == JobKind.CursorLeft)
             {
                 cursorLeft = Console.CursorLeft;
             }
@@ -52,28 +64,30 @@ public static class AltConsole
     public static int CursorLeft => cursorLeft;
 
     public static void UpdateCursorTop()
-    {
-        var job = worker.Rent();
-        job.Kind = AltConsoleJobKind.CursorTop;
-        TryAddAndWait(job);
-        worker.Return(job);
-    }
+        => RunJob(JobKind.CursorTop);
 
     public static void UpdateCursorLeft()
+        => RunJob(JobKind.CursorLeft);
+
+    private static void RunJob(JobKind jobKind)
     {
         var job = worker.Rent();
-        job.Kind = AltConsoleJobKind.CursorLeft;
-        TryAddAndWait(job);
+        job.Kind = jobKind;
+        if (worker.NumberOfPendingJobs < MaxPendingJobs)
+        {
+            worker.Add(job);
+            job.Wait();
+        }
         worker.Return(job);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void TryAddAndWait(AltConsoleJob job)
+    private static void TryAddAndWait(Job job)
     {
         if (worker.NumberOfPendingJobs < MaxPendingJobs)
         {
             worker.Add(job);
-            job.Wait().Wait();
+            job.Wait();
         }
     }
 }
