@@ -62,6 +62,14 @@ public static class AltConsole
             {
             }
         }
+
+        public override void OnAfterProcessJob()
+        {
+        }
+
+        public override void OnTerminated()
+        {
+        }
     }
 
     private static readonly Worker worker;
