@@ -43,8 +43,7 @@ public partial class SimpleConsole
                 if (job.Kind == JobKind.Initialize)
                 {
                     (this.simpleConsole._cursorLeft, this.simpleConsole._cursorTop) = Console.GetCursorPosition();
-                    this.simpleConsole._windowWidth = Console.WindowWidth;
-                    this.simpleConsole._windowHeight = Console.WindowHeight;
+                    this.WindowSize();
                 }
                 else if (job.Kind == JobKind.CursorTop)
                 {
@@ -60,8 +59,7 @@ public partial class SimpleConsole
                 }
                 else if (job.Kind == JobKind.WindowSize)
                 {
-                    this.simpleConsole._windowWidth = Console.WindowWidth;
-                    this.simpleConsole._windowHeight = Console.WindowHeight;
+                    this.WindowSize();
                 }
             }
             catch
@@ -76,11 +74,39 @@ public partial class SimpleConsole
         public override void OnTerminated()
         {
         }
+
+        private void WindowSize()
+        {
+            var windowWidth = InitialWindowWidth;
+            var windowHeight = InitialWindowHeight;
+
+            try
+            {
+                windowWidth = Console.WindowWidth;
+                windowHeight = Console.WindowHeight;
+            }
+            catch
+            {
+            }
+
+            if (windowWidth < MinimumWindowWidth)
+            {
+                windowWidth = MinimumWindowWidth;
+            }
+
+            if (windowHeight < MinimumWindowHeight)
+            {
+                windowHeight = MinimumWindowHeight;
+            }
+
+            this.simpleConsole._windowWidth = windowWidth;
+            this.simpleConsole._windowHeight = windowHeight;
+        }
     }
 
     readonly Worker worker;
 
-    public int GetCursorTop()
+    /*public int GetCursorTop()
     {
         RunJob(JobKind.CursorTop);
         return this._cursorTop;
@@ -102,7 +128,7 @@ public partial class SimpleConsole
     {
         this.RunJob(JobKind.WindowSize);
         return (this._windowWidth, this._windowHeight);
-    }
+    }*/
 
     private void RunJob(JobKind jobKind)
     {

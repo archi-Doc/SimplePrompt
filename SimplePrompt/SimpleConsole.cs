@@ -126,9 +126,6 @@ public partial class SimpleConsole : IConsoleService
         this.DefaultOptions = new();
         this.worker = new(this, ThreadCore.Root);
 
-        this.PrepareWindow();
-        this.SyncCursor();
-
         try
         {
 #pragma warning disable CA1416 // Validate platform compatibility
@@ -225,8 +222,9 @@ public partial class SimpleConsole : IConsoleService
         using (this.syncObject.EnterScope())
         {
             // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
-            this.PrepareWindow();
+            this.RunJob(JobKind.WindowSize);
             // this.CheckCursor();
+
             if (this.instanceList.Count > 0)
             {
                 this.instanceList[^1].CurrentLocation.CursorLast();
@@ -930,18 +928,6 @@ Exit:
         return true;
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal void SyncCursor()
-    {
-        try
-        {
-            (this._cursorLeft, this._cursorTop) = Console.GetCursorPosition();
-        }
-        catch
-        {
-        }
-    }
-
     internal void WriteSpan(ReadOnlySpan<char> message, bool newLine, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         using (this.syncObject.EnterScope())
@@ -1081,6 +1067,8 @@ Exit:
         catch
         {
         }
+
+        this.RunJob(JobKind.Initialize);
     }
 
     private static bool IsControl(ConsoleKeyInfo keyInfo)
@@ -1108,41 +1096,6 @@ Exit:
         return false;
     }
 
-    private bool PrepareWindow()
-    {
-        var windowWidth = InitialWindowWidth;
-        var windowHeight = InitialWindowHeight;
-
-        try
-        {
-            windowWidth = Console.WindowWidth;
-            windowHeight = Console.WindowHeight;
-        }
-        catch
-        {
-        }
-
-        if (windowWidth < MinimumWindowWidth)
-        {
-            windowWidth = MinimumWindowWidth;
-        }
-
-        if (windowHeight < MinimumWindowHeight)
-        {
-            windowHeight = MinimumWindowHeight;
-        }
-
-        if (windowWidth == this._windowWidth &&
-            windowHeight == this._windowHeight)
-        {
-            return false;
-        }
-
-        this._windowWidth = windowWidth;
-        this._windowHeight = windowHeight;
-        return true;
-    }
-
     private void AdjustWindow(ReadLineInstance activeInstance, bool redraw)
     {
         var current = DateTime.UtcNow;
@@ -1154,7 +1107,10 @@ Exit:
         this.adjustWindowTime = current;
 
         this.simpleArrange.Set(activeInstance);
-        if (!this.PrepareWindow() &&
+        (var prevWindowWidth, var prevWindowHeight) = (this._windowWidth, this._windowHeight);
+        this.RunJob(JobKind.WindowSize);
+        if ((this._windowWidth == prevWindowWidth) &&
+            (this._windowHeight == prevWindowHeight) &&
             !redraw)
         {// Window size not changed
             /*if ((current - this.adjustCursorTime) < TimeSpan.FromSeconds(0.3))

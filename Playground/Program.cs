@@ -134,18 +134,6 @@ internal sealed class Program
         Console.WriteLine(1.23d);
         var top = SimpleConsole.CursorTop;
 
-        /*_ = Task.Run(async () =>
-        {
-            await Task.Delay(1000);
-            simpleConsole.EnqueueInput("Queued");
-            await Task.Delay(1000);
-            simpleConsole.EnqueueInput(null);
-        });*/
-
-        // simpleConsole.Write("ABC");
-        // _ = await simpleConsole.ReadLine();
-
-
         while (!ThreadCore.Root.IsTerminated)
         {
             var options = simpleConsole.DefaultOptions with
@@ -157,7 +145,7 @@ internal sealed class Program
                 Prompt = "Secondary> ",
             };
 
-            _ = simpleConsole.ReadLine(secondary);
+            //_ = simpleConsole.ReadLine(secondary);
             var result = await simpleConsole.ReadLine(options);
 
             if (result.Kind == InputResultKind.Terminated)
