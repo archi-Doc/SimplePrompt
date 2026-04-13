@@ -496,6 +496,30 @@ public partial class SimpleConsole : IConsoleService
             {
                 return;
             }
+
+            this.simpleArrange.Set(currentInstance);
+        }
+
+        (var prevWindowWidth, var prevWindowHeight) = (this._windowWidth, this._windowHeight);
+        this.worker.PrepareWindow();
+        var windowResized = prevWindowWidth != this._windowWidth || prevWindowHeight != this._windowHeight;
+        (int Left, int Top) newCursor = default;
+        if (windowResized)
+        {// Window size changed
+            try
+            {
+                newCursor = SimpleConsole.GetCursorPosition();
+            }
+            catch
+            {
+            }
+        }
+
+        // Active instance: Prepare window and read key input.
+        
+        if (windowResized)
+        {
+            this.simpleArrange.Arrange(newCursor, false);
         }
 
         try
@@ -518,20 +542,7 @@ public partial class SimpleConsole : IConsoleService
                 }
 
                 ! Interval
-                (var prevWindowWidth, var prevWindowHeight) = (this._windowWidth, this._windowHeight);
-                this.worker.PrepareWindow();
-                var windowResized = prevWindowWidth != this._windowWidth || prevWindowHeight != this._windowHeight;
-                (int Left, int Top) newCursor = default;
-                if (windowResized)
-                {// Window size changed
-                    try
-                    {
-                        newCursor = SimpleConsole.GetCursorPosition();
-                    }
-                    catch
-                    {
-                    }
-                }
+                
 
                 using (this.syncObject.EnterScope())
                 {
@@ -546,12 +557,7 @@ public partial class SimpleConsole : IConsoleService
                         return;
                     }
 
-                    // Active instance: Prepare window and read key input.
-                    this.simpleArrange.Set(currentInstance);
-                    if (windowResized)
-                    {
-                        this.simpleArrange.Arrange(newCursor, false);
-                    }
+                    
 
                     if (!this.queue.IsEmpty &&
                         currentInstance.IsEmptyInput() &&
