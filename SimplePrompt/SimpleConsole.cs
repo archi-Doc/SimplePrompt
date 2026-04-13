@@ -10,6 +10,7 @@ using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
 
+#pragma warning disable CA1001 // Types that own disposable fields should be disposable
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 
 namespace SimplePrompt;
@@ -18,16 +19,10 @@ namespace SimplePrompt;
 /// Provides a simple console interface with advanced input handling capabilities including multiline support and custom prompts.
 /// This class implements <see cref="IConsoleService"/> and manages console input/output operations.
 /// </summary>
-#pragma warning disable CA1001 // Types that own disposable fields should be disposable
 public partial class SimpleConsole : IConsoleService
-#pragma warning restore CA1001 // Types that own disposable fields should be disposable
 {
     private const int DelayInMilliseconds = 10;
     private const int WindowBufferSize = 32 * 1024;
-    private const int InitialWindowWidth = 120;
-    private const int InitialWindowHeight = 30;
-    private const int MinimumWindowWidth = 30;
-    private const int MinimumWindowHeight = 10;
 
     private static SimpleConsole? _instance;
 
@@ -95,6 +90,7 @@ public partial class SimpleConsole : IConsoleService
     internal int _cursorLeft;
     internal int _cursorTop;
 
+    private readonly Worker worker;
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly SimpleTextReader simpleTextReader;
     private readonly SimpleArrange simpleArrange;
@@ -158,30 +154,6 @@ public partial class SimpleConsole : IConsoleService
                     }
                 }
             });
-
-            /*_ = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
-            {
-                // Console.WriteLine($"SIGWINCH Height:{AltConsole.WindowHeight} Width:{AltConsole.WindowWidth} Top:{AltConsole.CursorTop}");
-
-                using (this.syncObject.EnterScope())
-                {// Adjusts the cursor position when attached to a console.
-                    var newCursor = SimpleConsole.GetCursorPosition();
-                    this.simpleArrange.Arrange(newCursor);
-                    (this.CursorLeft, this.CursorTop) = newCursor;
-
-                    if (this.instanceList.Count > 0)
-                    {
-                        var currentInstance = this.instanceList[^1];
-                        if (currentInstance.CorrectCursorTop())
-                        {// Since the cursor position has been corrected, redraw the prompt.
-                            this.Clear(false);
-                            // currentInstance.Redraw();
-                            // currentInstance.CurrentLocation.Restore(CursorOperation.None);
-                        }
-                    }
-
-                }
-            });*/
 #pragma warning restore CA1416 // Validate platform compatibility
         }
         catch

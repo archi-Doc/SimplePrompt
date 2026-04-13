@@ -2,10 +2,17 @@
 
 using Arc.Threading;
 
+#pragma warning disable CA1001 // Types that own disposable fields should be disposable
+
 namespace SimplePrompt;
 
 public partial class SimpleConsole
 {
+    private const int InitialWindowWidth = 120;
+    private const int InitialWindowHeight = 30;
+    private const int MinimumWindowWidth = 30;
+    private const int MinimumWindowHeight = 10;
+
     private const int MaxPendingJobs = 1024;
     private static readonly TimeSpan pollingInterval = TimeSpan.FromMilliseconds(10);
 
@@ -132,26 +139,6 @@ public partial class SimpleConsole
             this.simpleConsole._windowHeight = windowHeight;
         }
     }
-
-    readonly Worker worker;
-
-    /*public int GetCursorTop()
-    {
-        RunJob(JobKind.CursorTop);
-        return this._cursorTop;
-    }
-
-    public int GetCursorLeft()
-    {
-        RunJob(JobKind.CursorLeft);
-        return this._cursorLeft;
-    }
-
-    public (int Width, int Height) GetWindowSize()
-    {
-        this.RunJob(JobKind.WindowSize);
-        return (this._windowWidth, this._windowHeight);
-    }*/
 
     private void RunJob(JobKind jobKind)
     {
