@@ -7,6 +7,7 @@ namespace SimplePrompt;
 public partial class SimpleConsole
 {
     private const int MaxPendingJobs = 1024;
+    private static readonly TimeSpan pollingInterval = TimeSpan.FromMilliseconds(10);
 
     private enum JobKind
     {
@@ -44,6 +45,7 @@ public partial class SimpleConsole
             : base(parent, default, MaxPendingJobs, true)
         {
             this.simpleConsole = simpleConsole;
+            this.PollingInterval = pollingInterval;
         }
 
         public bool TryAddAndWait(Job job)
@@ -95,7 +97,7 @@ public partial class SimpleConsole
 
         protected override void OnAfterProcessJob()
         {
-            this.simpleConsole.WriteLine("After");
+            // this.simpleConsole.WriteLine("After");
         }
 
         protected override void OnTerminated()
