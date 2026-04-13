@@ -1,22 +1,20 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
-using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-using System.Text;
 using Arc.Threading;
 
 namespace SimplePrompt;
 
 public partial class SimpleConsole
 {
-    private const int MaxPendingJobs = 32;
+    private const int MaxPendingJobs = 1024;
 
     private enum JobKind
     {
         Initialize,
         GetCursorPosition,
         PrepareWindow,
+        Write,
+        WriteLine,
     }
 
     private sealed record class Job : ReusableThreadJob
@@ -26,6 +24,16 @@ public partial class SimpleConsole
         public int CursorLeft { get; set; }
 
         public int CursorTop { get; set; }
+
+        public string? Message { get; set; }
+
+        public ConsoleColor Color { get; set; }
+
+        public override void Reset()
+        {
+            this.Message = default;
+            this.Color = default;
+        }
     }
 
     private sealed class Worker : ReusableJobWorker<Job>
@@ -38,7 +46,7 @@ public partial class SimpleConsole
             this.simpleConsole = simpleConsole;
         }
 
-        public override void ProcessJob(Job job)
+        protected override void ProcessJob(Job job)
         {
             try
             {
@@ -57,17 +65,26 @@ public partial class SimpleConsole
                 {
                     this.PrepareWindow();
                 }
+                else if (job.Kind == JobKind.Write)
+                {
+                    this.simpleConsole.Write(job.Message, job.Color);
+                }
+                else if (job.Kind == JobKind.WriteLine)
+                {
+                    this.simpleConsole.WriteLine(job.Message, job.Color);
+                }
             }
             catch
             {
             }
         }
 
-        public override void OnAfterProcessJob()
+        protected override void OnAfterProcessJob()
         {
+            this.simpleConsole.WriteLine("After");
         }
 
-        public override void OnTerminated()
+        protected override void OnTerminated()
         {
         }
 
@@ -129,7 +146,7 @@ public partial class SimpleConsole
             worker.Add(job);
             job.Wait();
         }
-        worker.Return(job);
 
+        worker.Return(job);
     }
 }

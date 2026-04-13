@@ -103,8 +103,6 @@ public partial class SimpleConsole : IConsoleService
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
-    private DateTime adjustWindowTime;
-    private DateTime adjustCursorTime;
 
     #endregion
 
@@ -208,21 +206,15 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
-        /*try
-        {// Adjust the cursor top because Console.ReadLine() may change it.
-            this.CursorTop = AltConsole.CursorTop;
-        }
-        catch
-        {
-        }*/
+        // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
+        this.RunJob(JobKind.PrepareWindow);
+        // this.CheckCursor();
 
         InputResultKind inputResultKind;
         ReadLineInstance currentInstance;
         using (this.syncObject.EnterScope())
         {
-            // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
-            this.RunJob(JobKind.PrepareWindow);
-            // this.CheckCursor();
+
 
             if (this.instanceList.Count > 0)
             {
@@ -276,6 +268,21 @@ public partial class SimpleConsole : IConsoleService
                     }
                 }
 
+                (var prevWindowWidth, var prevWindowHeight) = (this._windowWidth, this._windowHeight);
+                this.RunJob(JobKind.PrepareWindow);
+                var windowResized = prevWindowWidth != this._windowWidth || prevWindowHeight != this._windowHeight;
+                (int Left, int Top) newCursor = default;
+                if (windowResized)
+                {// Window size changed
+                    try
+                    {
+                        newCursor = SimpleConsole.GetCursorPosition();
+                    }
+                    catch
+                    {
+                    }
+                }
+
                 using (this.syncObject.EnterScope())
                 {
                     var idx = this.instanceList.IndexOf(currentInstance);
@@ -290,7 +297,11 @@ public partial class SimpleConsole : IConsoleService
                     }
 
                     // Active instance: Prepare window and read key input.
-                    this.AdjustWindow(currentInstance, false);
+                    this.simpleArrange.Set(currentInstance);
+                    if (windowResized)
+                    {
+                        this.simpleArrange.Arrange(newCursor, false);
+                    }
 
                     if (!this.queue.IsEmpty &&
                         currentInstance.IsEmptyInput() &&
@@ -693,6 +704,15 @@ CancelOrTerminate:
     public void WriteLine(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, true, color);
 
+    public void WriteLineAndForget(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
+    {
+        var job = this.worker.Rent();
+        job.Kind = JobKind.WriteLine;
+        job.Message = message;
+        job.Color = color;
+        this.worker.Add(job);
+    }
+
     #endregion
 
     ConsoleKeyInfo IConsoleService.ReadKey(bool intercept)
@@ -1093,62 +1113,6 @@ Exit:
         }
 
         return false;
-    }
-
-    private void AdjustWindow(ReadLineInstance activeInstance, bool redraw)
-    {
-        var current = DateTime.UtcNow;
-        if ((current - this.adjustWindowTime) < TimeSpan.FromSeconds(0.1))
-        {
-            return;
-        }
-
-        this.adjustWindowTime = current;
-
-        this.simpleArrange.Set(activeInstance);
-        (var prevWindowWidth, var prevWindowHeight) = (this._windowWidth, this._windowHeight);
-        this.RunJob(JobKind.PrepareWindow);
-        if ((this._windowWidth == prevWindowWidth) &&
-            (this._windowHeight == prevWindowHeight) &&
-            !redraw)
-        {// Window size not changed
-            /*if ((current - this.adjustCursorTime) < TimeSpan.FromSeconds(0.3))
-            {
-                return;
-            }
-
-            this.adjustCursorTime = current;
-
-            var cursor = SimpleConsole.GetCursorPosition();
-            if (cursor.Top != this.CursorTop ||
-                cursor.Left != this.CursorLeft)
-            {// Cursor changed
-                if (activeInstance.LineList.Count > 0)
-                {
-                    activeInstance.LineList[0].Top = cursor.Top;
-                    activeInstance.ResetCursor(CursorOperation.None);
-                    activeInstance.Redraw();
-                    activeInstance.CurrentLocation.Restore(CursorOperation.None);
-                }
-
-                // this.simpleArrange.Arrange(cursor, true);
-            }*/
-
-            return;
-        }
-
-        this.adjustCursorTime = current;
-
-        // Window size changed
-        try
-        {
-            var newCursor = SimpleConsole.GetCursorPosition();
-            this.simpleArrange.Arrange(newCursor, redraw);
-            // (this.CursorLeft, this.CursorTop) = newCursor;
-        }
-        catch
-        {
-        }
     }
 
     internal void ClearRow(int top)
