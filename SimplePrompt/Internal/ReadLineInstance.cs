@@ -108,7 +108,7 @@ internal sealed class ReadLineInstance
 
     internal void Prepare()
     {
-        var top = this.simpleConsole.CursorTop;
+        var top = this.simpleConsole._cursorTop;
         var prompt = this.Options.Prompt.AsSpan();
         var lineIndex = 0;
         char[]? windowBuffer = null;
@@ -200,7 +200,7 @@ internal sealed class ReadLineInstance
         }
 
         var line = this.LineList[^1];
-        var scroll = line.Top + line.Height - this.simpleConsole.WindowHeight;
+        var scroll = line.Top + line.Height - this.simpleConsole._windowHeight;
         if (scroll > 0)
         {
             this.simpleConsole.Scroll(scroll, true);
@@ -488,8 +488,8 @@ internal sealed class ReadLineInstance
         }
 
         var top = this.LineList[0].Top;
-        if (this.simpleConsole.CursorTop != top ||
-            this.simpleConsole.CursorLeft != 0)
+        if (this.simpleConsole._cursorTop != top ||
+            this.simpleConsole._cursorLeft != 0)
         {
             this.simpleConsole.SetCursorPosition(0, top, cursorOperation);
         }
@@ -533,7 +533,7 @@ internal sealed class ReadLineInstance
         var span = windowBuffer.AsSpan();
 
         // var scroll = y + this.TotalHeight - this.simpleConsole.WindowHeight;
-        var y = this.simpleConsole.CursorTop;
+        var y = this.simpleConsole._cursorTop;
         var isFirst = true;
         for (var i = 0; i < this.LineList.Count; i++)
         {
@@ -596,7 +596,7 @@ internal sealed class ReadLineInstance
             y += line.Height;
         }
 
-        var scroll = y - this.simpleConsole.WindowHeight;
+        var scroll = y - this.simpleConsole._windowHeight;
         if (scroll > 0)
         {
             this.simpleConsole.Scroll(scroll, true);

@@ -302,7 +302,7 @@ internal sealed record class SimpleTextLocation
         this.ArrayPosition += lengthDiff;
         this.CursorPosition += widthDiff;
 
-        if (this.CursorPosition >= this.simpleConsole.WindowWidth)
+        if (this.CursorPosition >= this.simpleConsole._windowWidth)
         {
             var line = this.readLineInstance.LineList[this.LineIndex];
             do
@@ -318,7 +318,7 @@ internal sealed record class SimpleTextLocation
                 this.CursorPosition -= row.Width;
                 this.RowIndex++;
             }
-            while (this.CursorPosition > this.simpleConsole.WindowWidth);
+            while (this.CursorPosition > this.simpleConsole._windowWidth);
         }
     }
 
@@ -391,14 +391,14 @@ internal sealed record class SimpleTextLocation
 
         var top = row.Line.Top + this.RowIndex;
         top = top < 0 ? 0 : top;
-        top = top >= this.simpleConsole.WindowHeight ? this.simpleConsole.WindowHeight - 1 : top;
+        top = top >= this.simpleConsole._windowHeight ? this.simpleConsole._windowHeight - 1 : top;
 
         var left = this.CursorPosition;
         // left = left < 0 ? 0 : left;
-        left = left >= this.simpleConsole.WindowWidth ? this.simpleConsole.WindowWidth - 1 : left;
+        left = left >= this.simpleConsole._windowWidth ? this.simpleConsole._windowWidth - 1 : left;
 
-        if (this.simpleConsole.CursorTop != top ||
-            this.simpleConsole.CursorLeft != left)
+        if (this.simpleConsole._cursorTop != top ||
+            this.simpleConsole._cursorLeft != left)
         {
             this.simpleConsole.SetCursorPosition(left, top, cursorOperation);
         }
@@ -459,12 +459,12 @@ internal sealed record class SimpleTextLocation
         }
 
         top = top < 0 ? 0 : top;
-        top = top >= this.simpleConsole.WindowHeight ? this.simpleConsole.WindowHeight - 1 : top;
-        left = left >= this.simpleConsole.WindowWidth ? this.simpleConsole.WindowWidth - 1 : left;
+        top = top >= this.simpleConsole._windowHeight ? this.simpleConsole._windowHeight - 1 : top;
+        left = left >= this.simpleConsole._windowWidth ? this.simpleConsole._windowWidth - 1 : left;
         this.CursorPosition = left;
 
-        if (this.simpleConsole.CursorTop != top ||
-            this.simpleConsole.CursorLeft != left)
+        if (this.simpleConsole._cursorTop != top ||
+            this.simpleConsole._cursorLeft != left)
         {
             this.simpleConsole.SetCursorPosition(left, top, cursorOperation);
         }
@@ -485,8 +485,8 @@ internal sealed record class SimpleTextLocation
         var top = line.Top;
         var left = 0;
 
-        if (this.simpleConsole.CursorTop != top ||
-            this.simpleConsole.CursorLeft != left)
+        if (this.simpleConsole._cursorTop != top ||
+            this.simpleConsole._cursorLeft != left)
         {
             this.simpleConsole.SetCursorPosition(left, top, CursorOperation.None);
         }
@@ -507,8 +507,8 @@ internal sealed record class SimpleTextLocation
             left = line.Rows[line.Rows.Count - 1].Width;
         }
 
-        if (this.simpleConsole.CursorTop != top ||
-            this.simpleConsole.CursorLeft != left)
+        if (this.simpleConsole._cursorTop != top ||
+            this.simpleConsole._cursorLeft != left)
         {
             this.simpleConsole.SetCursorPosition(left, top, CursorOperation.None);
         }

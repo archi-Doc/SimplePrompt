@@ -91,13 +91,10 @@ public partial class SimpleConsole : IConsoleService
 
     internal RawConsole RawConsole { get; }
 
-    internal int WindowWidth { get; private set; }
-
-    internal int WindowHeight { get; private set; }
-
-    internal int CursorLeft { get; set; }
-
-    internal int CursorTop { get; set; }
+    internal int _windowWidth;
+    internal int _windowHeight;
+    internal int _cursorLeft;
+    internal int _cursorTop;
 
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly SimpleTextReader simpleTextReader;
@@ -147,8 +144,8 @@ public partial class SimpleConsole : IConsoleService
                         try
                         {
                             var cursor = Console.GetCursorPosition();
-                            if (cursor.Top != this.CursorTop ||
-                                cursor.Left != this.CursorLeft)
+                            if (cursor.Top != this._cursorTop ||
+                                cursor.Left != this._cursorLeft)
                             {// Cursor changed
                                 if (activeInstance.LineList.Count > 0)
                                 {
@@ -235,7 +232,7 @@ public partial class SimpleConsole : IConsoleService
                 this.instanceList[^1].CurrentLocation.CursorLast();
             }
 
-            if (this.CursorLeft > 0)
+            if (this._cursorLeft > 0)
             {
                 this.UnderlyingTextWriter.WriteLine();
                 this.NewLineCursor();
@@ -502,8 +499,8 @@ CancelOrTerminate:
                 {
                 }
 
-                this.CursorTop = 0;
-                this.CursorLeft = 0;
+                this._cursorTop = 0;
+                this._cursorLeft = 0;
             }
             else
             {
@@ -754,10 +751,10 @@ CancelOrTerminate:
 
     internal void AdvanceCursor(ReadOnlySpan<char> text, bool newLine)
     {
-        var left = this.CursorLeft;
-        var top = this.CursorTop;
-        var windowWidth = this.WindowWidth;
-        var windowHeight = this.WindowHeight;
+        var left = this._cursorLeft;
+        var top = this._cursorTop;
+        var windowWidth = this._windowWidth;
+        var windowHeight = this._windowHeight;
 
         for (var i = 0; i < text.Length; i++)
         {
@@ -810,7 +807,7 @@ CancelOrTerminate:
 Exit:
         if (newLine)
         {
-            if (top > this.CursorTop &&
+            if (top > this._cursorTop &&
                 left == 0)
             {// Already on a new line.
             }
@@ -821,8 +818,8 @@ Exit:
             }
         }
 
-        this.CursorLeft = left;
-        this.CursorTop = top;
+        this._cursorLeft = left;
+        this._cursorTop = top;
 
         // Scroll if needed.
         var scroll = top - windowHeight + 1;
@@ -834,11 +831,11 @@ Exit:
 
     internal void NewLineCursor()
     {
-        this.CursorLeft = 0;
-        this.CursorTop++;
+        this._cursorLeft = 0;
+        this._cursorTop++;
 
         // Scroll if needed.
-        var scroll = this.CursorTop - this.WindowHeight + 1;
+        var scroll = this._cursorTop - this._windowHeight + 1;
         if (scroll > 0)
         {
             this.Scroll(scroll, true);
@@ -849,7 +846,7 @@ Exit:
     {
         if (moveCursor)
         {
-            this.CursorTop -= scroll;
+            this._cursorTop -= scroll;
         }
 
         if (this.TryGetActiveInstance(out var activeInstance))
@@ -868,9 +865,9 @@ Exit:
 
     internal void SetCursorPosition(int cursorLeft, int cursorTop, CursorOperation cursorOperation)
     {// Move and show cursor.
-        if (cursorLeft > (this.WindowWidth - 1))
+        if (cursorLeft > (this._windowWidth - 1))
         {
-            cursorLeft = this.WindowWidth - 1;
+            cursorLeft = this._windowWidth - 1;
         }
 
         var windowBuffer = SimpleConsole.RentWindowBuffer();
@@ -917,8 +914,8 @@ Exit:
         this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
 
-        this.CursorLeft = cursorLeft;
-        this.CursorTop = cursorTop;
+        this._cursorLeft = cursorLeft;
+        this._cursorTop = cursorTop;
     }
 
     internal bool TryGetActiveInstance([MaybeNullWhen(false)] out ReadLineInstance instance)
@@ -938,7 +935,7 @@ Exit:
     {
         try
         {
-            (this.CursorLeft, this.CursorTop) = Console.GetCursorPosition();
+            (this._cursorLeft, this._cursorTop) = Console.GetCursorPosition();
         }
         catch
         {
@@ -1135,14 +1132,14 @@ Exit:
             windowHeight = MinimumWindowHeight;
         }
 
-        if (windowWidth == this.WindowWidth &&
-            windowHeight == this.WindowHeight)
+        if (windowWidth == this._windowWidth &&
+            windowHeight == this._windowHeight)
         {
             return false;
         }
 
-        this.WindowWidth = windowWidth;
-        this.WindowHeight = windowHeight;
+        this._windowWidth = windowWidth;
+        this._windowHeight = windowHeight;
         return true;
     }
 
@@ -1201,7 +1198,7 @@ Exit:
 
     internal void ClearRow(int top)
     {
-        if (top < 0 || top >= this.WindowHeight)
+        if (top < 0 || top >= this._windowHeight)
         {
             return;
         }
@@ -1211,7 +1208,7 @@ Exit:
         var buffer = windowBuffer.AsSpan();
         var written = 0;
 
-        var moveCursor = this.CursorTop != top || this.CursorLeft != 0;
+        var moveCursor = this._cursorTop != top || this._cursorLeft != 0;
         if (moveCursor)
         {
             // Save cursor

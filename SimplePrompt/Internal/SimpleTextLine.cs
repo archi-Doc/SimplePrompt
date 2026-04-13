@@ -52,9 +52,9 @@ internal sealed class SimpleTextLine
 
     public ReadLineInstance ReadLineInstance { get; private set; }
 
-    public int WindowWidth => this.SimpleConsole.WindowWidth;
+    public int WindowWidth => this.SimpleConsole._windowWidth;
 
-    public int WindowHeight => this.SimpleConsole.WindowHeight;
+    public int WindowHeight => this.SimpleConsole._windowHeight;
 
     public int Index { get; internal set; }
 
@@ -69,12 +69,12 @@ internal sealed class SimpleTextLine
     /// <summary>
     /// Gets the cursor's horizontal position relative to the line's left edge.
     /// </summary>
-    public int CursorLeft => this.SimpleConsole.CursorLeft;
+    public int CursorLeft => this.SimpleConsole._cursorLeft;
 
     /// <summary>
     /// Gets the cursor's vertical position relative to the line's top edge.
     /// </summary>
-    public int CursorTop => this.SimpleConsole.CursorTop - this.Top;
+    public int CursorTop => this.SimpleConsole._cursorTop - this.Top;
 
     public int Height => this.rows.Count;
 
@@ -278,7 +278,7 @@ internal sealed class SimpleTextLine
         written += span.Length;
         buffer = buffer.Slice(span.Length);
 
-        if (startCursor.Left != this.SimpleConsole.CursorLeft || startCursor.Top != this.SimpleConsole.CursorTop)
+        if (startCursor.Left != this.SimpleConsole._cursorLeft || startCursor.Top != this.SimpleConsole._cursorTop)
         {// Move cursor
             span = ConsoleHelper.SetCursorSpan;
             span.CopyTo(buffer);
@@ -414,18 +414,18 @@ internal sealed class SimpleTextLine
 
         if (restoreCursor)
         {
-            this.SimpleConsole.CursorLeft = startCursor.Left;
-            this.SimpleConsole.CursorTop = startCursor.Top - scroll;
+            this.SimpleConsole._cursorLeft = startCursor.Left;
+            this.SimpleConsole._cursorTop = startCursor.Top - scroll;
         }
         else
         {
-            this.SimpleConsole.CursorLeft = endCursor.Left;
-            this.SimpleConsole.CursorTop = endCursor.Top - scroll;
+            this.SimpleConsole._cursorLeft = endCursor.Left;
+            this.SimpleConsole._cursorTop = endCursor.Top - scroll;
         }
 
-        if (this.SimpleConsole.CursorLeft == 0)
+        if (this.SimpleConsole._cursorLeft == 0)
         {
-            this.SimpleConsole.SetCursorPosition(this.SimpleConsole.CursorLeft, this.SimpleConsole.CursorTop, CursorOperation.None);
+            this.SimpleConsole.SetCursorPosition(this.SimpleConsole._cursorLeft, this.SimpleConsole._cursorTop, CursorOperation.None);
         }
     }
 
@@ -477,7 +477,7 @@ internal sealed class SimpleTextLine
         }
 
         var start = 0;
-        var windowWidth = this.SimpleConsole.WindowWidth;
+        var windowWidth = this.SimpleConsole._windowWidth;
         while (start < this.PromptLength)
         {// Prepare rows
             var width = 0;

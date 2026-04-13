@@ -42,26 +42,26 @@ public partial class SimpleConsole
             {
                 if (job.Kind == JobKind.Initialize)
                 {
-                    (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
-                    this.simpleConsole.WindowWidth = Console.WindowWidth;
-                    this.simpleConsole.WindowHeight = Console.WindowHeight;
+                    (this.simpleConsole._cursorLeft, this.simpleConsole._cursorTop) = Console.GetCursorPosition();
+                    this.simpleConsole._windowWidth = Console.WindowWidth;
+                    this.simpleConsole._windowHeight = Console.WindowHeight;
                 }
                 else if (job.Kind == JobKind.CursorTop)
                 {
-                    this.simpleConsole.CursorTop = Console.CursorTop;
+                    this.simpleConsole._cursorTop = Console.CursorTop;
                 }
                 else if (job.Kind == JobKind.CursorLeft)
                 {
-                    this.simpleConsole.CursorLeft = Console.CursorLeft;
+                    this.simpleConsole._cursorLeft = Console.CursorLeft;
                 }
                 else if (job.Kind == JobKind.CursorPosition)
                 {
-                    (this.simpleConsole.CursorLeft, this.simpleConsole.CursorTop) = Console.GetCursorPosition();
+                    (this.simpleConsole._cursorLeft, this.simpleConsole._cursorTop) = Console.GetCursorPosition();
                 }
                 else if (job.Kind == JobKind.WindowSize)
                 {
-                    this.simpleConsole.WindowWidth = Console.WindowWidth;
-                    this.simpleConsole.WindowHeight = Console.WindowHeight;
+                    this.simpleConsole._windowWidth = Console.WindowWidth;
+                    this.simpleConsole._windowHeight = Console.WindowHeight;
                 }
             }
             catch
@@ -83,25 +83,25 @@ public partial class SimpleConsole
     public int GetCursorTop()
     {
         RunJob(JobKind.CursorTop);
-        return this.CursorTop;
+        return this._cursorTop;
     }
 
     public int GetCursorLeft()
     {
         RunJob(JobKind.CursorLeft);
-        return this.CursorLeft;
+        return this._cursorLeft;
     }
 
     public (int Left, int Top) GetCursorPosition()
     {
         RunJob(JobKind.CursorPosition);
-        return (this.CursorLeft, this.CursorTop);
+        return (this._cursorLeft, this._cursorTop);
     }
 
     public (int Width, int Height) GetWindowSize()
     {
         this.RunJob(JobKind.WindowSize);
-        return (this.WindowWidth, this.WindowHeight);
+        return (this._windowWidth, this._windowHeight);
     }
 
     private void RunJob(JobKind jobKind)
