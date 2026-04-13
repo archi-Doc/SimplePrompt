@@ -17,10 +17,10 @@ internal sealed class ReadLineInstance
 
     private static readonly ObjectPool<ReadLineInstance> Pool = new(() => new(), PoolSize);
 
-    public static ReadLineInstance Rent(SimpleConsole simpleConsole, ReadLineOptions options)
+    public static ReadLineInstance Rent(SimpleConsole simpleConsole, ReadLineOptions options, CancellationToken cancellationToken)
     {
         var obj = Pool.Rent();
-        obj.Initialize(simpleConsole, options);
+        obj.Initialize(simpleConsole, options, cancellationToken);
         return obj;
     }
 
@@ -37,6 +37,10 @@ internal sealed class ReadLineInstance
     public ReadLineOptions Options => this.options;
 
     public RawConsole RawConsole => this.simpleConsole.RawConsole;
+
+    public TaskCompletionSource<InputResult> TaskCompletionSource { get; private set; } = new();
+
+    public CancellationToken CancellationToken { get; private set; }
 
     public char[] CharBuffer { get; private set; } = new char[CharBufferSize];
 
@@ -71,11 +75,14 @@ internal sealed class ReadLineInstance
     public ReadLineInstance()
     {
         this.simpleConsole = default!;
+        this.TaskCompletionSource = default!;
     }
 
-    public void Initialize(SimpleConsole simpleConsole, ReadLineOptions options)
+    public void Initialize(SimpleConsole simpleConsole, ReadLineOptions options, CancellationToken cancellationToken)
     {
         this.simpleConsole = simpleConsole;
+        this.TaskCompletionSource = new();
+        this.CancellationToken = cancellationToken;
         this.CurrentLocation.Initialize(simpleConsole, this);
         GhostCopy.Copy(ref options, ref this.options);
     }

@@ -176,13 +176,12 @@ public partial class SimpleConsole : IConsoleService
     /// <returns>
     /// A task that represents the asynchronous operation. The task result contains an <see cref="InputResult"/>.
     /// </returns>
-    public async Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
+    public Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
         // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
         this.RunJob(JobKind.PrepareWindow);
         // this.CheckCursor();
 
-        ReadLineInstance currentInstance;
         using (this.syncObject.EnterScope())
         {
             if (this.instanceList.Count > 0)
@@ -197,261 +196,12 @@ public partial class SimpleConsole : IConsoleService
             }
 
             // Create and prepare a ReadLineInstance.
-            currentInstance = ReadLineInstance.Rent(this, options ?? this.DefaultOptions);
+            var currentInstance = ReadLineInstance.Rent(this, options ?? this.DefaultOptions, cancellationToken);
             this.instanceList.Add(currentInstance);
             currentInstance.Prepare();
             // this.CheckCursor();
-        }
 
-        InputResultKind inputResultKind;
-        try
-        {
-            var delayFlag = false;
-            var position = 0;
-            ConsoleKeyInfo keyInfo = default;
-            ConsoleKeyInfo pendingKeyInfo = default;
-            while (true)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {// Canceled
-                    inputResultKind = InputResultKind.Canceled;
-                    goto CancelOrTerminate;
-
-                }
-                else if (this.Core.IsTerminated)
-                {// Terminated
-                    inputResultKind = InputResultKind.Terminated;
-                    goto CancelOrTerminate;
-                }
-
-                if (delayFlag)
-                {
-                    delayFlag = false;
-                    try
-                    {
-                        await Task.Delay(DelayInMilliseconds, cancellationToken).ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                        inputResultKind = InputResultKind.Canceled;
-                        goto CancelOrTerminate;
-                    }
-                }
-
-                (var prevWindowWidth, var prevWindowHeight) = (this._windowWidth, this._windowHeight);
-                this.RunJob(JobKind.PrepareWindow);
-                var windowResized = prevWindowWidth != this._windowWidth || prevWindowHeight != this._windowHeight;
-                (int Left, int Top) newCursor = default;
-                if (windowResized)
-                {// Window size changed
-                    try
-                    {
-                        newCursor = SimpleConsole.GetCursorPosition();
-                    }
-                    catch
-                    {
-                    }
-                }
-
-                using (this.syncObject.EnterScope())
-                {
-                    var idx = this.instanceList.IndexOf(currentInstance);
-                    if (idx < 0)
-                    {// Not found
-                        return new(InputResultKind.Terminated);
-                    }
-                    else if (idx != (this.instanceList.Count - 1))
-                    {// Not active instance
-                        delayFlag = true;
-                        continue;
-                    }
-
-                    // Active instance: Prepare window and read key input.
-                    this.simpleArrange.Set(currentInstance);
-                    if (windowResized)
-                    {
-                        this.simpleArrange.Arrange(newCursor, false);
-                    }
-
-                    if (!this.queue.IsEmpty &&
-                        currentInstance.IsEmptyInput() &&
-                        this.queue.TryDequeue(out var queuedMessage))
-                    {
-                        var queuedSpan = queuedMessage.AsSpan();
-                        do
-                        {
-                            var length = Math.Min(queuedSpan.Length, currentInstance.CharBuffer.Length);
-                            var charSpan = currentInstance.CharBuffer.AsSpan(0, length);
-                            queuedSpan.Slice(0, length).CopyTo(charSpan);
-                            queuedSpan = queuedSpan.Slice(length);
-
-                            if (queuedSpan.Length == 0)
-                            {
-                                var result = currentInstance.ProcessInput(SimplePromptHelper.EnterKeyInfo, charSpan);
-                                if (result is not null)
-                                {
-                                    result = ProcessTextInputHook(result);
-                                    if (result is null)
-                                    {// Rejected
-                                        break;
-                                    }
-                                }
-
-                                if (result is not null)
-                                {
-                                    return new(result);
-                                }
-                            }
-                            else
-                            {
-                                currentInstance.ProcessInput(keyInfo, charSpan);
-                            }
-                        }
-                        while (queuedSpan.Length > 0);
-                    }
-
-                    if (!this.RawConsole.TryRead(out keyInfo))
-                    {
-                        delayFlag = true;
-                        continue;
-                    }
-                }
-
-ProcessKeyInfo:
-                if (keyInfo.KeyChar == '\n' ||
-                    keyInfo.Key == ConsoleKey.Enter)
-                {
-                    keyInfo = SimplePromptHelper.EnterKeyInfo;
-                }
-                else if (keyInfo.KeyChar == '\t' ||
-                    keyInfo.Key == ConsoleKey.Tab)
-                {// Tab; in the future, input completion.
-                }
-                else if (keyInfo.KeyChar == '\r')
-                {// CrLf -> Lf
-                    continue;
-                }
-                else if (currentInstance.Options.CancelOnEscape &&
-                    keyInfo.Key == ConsoleKey.Escape)
-                {
-                    inputResultKind = InputResultKind.Canceled;
-                    goto CancelOrTerminate;
-                }
-
-                if (currentInstance.Options.KeyInputHook is not null)
-                {
-                    var hookResult = currentInstance.Options.KeyInputHook(keyInfo);
-                    if (hookResult == KeyInputHookResult.Handled)
-                    {
-                        continue;
-                    }
-                    else if (hookResult == KeyInputHookResult.Cancel)
-                    {
-                        inputResultKind = InputResultKind.Canceled;
-                        goto CancelOrTerminate;
-                    }
-                }
-
-                bool processInput = true;
-                if (IsControl(keyInfo))
-                {// Control
-                }
-                else
-                {// Not control
-                    currentInstance.CharBuffer[position++] = keyInfo.KeyChar;
-                    using (this.syncObject.EnterScope())
-                    {
-                        if (this.RawConsole.TryRead(out keyInfo))
-                        {
-                            processInput = false;
-                            if (position >= (ReadLineInstance.CharBufferSize - 2))
-                            {
-                                if (position >= ReadLineInstance.CharBufferSize ||
-                                    char.IsLowSurrogate(keyInfo.KeyChar))
-                                {
-                                    processInput = true;
-                                }
-                            }
-
-                            if (processInput)
-                            {
-                                pendingKeyInfo = keyInfo;
-                            }
-                            else
-                            {
-                                goto ProcessKeyInfo;
-                            }
-                        }
-                    }
-                }
-
-                if (processInput)
-                {// Process input
-                    string? result;
-                    using (this.syncObject.EnterScope())
-                    {
-                        result = currentInstance.ProcessInput(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
-                        if (result is not null)
-                        {
-                            result = ProcessTextInputHook(result);
-                            if (result is null)
-                            {// Rejected
-                                continue;
-                            }
-                        }
-
-                        position = 0;
-                        if (result is not null)
-                        {
-                            return new(result);
-                        }
-                    }
-
-                    if (pendingKeyInfo.Key != ConsoleKey.None)
-                    {// Process pending key input.
-                        keyInfo = pendingKeyInfo;
-                        goto ProcessKeyInfo;
-                    }
-                }
-            }
-        }
-        finally
-        {
-            using (this.syncObject.EnterScope())
-            {
-                currentInstance.CurrentLocation.MoveToEnd();
-                this.UnderlyingTextWriter.WriteLine();
-                this.NewLineCursor();
-
-                this.RemoveInstance(currentInstance);
-            }
-
-            ReadLineInstance.Return(currentInstance);
-        }
-
-CancelOrTerminate:
-        return new(inputResultKind);
-
-        string? ProcessTextInputHook(string result)
-        {
-            if (currentInstance.Options.TextInputHook is { } textInputHook)
-            {
-                var newResult = currentInstance.Options.TextInputHook(result);
-                if (newResult is null)
-                {// Rejected by the hook delegate.
-                    this.UnderlyingTextWriter.WriteLine();
-                    this.NewLineCursor();
-                    currentInstance.Reset();
-                    currentInstance.Redraw();
-                    currentInstance.CurrentLocation.Reset();
-                }
-
-                return newResult;
-            }
-            else
-            {
-                return result;
-            }
+            return currentInstance.TaskCompletionSource.Task;
         }
     }
 
@@ -735,6 +485,256 @@ CancelOrTerminate:
         {
         }
     }*/
+
+    internal void ProcessReadLine()
+    {
+        ReadLineInstance? currentInstance;
+        InputResultKind inputResultKind;
+        using (this.syncObject.EnterScope())
+        {
+            if (!this.TryGetActiveInstance(out currentInstance))
+            {
+                return;
+            }
+        }
+
+        try
+        {
+            var position = 0;
+            ConsoleKeyInfo keyInfo = default;
+            ConsoleKeyInfo pendingKeyInfo = default;
+            while (true)
+            {
+                if (currentInstance.CancellationToken.IsCancellationRequested)
+                {// Canceled
+                    inputResultKind = InputResultKind.Canceled;
+                    goto CancelOrTerminate;
+
+                }
+                else if (this.Core.IsTerminated)
+                {// Terminated
+                    inputResultKind = InputResultKind.Terminated;
+                    goto CancelOrTerminate;
+                }
+
+                ! Interval
+                (var prevWindowWidth, var prevWindowHeight) = (this._windowWidth, this._windowHeight);
+                this.worker.PrepareWindow();
+                var windowResized = prevWindowWidth != this._windowWidth || prevWindowHeight != this._windowHeight;
+                (int Left, int Top) newCursor = default;
+                if (windowResized)
+                {// Window size changed
+                    try
+                    {
+                        newCursor = SimpleConsole.GetCursorPosition();
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                using (this.syncObject.EnterScope())
+                {
+                    var idx = this.instanceList.IndexOf(currentInstance);
+                    if (idx < 0)
+                    {// Not found
+                        currentInstance.TaskCompletionSource.SetResult(new(InputResultKind.Terminated));
+                        return;
+                    }
+                    else if (idx != (this.instanceList.Count - 1))
+                    {// Not active instance
+                        return;
+                    }
+
+                    // Active instance: Prepare window and read key input.
+                    this.simpleArrange.Set(currentInstance);
+                    if (windowResized)
+                    {
+                        this.simpleArrange.Arrange(newCursor, false);
+                    }
+
+                    if (!this.queue.IsEmpty &&
+                        currentInstance.IsEmptyInput() &&
+                        this.queue.TryDequeue(out var queuedMessage))
+                    {
+                        var queuedSpan = queuedMessage.AsSpan();
+                        do
+                        {
+                            var length = Math.Min(queuedSpan.Length, currentInstance.CharBuffer.Length);
+                            var charSpan = currentInstance.CharBuffer.AsSpan(0, length);
+                            queuedSpan.Slice(0, length).CopyTo(charSpan);
+                            queuedSpan = queuedSpan.Slice(length);
+
+                            if (queuedSpan.Length == 0)
+                            {
+                                var result = currentInstance.ProcessInput(SimplePromptHelper.EnterKeyInfo, charSpan);
+                                if (result is not null)
+                                {
+                                    result = ProcessTextInputHook(result);
+                                    if (result is null)
+                                    {// Rejected
+                                        break;
+                                    }
+                                }
+
+                                if (result is not null)
+                                {
+                                    currentInstance.TaskCompletionSource.SetResult(new(result));
+                                    return;
+                                }
+                            }
+                            else
+                            {
+                                currentInstance.ProcessInput(keyInfo, charSpan);
+                            }
+                        }
+                        while (queuedSpan.Length > 0);
+                    }
+
+                    if (!this.RawConsole.TryRead(out keyInfo))
+                    {
+                        return;
+                    }
+                }
+
+ProcessKeyInfo:
+                if (keyInfo.KeyChar == '\n' ||
+                    keyInfo.Key == ConsoleKey.Enter)
+                {
+                    keyInfo = SimplePromptHelper.EnterKeyInfo;
+                }
+                else if (keyInfo.KeyChar == '\t' ||
+                    keyInfo.Key == ConsoleKey.Tab)
+                {// Tab; in the future, input completion.
+                }
+                else if (keyInfo.KeyChar == '\r')
+                {// CrLf -> Lf
+                    continue;
+                }
+                else if (currentInstance.Options.CancelOnEscape &&
+                    keyInfo.Key == ConsoleKey.Escape)
+                {
+                    inputResultKind = InputResultKind.Canceled;
+                    goto CancelOrTerminate;
+                }
+
+                if (currentInstance.Options.KeyInputHook is not null)
+                {
+                    var hookResult = currentInstance.Options.KeyInputHook(keyInfo);
+                    if (hookResult == KeyInputHookResult.Handled)
+                    {
+                        continue;
+                    }
+                    else if (hookResult == KeyInputHookResult.Cancel)
+                    {
+                        inputResultKind = InputResultKind.Canceled;
+                        goto CancelOrTerminate;
+                    }
+                }
+
+                bool processInput = true;
+                if (IsControl(keyInfo))
+                {// Control
+                }
+                else
+                {// Not control
+                    currentInstance.CharBuffer[position++] = keyInfo.KeyChar;
+                    using (this.syncObject.EnterScope())
+                    {
+                        if (this.RawConsole.TryRead(out keyInfo))
+                        {
+                            processInput = false;
+                            if (position >= (ReadLineInstance.CharBufferSize - 2))
+                            {
+                                if (position >= ReadLineInstance.CharBufferSize ||
+                                    char.IsLowSurrogate(keyInfo.KeyChar))
+                                {
+                                    processInput = true;
+                                }
+                            }
+
+                            if (processInput)
+                            {
+                                pendingKeyInfo = keyInfo;
+                            }
+                            else
+                            {
+                                goto ProcessKeyInfo;
+                            }
+                        }
+                    }
+                }
+
+                if (processInput)
+                {// Process input
+                    string? result;
+                    using (this.syncObject.EnterScope())
+                    {
+                        result = currentInstance.ProcessInput(keyInfo, currentInstance.CharBuffer.AsSpan(0, position));
+                        if (result is not null)
+                        {
+                            result = ProcessTextInputHook(result);
+                            if (result is null)
+                            {// Rejected
+                                continue;
+                            }
+                        }
+
+                        position = 0;
+                        if (result is not null)
+                        {
+                            currentInstance.TaskCompletionSource.SetResult(new(result));
+                            return;
+                        }
+                    }
+
+                    if (pendingKeyInfo.Key != ConsoleKey.None)
+                    {// Process pending key input.
+                        keyInfo = pendingKeyInfo;
+                        goto ProcessKeyInfo;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            using (this.syncObject.EnterScope())
+            {
+                currentInstance.CurrentLocation.MoveToEnd();
+                this.UnderlyingTextWriter.WriteLine();
+                this.NewLineCursor();
+
+                this.RemoveInstance(currentInstance);
+            }
+
+            ReadLineInstance.Return(currentInstance);
+        }
+
+CancelOrTerminate:
+        currentInstance.TaskCompletionSource.SetResult(new(inputResultKind));
+
+        string? ProcessTextInputHook(string result)
+        {
+            if (currentInstance.Options.TextInputHook is { } textInputHook)
+            {
+                var newResult = currentInstance.Options.TextInputHook(result);
+                if (newResult is null)
+                {// Rejected by the hook delegate.
+                    this.UnderlyingTextWriter.WriteLine();
+                    this.NewLineCursor();
+                    currentInstance.Reset();
+                    currentInstance.Redraw();
+                    currentInstance.CurrentLocation.Reset();
+                }
+
+                return newResult;
+            }
+            else
+            {
+                return result;
+            }
+        }
+    }
 
     internal void AdvanceCursor(ReadOnlySpan<char> text, bool newLine)
     {

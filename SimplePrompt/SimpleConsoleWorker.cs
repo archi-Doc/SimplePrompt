@@ -1,6 +1,8 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using Arc.Threading;
+using Arc.Unit;
+using SimplePrompt.Internal;
 
 #pragma warning disable CA1001 // Types that own disposable fields should be disposable
 
@@ -104,14 +106,14 @@ public partial class SimpleConsole
 
         protected override void OnAfterProcessJob()
         {
-            // this.simpleConsole.WriteLine("After");
+            this.simpleConsole.ProcessReadLine();
         }
 
         protected override void OnTerminated()
         {
         }
 
-        private void PrepareWindow()
+        internal void PrepareWindow()
         {
             var windowWidth = InitialWindowWidth;
             var windowHeight = InitialWindowHeight;
