@@ -182,7 +182,6 @@ public partial class SimpleConsole : IConsoleService
         this.RunJob(JobKind.PrepareWindow);
         // this.CheckCursor();
 
-        InputResultKind inputResultKind;
         ReadLineInstance currentInstance;
         using (this.syncObject.EnterScope())
         {
@@ -204,6 +203,7 @@ public partial class SimpleConsole : IConsoleService
             // this.CheckCursor();
         }
 
+        InputResultKind inputResultKind;
         try
         {
             var delayFlag = false;
