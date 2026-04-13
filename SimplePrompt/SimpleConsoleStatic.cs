@@ -11,4 +11,31 @@ public partial class SimpleConsole
     public static int WindowWidth => SimpleConsole.GetOrCreate()._windowWidth;
 
     public static int WindowHeight => SimpleConsole.GetOrCreate()._windowHeight;
+
+    public static (int Left, int Top) GetCursorPosition()
+    {
+        int left, top;
+
+        var simpleConsole = SimpleConsole.GetOrCreate();
+        var worker = simpleConsole.worker;
+        var job = worker.Rent();
+        job.Kind = JobKind.GetCursorPosition;
+        if (worker.NumberOfPendingJobs < MaxPendingJobs)
+        {
+            worker.Add(job);
+            job.Wait();
+
+            left = job.CursorLeft;
+            top = job.CursorTop;
+        }
+        else
+        {
+            left = simpleConsole._cursorLeft;
+            top = simpleConsole._cursorTop;
+        }
+
+        worker.Return(job);
+
+        return (left, top);
+    }
 }

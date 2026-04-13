@@ -140,7 +140,7 @@ public partial class SimpleConsole : IConsoleService
                         var activeInstance = this.instanceList[^1];
                         try
                         {
-                            var cursor = Console.GetCursorPosition();
+                            var cursor = SimpleConsole.GetCursorPosition();
                             if (cursor.Top != this._cursorTop ||
                                 cursor.Left != this._cursorLeft)
                             {// Cursor changed
@@ -168,7 +168,7 @@ public partial class SimpleConsole : IConsoleService
 
                 using (this.syncObject.EnterScope())
                 {// Adjusts the cursor position when attached to a console.
-                    var newCursor = AltConsole.GetCursorPosition();
+                    var newCursor = SimpleConsole.GetCursorPosition();
                     this.simpleArrange.Arrange(newCursor);
                     (this.CursorLeft, this.CursorTop) = newCursor;
 
@@ -222,7 +222,7 @@ public partial class SimpleConsole : IConsoleService
         using (this.syncObject.EnterScope())
         {
             // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
-            this.RunJob(JobKind.WindowSize);
+            this.RunJob(JobKind.PrepareWindow);
             // this.CheckCursor();
 
             if (this.instanceList.Count > 0)
@@ -733,7 +733,7 @@ CancelOrTerminate:
                 return;
             }
 
-            var cursor = AltConsole.GetCursorPosition();
+            var cursor = SimpleConsole.GetCursorPosition();
             if (cursor.Left != this.CursorLeft ||
                 cursor.Top != this.CursorTop)
             {// Inconsistent cursor position
@@ -1108,7 +1108,7 @@ Exit:
 
         this.simpleArrange.Set(activeInstance);
         (var prevWindowWidth, var prevWindowHeight) = (this._windowWidth, this._windowHeight);
-        this.RunJob(JobKind.WindowSize);
+        this.RunJob(JobKind.PrepareWindow);
         if ((this._windowWidth == prevWindowWidth) &&
             (this._windowHeight == prevWindowHeight) &&
             !redraw)
@@ -1120,7 +1120,7 @@ Exit:
 
             this.adjustCursorTime = current;
 
-            var cursor = AltConsole.GetCursorPosition();
+            var cursor = SimpleConsole.GetCursorPosition();
             if (cursor.Top != this.CursorTop ||
                 cursor.Left != this.CursorLeft)
             {// Cursor changed
@@ -1143,7 +1143,7 @@ Exit:
         // Window size changed
         try
         {
-            var newCursor = Console.GetCursorPosition();
+            var newCursor = SimpleConsole.GetCursorPosition();
             this.simpleArrange.Arrange(newCursor, redraw);
             // (this.CursorLeft, this.CursorTop) = newCursor;
         }

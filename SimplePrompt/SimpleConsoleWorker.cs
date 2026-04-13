@@ -15,15 +15,17 @@ public partial class SimpleConsole
     private enum JobKind
     {
         Initialize,
-        CursorTop,
-        CursorLeft,
-        CursorPosition,
-        WindowSize,
+        GetCursorPosition,
+        PrepareWindow,
     }
 
     private sealed record class Job : ReusableThreadJob
     {
         public JobKind Kind { get; set; }
+
+        public int CursorLeft { get; set; }
+
+        public int CursorTop { get; set; }
     }
 
     private sealed class Worker : ReusableJobWorker<Job>
@@ -43,23 +45,17 @@ public partial class SimpleConsole
                 if (job.Kind == JobKind.Initialize)
                 {
                     (this.simpleConsole._cursorLeft, this.simpleConsole._cursorTop) = Console.GetCursorPosition();
-                    this.WindowSize();
+                    this.PrepareWindow();
                 }
-                else if (job.Kind == JobKind.CursorTop)
+                else if (job.Kind == JobKind.GetCursorPosition)
                 {
-                    this.simpleConsole._cursorTop = Console.CursorTop;
+                    var position = Console.GetCursorPosition();
+                    job.CursorLeft = position.Left;
+                    job.CursorTop = position.Top;
                 }
-                else if (job.Kind == JobKind.CursorLeft)
+                else if (job.Kind == JobKind.PrepareWindow)
                 {
-                    this.simpleConsole._cursorLeft = Console.CursorLeft;
-                }
-                else if (job.Kind == JobKind.CursorPosition)
-                {
-                    (this.simpleConsole._cursorLeft, this.simpleConsole._cursorTop) = Console.GetCursorPosition();
-                }
-                else if (job.Kind == JobKind.WindowSize)
-                {
-                    this.WindowSize();
+                    this.PrepareWindow();
                 }
             }
             catch
@@ -75,7 +71,7 @@ public partial class SimpleConsole
         {
         }
 
-        private void WindowSize()
+        private void PrepareWindow()
         {
             var windowWidth = InitialWindowWidth;
             var windowHeight = InitialWindowHeight;
@@ -116,12 +112,6 @@ public partial class SimpleConsole
     {
         RunJob(JobKind.CursorLeft);
         return this._cursorLeft;
-    }
-
-    public (int Left, int Top) GetCursorPosition()
-    {
-        RunJob(JobKind.CursorPosition);
-        return (this._cursorLeft, this._cursorTop);
     }
 
     public (int Width, int Height) GetWindowSize()
