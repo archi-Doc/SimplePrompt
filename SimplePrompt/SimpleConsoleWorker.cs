@@ -46,6 +46,20 @@ public partial class SimpleConsole
             this.simpleConsole = simpleConsole;
         }
 
+        public bool TryAddAndWait(Job job)
+        {
+            if (this.NumberOfPendingJobs < MaxPendingJobs)
+            {
+                this.Add(job);
+                job.Wait();
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
         protected override void ProcessJob(Job job)
         {
             try
@@ -141,12 +155,7 @@ public partial class SimpleConsole
     {
         var job = worker.Rent();
         job.Kind = jobKind;
-        if (worker.NumberOfPendingJobs < MaxPendingJobs)
-        {
-            worker.Add(job);
-            job.Wait();
-        }
-
+        worker.TryAddAndWait(job);
         worker.Return(job);
     }
 }

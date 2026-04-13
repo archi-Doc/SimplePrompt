@@ -20,11 +20,8 @@ public partial class SimpleConsole
         var worker = simpleConsole.worker;
         var job = worker.Rent();
         job.Kind = JobKind.GetCursorPosition;
-        if (worker.NumberOfPendingJobs < MaxPendingJobs)
+        if (worker.TryAddAndWait(job))
         {
-            worker.Add(job);
-            job.Wait();
-
             left = job.CursorLeft;
             top = job.CursorTop;
         }

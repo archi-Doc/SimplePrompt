@@ -214,8 +214,6 @@ public partial class SimpleConsole : IConsoleService
         ReadLineInstance currentInstance;
         using (this.syncObject.EnterScope())
         {
-
-
             if (this.instanceList.Count > 0)
             {
                 this.instanceList[^1].CurrentLocation.CursorLast();
@@ -704,14 +702,14 @@ CancelOrTerminate:
     public void WriteLine(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, true, color);
 
-    public void WriteLineAndForget(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
+    /*public void WriteLineAndForget(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         var job = this.worker.Rent();
         job.Kind = JobKind.WriteLine;
         job.Message = message;
         job.Color = color;
         this.worker.Add(job);
-    }
+    }*/
 
     #endregion
 

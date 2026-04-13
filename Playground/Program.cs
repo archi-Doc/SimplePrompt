@@ -92,17 +92,6 @@ internal sealed class Program
         logger.GetWriter()?.Write("Start");
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        /*Console.Write("Input: ");
-        _ = Console.ReadLine();
-        _ = Task.Run(async () =>
-        {
-            WriteLineRaw("1");
-            await Task.Delay(10);
-            WriteLineRaw("2");
-            await Task.Delay(100);
-            WriteLineRaw("3");
-        });*/
-
         var simpleConsole = SimpleConsole.GetOrCreate();
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {
@@ -133,6 +122,7 @@ internal sealed class Program
         Console.WriteLine(true);
         Console.WriteLine(1.23d);
         var top = SimpleConsole.CursorTop;
+        var position = SimpleConsole.GetCursorPosition();
 
         while (!ThreadCore.Root.IsTerminated)
         {
