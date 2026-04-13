@@ -127,6 +127,7 @@ public partial class SimpleConsole : IConsoleService
         this.RawConsole = new(this);
         this.simpleArrange = new(this);
         this.DefaultOptions = new();
+        this.worker = new(this, ThreadCore.Root);
 
         this.PrepareWindow();
         this.SyncCursor();
@@ -195,6 +196,11 @@ public partial class SimpleConsole : IConsoleService
         catch
         {
         }
+    }
+
+    public void Terminate()
+    {
+        this.worker.Dispose();
     }
 
     /// <summary>
