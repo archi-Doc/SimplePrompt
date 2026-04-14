@@ -26,7 +26,7 @@ public partial class SimpleConsole : IConsoleService
     private const int InitialWindowHeight = 30;
     private const int MinimumWindowWidth = 30;
     private const int MinimumWindowHeight = 10;
-    private static readonly TimeSpan adjustWindowInterval = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan adjustWindowInterval = TimeSpan.FromMilliseconds(1000);
 
     private static SimpleConsole? _instance;
 
@@ -67,6 +67,8 @@ public partial class SimpleConsole : IConsoleService
     /// Default is <see cref="ThreadCore.Root"/>.
     /// </summary>
     public ThreadCoreBase Core { get; set; } = ThreadCore.Root;
+
+    public KeyInputHook? KeyInputHook { get; set; }
 
     public bool EnableColor { get; set; } = true;
 
@@ -509,6 +511,11 @@ public partial class SimpleConsole : IConsoleService
         while (this.RawConsole.TryRead(out keyInfo))
         {
             // Hook
+            if (this.KeyInputHook is { } keyInputHook &&
+                keyInputHook(keyInfo) != KeyInputHookResult.NotHandled)
+            {// Handled
+                continue;
+            }
 
             if (this.inputKeyQueue.Count < WindowBufferSize)
             {
@@ -540,7 +547,6 @@ public partial class SimpleConsole : IConsoleService
         {// Canceled
             inputResult = new(InputResultKind.Canceled);
             goto CompleteInstance;
-
         }
         else if (this.Core.IsTerminated)
         {// Terminated
@@ -603,6 +609,8 @@ public partial class SimpleConsole : IConsoleService
 
         while (this.inputKeyQueue.TryDequeue(out keyInfo))
         {
+ProcessKeyInfo:
+
             if (keyInfo.KeyChar == '\n' ||
             keyInfo.Key == ConsoleKey.Enter)
             {
@@ -664,7 +672,7 @@ public partial class SimpleConsole : IConsoleService
                         }
                         else
                         {
-                            continue;
+                            goto ProcessKeyInfo;
                         }
                     }
                 }
@@ -696,7 +704,7 @@ public partial class SimpleConsole : IConsoleService
                 if (pendingKeyInfo.Key != ConsoleKey.None)
                 {// Process pending key input.
                     keyInfo = pendingKeyInfo;
-                    continue;
+                    goto ProcessKeyInfo;
                 }
             }
         }
