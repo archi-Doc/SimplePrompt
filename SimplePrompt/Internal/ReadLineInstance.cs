@@ -44,6 +44,8 @@ internal sealed class ReadLineInstance
 
     public char[] CharBuffer { get; private set; } = new char[CharBufferSize];
 
+    public int CharPosition { get; set; }
+
     public List<SimpleTextLine> LineList { get; private set; } = new();
 
     public SimpleTextLocation CurrentLocation { get; private set; } = new();
