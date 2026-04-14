@@ -128,11 +128,8 @@ public partial class SimpleConsole : IConsoleService
                 var cursor = Console.GetCursorPosition();
                 using (this.syncObject.EnterScope())
                 {// Adjusts the cursor position when attached to a console.
-                    if (this.instanceList.Count > 0)
+                    if (this.TryGetActiveInstance(out var activeInstance))
                     {
-                        // this.AdjustWindow(this.instanceList[^1], true);
-
-                        var activeInstance = this.instanceList[^1];
                         try
                         {
                             if (cursor.Top != this._cursorTop ||
@@ -180,7 +177,8 @@ public partial class SimpleConsole : IConsoleService
     public Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
         // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
-        this.RunJob(JobKind.PrepareWindow);
+        this.worker.PrepareWindow();
+        // this.RunJob(JobKind.PrepareWindow);
         // this.CheckCursor();
 
         using (this.syncObject.EnterScope())
@@ -489,7 +487,7 @@ public partial class SimpleConsole : IConsoleService
 
     internal void ProcessReadLine()
     {
-        // Get current instance
+        // Get the current instance
         ReadLineInstance? currentInstance;
         InputResult inputResult;
         using (this.syncObject.EnterScope())
@@ -528,15 +526,13 @@ public partial class SimpleConsole : IConsoleService
             var idx = this.instanceList.IndexOf(currentInstance);
             if (idx < 0)
             {// Not found
-                currentInstance.TaskCompletionSource.SetResult(new(InputResultKind.Terminated));
-                return;
+                inputResult = new(InputResultKind.Terminated);
+                goto CompleteInstance;
             }
             else if (idx != (this.instanceList.Count - 1))
             {// Not active instance
                 return;
             }
-
-
 
             if (!this.queue.IsEmpty &&
                 currentInstance.IsEmptyInput() &&
@@ -644,36 +640,35 @@ public partial class SimpleConsole : IConsoleService
                         }
                     }
                 }
-            }
 
-
-            if (processInput)
-            {// Process input
-                string? result;
-                using (this.syncObject.EnterScope())
-                {
-                    result = currentInstance.ProcessInput(keyInfo, currentInstance.CharBuffer.AsSpan(0, currentInstance.CharPosition));
-                    if (result is not null)
+                if (processInput)
+                {// Process input
+                    string? result;
+                    using (this.syncObject.EnterScope())
                     {
-                        result = ProcessTextInputHook(result);
-                        if (result is null)
-                        {// Rejected
-                            continue;
+                        result = currentInstance.ProcessInput(keyInfo, currentInstance.CharBuffer.AsSpan(0, currentInstance.CharPosition));
+                        if (result is not null)
+                        {
+                            result = ProcessTextInputHook(result);
+                            if (result is null)
+                            {// Rejected
+                                continue;
+                            }
+                        }
+
+                        currentInstance.CharPosition = 0;
+                        if (result is not null)
+                        {
+                            currentInstance.TaskCompletionSource.SetResult(new(result));
+                            return;
                         }
                     }
 
-                    currentInstance.CharPosition = 0;
-                    if (result is not null)
-                    {
-                        currentInstance.TaskCompletionSource.SetResult(new(result));
-                        return;
+                    if (pendingKeyInfo.Key != ConsoleKey.None)
+                    {// Process pending key input.
+                        keyInfo = pendingKeyInfo;
+                        continue;
                     }
-                }
-
-                if (pendingKeyInfo.Key != ConsoleKey.None)
-                {// Process pending key input.
-                    keyInfo = pendingKeyInfo;
-                    continue;
                 }
             }
         }
