@@ -125,7 +125,7 @@ public partial class SimpleConsole : IConsoleService
 #pragma warning disable CA1416 // Validate platform compatibility
             this.posixSignalRegistration = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
-                var cursor = SimpleConsole.GetCursorPosition();
+                var cursor = Console.GetCursorPosition();
                 using (this.syncObject.EnterScope())
                 {// Adjusts the cursor position when attached to a console.
                     if (this.instanceList.Count > 0)

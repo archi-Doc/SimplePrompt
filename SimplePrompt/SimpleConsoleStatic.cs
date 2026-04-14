@@ -14,6 +14,12 @@ public partial class SimpleConsole
 
     public static (int Left, int Top) GetCursorPosition()
     {
+        var simpleConsole = SimpleConsole.GetOrCreate();
+        return (simpleConsole._cursorLeft, simpleConsole._cursorTop);
+    }
+
+    /*public static (int Left, int Top) GetCursorPosition()
+    {
         int left, top;
 
         var simpleConsole = SimpleConsole.GetOrCreate();
@@ -34,5 +40,5 @@ public partial class SimpleConsole
         worker.Return(job);
 
         return (left, top);
-    }
+    }*/
 }

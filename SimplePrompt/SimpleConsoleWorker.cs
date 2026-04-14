@@ -21,7 +21,6 @@ public partial class SimpleConsole
     private enum JobKind
     {
         Initialize,
-        GetCursorPosition,
         PrepareWindow,
         Write,
         WriteLine,
@@ -79,12 +78,6 @@ public partial class SimpleConsole
                 {
                     (this.simpleConsole._cursorLeft, this.simpleConsole._cursorTop) = Console.GetCursorPosition();
                     this.PrepareWindow();
-                }
-                else if (job.Kind == JobKind.GetCursorPosition)
-                {
-                    var position = Console.GetCursorPosition();
-                    job.CursorLeft = position.Left;
-                    job.CursorTop = position.Top;
                 }
                 else if (job.Kind == JobKind.PrepareWindow)
                 {
