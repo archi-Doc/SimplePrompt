@@ -188,6 +188,11 @@ public partial class SimpleConsole : IConsoleService
 
         using (this.syncObject.EnterScope())
         {
+            if (this.worker.IsTerminated)
+            {
+                return Task<InputResult>.FromResult(new InputResult(InputResultKind.Terminated));
+            }
+
             if (this.instanceList.Count > 0)
             {
                 this.instanceList[^1].CurrentLocation.CursorLast();
@@ -218,39 +223,31 @@ public partial class SimpleConsole : IConsoleService
     /// </param>
     public void Clear(bool clearBuffer)
     {
-        ReadLineInstance? activeInstance;
+        if (clearBuffer)
+        {
+            this._cursorTop = 0;
+            this._cursorLeft = 0;
+
+            try
+            {
+                Console.Clear();
+            }
+            catch
+            {
+            }
+        }
+        else
+        {
+            this.RawConsole.WriteInternal($"\e[2J");
+            this.SetCursorPosition(0, 0, CursorOperation.None);
+        }
+
         using (this.syncObject.EnterScope())
         {
-            if (clearBuffer)
+            if (this.TryGetActiveInstance(out var currentInstance))
             {
-                try
-                {
-                    Console.Clear();
-                }
-                catch
-                {
-                }
-
-                this._cursorTop = 0;
-                this._cursorLeft = 0;
-            }
-            else
-            {
-
-                /*if (this.TryGetActiveInstance(out activeInstance))
-                {
-                    activeInstance.CurrentLocation.CursorFirst();
-                    this.RawConsole.WriteInternal("\e[0J");
-                }*/
-
-                this.RawConsole.WriteInternal($"\e[2J");
-                this.SetCursorPosition(0, 0, CursorOperation.None);
-            }
-
-            if (this.TryGetActiveInstance(out activeInstance))
-            {
-                activeInstance.Redraw();
-                activeInstance.CurrentLocation.Restore(CursorOperation.None);
+                currentInstance.Redraw();
+                currentInstance.CurrentLocation.Restore(CursorOperation.None);
             }
         }
     }
@@ -263,8 +260,8 @@ public partial class SimpleConsole : IConsoleService
     /// The input message to enqueue. If <c>null</c>, a null message is enqueued.
     /// </param>
     public void EnqueueInput(string? message)
-    {// ConcurrentQueue
-        this.inputTextQueue.Enqueue(message);
+    {
+        this.inputTextQueue.Enqueue(message); // ConcurrentQueue
     }
 
     Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)

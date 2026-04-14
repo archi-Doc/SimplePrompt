@@ -8,14 +8,14 @@ namespace SimplePrompt;
 
 internal sealed class SimpleConsoleWorker : TaskCore
 {
-    private static readonly TimeSpan pollingInterval = TimeSpan.FromMilliseconds(10);
+    private static readonly TimeSpan intervalTimeSpan = TimeSpan.FromMilliseconds(10);
 
     private readonly SimpleConsole simpleConsole;
 
     private static async Task Process(object? parameter)
     {
         var worker = (SimpleConsoleWorker)parameter!;
-        while (await worker.Delay(pollingInterval).ConfigureAwait(false))
+        while (await worker.Delay(intervalTimeSpan).ConfigureAwait(false))
         {
             worker.simpleConsole.Process();
         }
