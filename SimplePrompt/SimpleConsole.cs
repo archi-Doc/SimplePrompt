@@ -94,7 +94,8 @@ public partial class SimpleConsole : IConsoleService
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly SimpleTextReader simpleTextReader;
     private readonly SimpleArrange simpleArrange;
-    private readonly ConcurrentQueue<string?> queue = new();
+    private readonly ConcurrentQueue<string?> inputTextQueue = new();
+    private readonly Queue<ConsoleKeyInfo> inputKeyQueue = new();
     private readonly PosixSignalRegistration? posixSignalRegistration;
 
     private readonly Lock syncObject = new();
@@ -258,8 +259,8 @@ public partial class SimpleConsole : IConsoleService
     /// The input message to enqueue. If <c>null</c>, a null message is enqueued.
     /// </param>
     public void EnqueueInput(string? message)
-    {
-        this.queue.Enqueue(message);
+    {// ConcurrentQueue
+        this.inputTextQueue.Enqueue(message);
     }
 
     Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
@@ -487,13 +488,20 @@ public partial class SimpleConsole : IConsoleService
 
     internal void ProcessReadLine()
     {
+        ConsoleKeyInfo keyInfo = default;
+        InputResult inputResult;
+
         // Get the current instance
         ReadLineInstance? currentInstance;
-        InputResult inputResult;
         using (this.syncObject.EnterScope())
         {
             if (!this.TryGetActiveInstance(out currentInstance))
             {// No active instance
+                while (this.RawConsole.TryRead(out keyInfo))
+                {
+                    this.inputKeyQueue.Enqueue(keyInfo);
+                }
+
                 return;
             }
 
@@ -519,7 +527,6 @@ public partial class SimpleConsole : IConsoleService
             goto CompleteInstance;
         }
 
-        ConsoleKeyInfo keyInfo = default;
         ConsoleKeyInfo pendingKeyInfo = default;
         using (this.syncObject.EnterScope())
         {
@@ -534,9 +541,9 @@ public partial class SimpleConsole : IConsoleService
                 return;
             }
 
-            if (!this.queue.IsEmpty &&
+            if (!this.inputTextQueue.IsEmpty &&
                 currentInstance.IsEmptyInput() &&
-                this.queue.TryDequeue(out var queuedMessage))
+                this.inputTextQueue.TryDequeue(out var queuedMessage))
             {
                 var queuedSpan = queuedMessage.AsSpan();
                 do
@@ -572,7 +579,8 @@ public partial class SimpleConsole : IConsoleService
                 while (queuedSpan.Length > 0);
             }
 
-            while (this.RawConsole.TryRead(out keyInfo))
+            while (this.inputKeyQueue.TryDequeue(out keyInfo) ||
+                (this.RawConsole.TryRead(out keyInfo)))
             {
                 if (keyInfo.KeyChar == '\n' ||
                 keyInfo.Key == ConsoleKey.Enter)
