@@ -550,7 +550,7 @@ public partial class SimpleConsole : IConsoleService
         {
             // Hook
             if (this.KeyInputHook is { } keyInputHook &&
-                keyInputHook(keyInfo) != KeyInputHookResult.NotHandled)
+                keyInputHook(ref keyInfo) != KeyInputHookResult.NotHandled)
             {// Handled
                 continue;
             }
@@ -649,7 +649,7 @@ ProcessKeyInfo:
 
             if (currentInstance.Options.KeyInputHook is not null)
             {
-                var hookResult = currentInstance.Options.KeyInputHook(keyInfo);
+                var hookResult = currentInstance.Options.KeyInputHook(ref keyInfo);
                 if (hookResult == KeyInputHookResult.Handled)
                 {
                     continue;

@@ -102,22 +102,21 @@ internal sealed class Program
             AllowEmptyLineInput = true,
             CancelOnEscape = true,
             // MaskingCharacter = '?',
-            KeyInputHook = keyInfo => KeyInputHook(keyInfo),
+            KeyInputHook = KeyInputHookMethod,
         };
 
         var ctsStack = new Stack<CancellationTokenSource>();
-        simpleConsole.KeyInputHook = keyInfo =>
+        simpleConsole.KeyInputHook = (ref keyInfo) =>
         {
             if (keyInfo.Key == ConsoleKey.Q && keyInfo.Modifiers == ConsoleModifiers.Control)
             {// Ctrl+Q
-                /*if (simpleConsole.TryGetCurrentReadLineOptions(out var options))
-                {
-                    options.CancellationTokenSource?.Cancel();
-                }*/
+                // keyInfo = new('z', ConsoleKey.Z, shift: false, alt: false, control: false);
+                // return KeyInputHookResult.NotHandled;
 
                 if (ctsStack.TryPeek(out var cts))
                 {
                     cts.Cancel();
+                    return KeyInputHookResult.Handled;
                 }
             }
 
@@ -159,7 +158,7 @@ internal sealed class Program
             };
 
             // _ = simpleConsole.ReadLine(secondary);
-            var result = await simpleConsole.ReadLine(options);
+            var result = await simpleConsole.ReadLine(options, currentCts.Token);
 
             if (result.Kind == InputResultKind.Terminated)
             {
@@ -232,7 +231,7 @@ internal sealed class Program
 
         ThreadCore.Root.TerminationEvent.Set(); // The termination process is complete (#1).
 
-        KeyInputHookResult KeyInputHook(ConsoleKeyInfo keyInfo)
+        KeyInputHookResult KeyInputHookMethod(ref ConsoleKeyInfo keyInfo)
         {
             if (keyInfo.Key == ConsoleKey.F1)
             {
@@ -249,7 +248,7 @@ internal sealed class Program
                 var options2 = ReadLineOptions.SingleLine with
                 {
                     Prompt = "Nested>>> ",
-                    KeyInputHook = keyInfo => KeyInputHook(keyInfo),
+                    KeyInputHook = KeyInputHookMethod,
                 };
 
                 _ = Task.Run(async () =>
