@@ -27,7 +27,7 @@ public partial class SimpleConsole : IConsoleService
     private const int InitialWindowHeight = 30;
     private const int MinimumWindowWidth = 30;
     private const int MinimumWindowHeight = 10;
-    private static readonly TimeSpan AdjustWindowInterval = TimeSpan.FromMilliseconds(1000);
+    private static readonly TimeSpan AdjustWindowInterval = TimeSpan.FromMilliseconds(100);
 
     private static SimpleConsole? _instance;
 
@@ -194,6 +194,11 @@ public partial class SimpleConsole : IConsoleService
             if (this.worker.IsTerminated)
             {
                 return Task<InputResult>.FromResult(new InputResult(InputResultKind.Terminated));
+            }
+
+            if (this.instanceList.Find(x => x.Options == options) is { } existingInstance)
+            {
+                return existingInstance.TaskCompletionSource.Task;
             }
 
             if (this.instanceList.Count > 0)
@@ -1148,20 +1153,13 @@ Exit:
         try
         {
             Console.SetOut(this.simpleTextWriter);
-        }
-        catch
-        {
-        }
-
-        try
-        {
             Console.SetIn(this.simpleTextReader);
+            (this._cursorLeft, this._cursorTop) = Console.GetCursorPosition();
         }
         catch
         {
         }
 
-        (this._cursorLeft, this._cursorTop) = Console.GetCursorPosition();
         this.PrepareWindow();
     }
 
