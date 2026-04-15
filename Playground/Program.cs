@@ -147,10 +147,11 @@ internal sealed class Program
         {
             var options = simpleConsole.DefaultOptions with
             {
-                CancellationTokenSource = new(),
+                // CancellationTokenSource = new(),
             };
 
-            ctsStack.Push(options.CancellationTokenSource);
+            var currentCts = new CancellationTokenSource();
+            ctsStack.Push(currentCts);
 
             var secondary = simpleConsole.DefaultOptions with
             {
@@ -204,7 +205,7 @@ internal sealed class Program
                 try
                 {
                     simpleConsole.WriteLine("Freeze ->");
-                    await Task.Delay(3_000, options.CancellationToken);
+                    await Task.Delay(3_000, ctsStack.Peek().Token);
                     simpleConsole.WriteLine("<-");
                     simpleConsole.EnqueueInput("a");
                 }

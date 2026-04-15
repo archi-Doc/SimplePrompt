@@ -73,6 +73,10 @@ public partial class SimpleConsole : IConsoleService
 
     public bool EnableColor { get; set; } = true;
 
+    /// <summary>
+    /// Gets a value indicating whether key input should be buffered while the console window is unfocused.
+    /// When <see langword="true"/>, key events are queued and processed after focus is restored.
+    /// </summary>
     public bool BufferKeyInputWhenUnfocused { get; init; } = true;
 
     /// <summary>

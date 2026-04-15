@@ -113,7 +113,15 @@ public record class ReadLineOptions
     /// </summary>
     public TextInputHook? TextInputHook { get; init; }
 
+    /*/// <summary>
+    /// Gets the optional cancellation token source used to cancel the active read operation.
+    /// Default is <see langword="null"/> (no external cancellation source).
+    /// </summary>
     public CancellationTokenSource? CancellationTokenSource { get; init; }
 
-    public CancellationToken CancellationToken => this.CancellationTokenSource is null ? default : this.CancellationTokenSource.Token;
+    /// <summary>
+    /// Gets the cancellation token for the read operation.
+    /// Returns <see langword="default"/> when <see cref="CancellationTokenSource"/> is <see langword="null"/>.
+    /// </summary>
+    public CancellationToken CancellationToken => this.CancellationTokenSource is null ? default : this.CancellationTokenSource.Token;*/
 }
