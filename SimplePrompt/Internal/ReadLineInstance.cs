@@ -115,107 +115,6 @@ internal sealed class ReadLineInstance
         return true;
     }
 
-    internal void Prepare()
-    {
-        var top = this.simpleConsole._cursorTop;
-        var prompt = this.Options.Prompt.AsSpan();
-        var lineIndex = 0;
-        char[]? windowBuffer = null;
-        while (prompt.Length >= 0)
-        {
-            // For a multi-line prompt, multiple SimpleTextLine instances are created and each line is assigned accordingly.
-            var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
-            SimpleTextLine line;
-            ReadOnlySpan<char> currentPrompt;
-            var isInput = false;
-            if (index < 0)
-            {
-                currentPrompt = prompt;
-                isInput = true;
-            }
-            else
-            {
-                currentPrompt = prompt.Slice(0, index);
-                prompt = prompt.Slice(index + newLineLength);
-            }
-
-            line = SimpleTextLine.Rent(this.simpleConsole, this, lineIndex, currentPrompt, isInput);
-            lineIndex++;
-
-            this.LineList.Add(line);
-            line.Top = top;
-            top += line.Height;
-
-            windowBuffer ??= SimpleConsole.RentWindowBuffer();
-            var span = windowBuffer.AsSpan();
-
-            if (lineIndex == 1)
-            {// Hide the cursor during the initial rendering.
-                SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref span);
-            }
-
-            /*if (this.Options.PromptColor != ConsoleHelper.DefaultColor)
-            {
-                SimplePromptHelper.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.PromptColor).AsSpan(), ref span); // Prompt color
-            }*/
-
-            SimplePromptHelper.TryCopy(currentPrompt, ref span);
-
-            /*if (this.Options.PromptColor != ConsoleHelper.DefaultColor)
-            {
-                SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
-            }*/
-
-
-            if (isInput)
-            {
-                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
-            }
-            else
-            {
-                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
-            }
-
-            if (isInput)
-            {// Show the cursor during the final rendering.
-                SimplePromptHelper.TryCopy(ConsoleHelper.ShowCursorSpan, ref span);
-            }
-
-            this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
-
-            if (isInput)
-            {// Input
-                this.FirstInputIndex = lineIndex - 1;
-                break;
-            }
-        }
-
-        if (windowBuffer is not null)
-        {
-            SimpleConsole.ReturnWindowBuffer(windowBuffer);
-        }
-
-
-        this.Scroll();
-
-        this.CurrentLocation.Reset();
-    }
-
-    internal void Scroll()
-    {
-        if (this.LineList.Count == 0)
-        {
-            return;
-        }
-
-        var line = this.LineList[^1];
-        var scroll = line.Top + line.Height - this.simpleConsole._windowHeight;
-        if (scroll > 0)
-        {
-            this.simpleConsole.Scroll(scroll, true);
-        }
-    }
-
     public string? ProcessInput(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
         if (this.CurrentLocation.LineIndex >= this.LineList.Count)
@@ -613,6 +512,106 @@ internal sealed class ReadLineInstance
 
         this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
+    }
+
+    internal void Prepare()
+    {
+        var top = this.simpleConsole._cursorTop;
+        var prompt = this.Options.Prompt.AsSpan();
+        var lineIndex = 0;
+        char[]? windowBuffer = null;
+        while (prompt.Length >= 0)
+        {
+            // For a multi-line prompt, multiple SimpleTextLine instances are created and each line is assigned accordingly.
+            var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
+            SimpleTextLine line;
+            ReadOnlySpan<char> currentPrompt;
+            var isInput = false;
+            if (index < 0)
+            {
+                currentPrompt = prompt;
+                isInput = true;
+            }
+            else
+            {
+                currentPrompt = prompt.Slice(0, index);
+                prompt = prompt.Slice(index + newLineLength);
+            }
+
+            line = SimpleTextLine.Rent(this.simpleConsole, this, lineIndex, currentPrompt, isInput);
+            lineIndex++;
+
+            this.LineList.Add(line);
+            line.Top = top;
+            top += line.Height;
+
+            windowBuffer ??= SimpleConsole.RentWindowBuffer();
+            var span = windowBuffer.AsSpan();
+
+            if (lineIndex == 1)
+            {// Hide the cursor during the initial rendering.
+                SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref span);
+            }
+
+            /*if (this.Options.PromptColor != ConsoleHelper.DefaultColor)
+            {
+                SimplePromptHelper.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.PromptColor).AsSpan(), ref span); // Prompt color
+            }*/
+
+            SimplePromptHelper.TryCopy(currentPrompt, ref span);
+
+            /*if (this.Options.PromptColor != ConsoleHelper.DefaultColor)
+            {
+                SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
+            }*/
+
+
+            if (isInput)
+            {
+                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
+            }
+            else
+            {
+                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
+            }
+
+            if (isInput)
+            {// Show the cursor during the final rendering.
+                SimplePromptHelper.TryCopy(ConsoleHelper.ShowCursorSpan, ref span);
+            }
+
+            this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
+
+            if (isInput)
+            {// Input
+                this.FirstInputIndex = lineIndex - 1;
+                break;
+            }
+        }
+
+        if (windowBuffer is not null)
+        {
+            SimpleConsole.ReturnWindowBuffer(windowBuffer);
+        }
+
+        this.Scroll();
+
+        this.CurrentLocation.Reset();
+    }
+
+    internal void Scroll()
+    {
+        if (this.LineList.Count == 0)
+        {
+            return;
+        }
+
+        var line = this.LineList[^1];
+        var scroll = line.Top + line.Height - this.simpleConsole._windowHeight;
+        if (scroll > 0)
+        {
+            this.simpleConsole.Scroll(scroll, true);
+        }
     }
 
     private void ReleaseLines()

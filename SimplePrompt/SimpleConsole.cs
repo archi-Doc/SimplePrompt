@@ -12,6 +12,7 @@ using SimplePrompt.Internal;
 
 #pragma warning disable CA1001 // Types that own disposable fields should be disposable
 #pragma warning disable SA1204 // Static elements should appear before instance elements
+#pragma warning disable SA1401 // Fields should be private
 
 namespace SimplePrompt;
 
@@ -944,6 +945,68 @@ Exit:
         }
     }
 
+    internal void ClearRow(int top)
+    {
+        if (top < 0 || top >= this._windowHeight)
+        {
+            return;
+        }
+
+        ReadOnlySpan<char> span;
+        var windowBuffer = SimpleConsole.RentWindowBuffer();
+        var buffer = windowBuffer.AsSpan();
+        var written = 0;
+
+        var moveCursor = this._cursorTop != top || this._cursorLeft != 0;
+        if (moveCursor)
+        {
+            // Save cursor
+            span = ConsoleHelper.SaveCursorSpan;
+            span.CopyTo(buffer);
+            written += span.Length;
+            buffer = buffer.Slice(span.Length);
+
+            // Move cursor
+            span = ConsoleHelper.SetCursorSpan;
+            span.CopyTo(buffer);
+            buffer = buffer.Slice(span.Length);
+            written += span.Length;
+
+            var x = top + 1;
+            var y = 0 + 1;
+            int w;
+            x.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = ';';
+            buffer = buffer.Slice(1);
+            written += 1;
+            y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
+            buffer = buffer.Slice(w);
+            written += w;
+            buffer[0] = 'H';
+            buffer = buffer.Slice(1);
+            written += 1;
+        }
+
+        // Erase entire line
+        span = ConsoleHelper.EraseEntireLineSpan;
+        span.CopyTo(buffer);
+        written += span.Length;
+        buffer = buffer.Slice(span.Length);
+
+        if (moveCursor)
+        {// Restore cursor
+            span = ConsoleHelper.RestoreCursorSpan;
+            span.CopyTo(buffer);
+            written += span.Length;
+            buffer = buffer.Slice(span.Length);
+        }
+
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        SimpleConsole.ReturnWindowBuffer(windowBuffer);
+    }
+
     private void AdjustWindow()
     {
         (var prevWindowWidth, var prevWindowHeight) = (this._windowWidth, this._windowHeight);
@@ -1127,67 +1190,5 @@ Exit:
         }
 
         return false;
-    }
-
-    internal void ClearRow(int top)
-    {
-        if (top < 0 || top >= this._windowHeight)
-        {
-            return;
-        }
-
-        ReadOnlySpan<char> span;
-        var windowBuffer = SimpleConsole.RentWindowBuffer();
-        var buffer = windowBuffer.AsSpan();
-        var written = 0;
-
-        var moveCursor = this._cursorTop != top || this._cursorLeft != 0;
-        if (moveCursor)
-        {
-            // Save cursor
-            span = ConsoleHelper.SaveCursorSpan;
-            span.CopyTo(buffer);
-            written += span.Length;
-            buffer = buffer.Slice(span.Length);
-
-            // Move cursor
-            span = ConsoleHelper.SetCursorSpan;
-            span.CopyTo(buffer);
-            buffer = buffer.Slice(span.Length);
-            written += span.Length;
-
-            var x = top + 1;
-            var y = 0 + 1;
-            int w;
-            x.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
-            buffer = buffer.Slice(w);
-            written += w;
-            buffer[0] = ';';
-            buffer = buffer.Slice(1);
-            written += 1;
-            y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
-            buffer = buffer.Slice(w);
-            written += w;
-            buffer[0] = 'H';
-            buffer = buffer.Slice(1);
-            written += 1;
-        }
-
-        // Erase entire line
-        span = ConsoleHelper.EraseEntireLineSpan;
-        span.CopyTo(buffer);
-        written += span.Length;
-        buffer = buffer.Slice(span.Length);
-
-        if (moveCursor)
-        {// Restore cursor
-            span = ConsoleHelper.RestoreCursorSpan;
-            span.CopyTo(buffer);
-            written += span.Length;
-            buffer = buffer.Slice(span.Length);
-        }
-
-        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
-        SimpleConsole.ReturnWindowBuffer(windowBuffer);
     }
 }

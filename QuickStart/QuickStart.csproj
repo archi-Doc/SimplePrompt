@@ -17,4 +17,8 @@
     <ProjectReference Include="..\SimplePrompt\SimplePrompt.csproj" />
   </ItemGroup>
 
+<ItemGroup>
+    <AdditionalFiles Include="..\stylecop.json" Link="stylecop.json" />
+  </ItemGroup>
+
 </Project>

@@ -106,11 +106,11 @@ internal sealed class SimpleTextLine
         this.ReadLineInstance = default!;
     }
 
+    public bool EndsWithEmptyRow => this.Rows.Count > 0 && this.Rows[this.Rows.Count - 1].Length == 0;
+
     internal ReadOnlySpan<char> PromptSpan => this.charArray.AsSpan(0, this.PromptLength);
 
     internal ReadOnlySpan<char> InputSpan => this.charArray.AsSpan(this.PromptLength, this.InputLength);
-
-    public bool EndsWithEmptyRow => this.Rows.Count > 0 && this.Rows[this.Rows.Count - 1].Length == 0;
 
     public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
@@ -450,6 +450,15 @@ internal sealed class SimpleTextLine
         return this.GetEndCursor();
     }
 
+    internal void Clear()
+    {
+        this._inputLength = 0;
+        this._inputWidth = 0;
+
+        this.ReleaseRows();
+        this.ResetRows();
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private (int Left, int Top, int RowIndex) GetEndCursor()
     {
@@ -605,15 +614,6 @@ internal sealed class SimpleTextLine
 
         this.Clear();
         this.ReadLineInstance.CurrentLocation.Reset(this, CursorOperation.ForceSet);
-    }
-
-    internal void Clear()
-    {
-        this._inputLength = 0;
-        this._inputWidth = 0;
-
-        this.ReleaseRows();
-        this.ResetRows();
     }
 
     private void ProcessCharBuffer(Span<char> charBuffer)
