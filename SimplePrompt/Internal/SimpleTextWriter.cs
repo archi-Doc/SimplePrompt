@@ -126,7 +126,6 @@ internal sealed class SimpleTextWriter : TextWriter
             else
             {
                 this.SimpleConsole.Write(value.ToString());
-
             }
         }
     }
@@ -146,7 +145,6 @@ internal sealed class SimpleTextWriter : TextWriter
             else
             {
                 this.SimpleConsole.WriteLine(value.ToString());
-
             }
         }
     }

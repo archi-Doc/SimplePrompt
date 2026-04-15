@@ -293,7 +293,6 @@ internal sealed record class SimpleTextLocation
         this.CursorPosition = cursorPosition;
 
         this.LocationToCursor(row);
-
     }
 
     public void Advance(int lengthDiff, int widthDiff)

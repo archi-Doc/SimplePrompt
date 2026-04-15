@@ -743,7 +743,6 @@ CompleteInstance:
 
         for (var i = 0; i < text.Length; i++)
         {
-
             while (text[i] == '\e')
             {// Skip ANSI escape code
                 i++;

@@ -165,7 +165,7 @@ internal sealed class SimpleTextLine
             }
             else if (key == ConsoleKey.UpArrow)
             {// History or move line
-                if (this.ReadLineInstance.Mode.IsMultiline)
+                if (this.ReadLineInstance.Mode.IsMultiline())
                 {// Up
                     this.ReadLineInstance.CurrentLocation.MoveHorizontal(true);
                     // this.ReadLineInstance.CurrentLocation.ChangeLine(-1, true);
@@ -178,7 +178,7 @@ internal sealed class SimpleTextLine
             }
             else if (key == ConsoleKey.DownArrow)
             {// History or move line
-                if (this.ReadLineInstance.Mode.IsMultiline)
+                if (this.ReadLineInstance.Mode.IsMultiline())
                 {// Down
                     this.ReadLineInstance.CurrentLocation.MoveHorizontal(false);
                 }

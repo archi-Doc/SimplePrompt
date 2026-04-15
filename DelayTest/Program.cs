@@ -34,7 +34,6 @@ internal sealed class Program
         }
     }
 
-
     private static async Task ReadLine()
     {
         Console.Write("> ");

@@ -161,7 +161,7 @@ internal sealed class ReadLineInstance
                 }
             }
 
-            if (this.Mode.IsMultiline)
+            if (this.Mode.IsMultiline())
             {
                 if (line.Index == (this.LineList.Count - 1))
                 {// New InputBuffer
@@ -564,7 +564,6 @@ internal sealed class ReadLineInstance
             {
                 SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
             }*/
-
 
             if (isInput)
             {
