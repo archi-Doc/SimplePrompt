@@ -1,4 +1,6 @@
-﻿namespace DelayTest;
+﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
+
+namespace DelayTest;
 
 internal sealed class Program
 {

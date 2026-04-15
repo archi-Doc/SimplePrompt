@@ -15,7 +15,7 @@ internal static class SimplePromptHelper
 
     extension(ReadLineMode mode)
     {
-        public bool IsMultiline => mode != ReadLineMode.Singleline;
+        public bool IsMultiline => this.mode != ReadLineMode.Singleline;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

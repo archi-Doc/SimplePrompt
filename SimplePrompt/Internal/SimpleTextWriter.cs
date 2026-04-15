@@ -20,10 +20,10 @@ internal sealed class SimpleTextWriter : TextWriter
     public override Encoding Encoding => System.Text.Encoding.UTF8;
 
     public override void Write([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0)
-        => this.SimpleConsole.WriteSpan(string.Format(FormatProvider, format, arg0), false);
+        => this.SimpleConsole.WriteSpan(string.Format(this.FormatProvider, format, arg0), false);
 
     public override void WriteLine([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0)
-        => this.SimpleConsole.WriteSpan(string.Format(FormatProvider, format, arg0), true);
+        => this.SimpleConsole.WriteSpan(string.Format(this.FormatProvider, format, arg0), true);
 
     public override void Write([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0, object? arg1)
         => this.SimpleConsole.WriteSpan(string.Format(this.UnderlyingTextWriter.FormatProvider, format, arg0, arg1), false);
@@ -38,10 +38,10 @@ internal sealed class SimpleTextWriter : TextWriter
         => this.SimpleConsole.WriteSpan(string.Format(this.UnderlyingTextWriter.FormatProvider, format, arg0, arg1, arg2), true);
 
     public override void Write([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object?[] arg)
-        => this.SimpleConsole.WriteSpan(string.Format(FormatProvider, format, arg), false);
+        => this.SimpleConsole.WriteSpan(string.Format(this.FormatProvider, format, arg), false);
 
     public override void WriteLine([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object?[] arg)
-        => this.SimpleConsole.WriteSpan(string.Format(FormatProvider, format, arg), true);
+        => this.SimpleConsole.WriteSpan(string.Format(this.FormatProvider, format, arg), true);
 
     public override void Write(char[] buffer, int index, int count)
         => this.SimpleConsole.WriteSpan(buffer.AsSpan(index, count), false);

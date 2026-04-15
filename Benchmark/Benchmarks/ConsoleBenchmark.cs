@@ -22,13 +22,6 @@ public class ConsoleBenchmark
     [Benchmark]
     public async Task<int> CursorTopAlt()
     {
-        AltConsole.GetCursorTop();
-        return AltConsole.CursorTop;
-    }
-
-    [Benchmark]
-    public async Task<int> CursorLeftAlt()
-    {
-        return AltConsole.CursorLeft;
+        return SimpleConsole.CursorTop;
     }
 }

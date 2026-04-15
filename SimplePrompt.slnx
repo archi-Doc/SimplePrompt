@@ -2,9 +2,7 @@
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
   </Folder>
-  <Project Path="Benchmark/Benchmark.csproj" Id="60fafd54-216d-452f-a05a-f98d9dc350d5">
-    <Build Solution="Debug|*" Project="false" />
-  </Project>
+  <Project Path="Benchmark/Benchmark.csproj" />
   <Project Path="DelayTest/DelayTest.csproj" />
   <Project Path="Playground/Playground.csproj" />
   <Project Path="QuickStart/QuickStart.csproj" />
