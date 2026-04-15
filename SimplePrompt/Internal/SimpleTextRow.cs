@@ -188,7 +188,7 @@ internal sealed partial class SimpleTextRow
 
     internal int ArrayPositionToCursorPosition(int arrayPosition)
     {
-        return (int)BaseHelper.Sum(this.Line.WidthArray.AsSpan(this.Start, (arrayPosition - this.Start)));
+        return (int)BaseHelper.Sum(this.Line.WidthArray.AsSpan(this.Start, arrayPosition - this.Start));
 
         /*var charArray = this.Line.CharArray;
         var widthArray = this.Line.WidthArray;

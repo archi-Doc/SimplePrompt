@@ -171,64 +171,6 @@ internal sealed class RawConsole
         }
     }
 
-    private bool TryConsumeBuffer(out ConsoleKeyInfo keyInfo)
-    {
-        if (this.IsCharsEmpty)
-        {
-            keyInfo = default;
-            return false;
-        }
-
-        using (this.bufferLock.EnterScope())
-        {
-            return this.TryConsumeBufferInternal(out keyInfo);
-        }
-    }
-
-    private bool TryConsumeBufferInternal(out ConsoleKeyInfo keyInfo)
-    {
-        if (this.IsCharsEmpty)
-        {
-            keyInfo = default;
-            return false;
-        }
-
-        var span = this.CharsSpan;
-        if (span[0] != this.posixDisableValue && span[0] == this.veraseCharacter)
-        {
-            keyInfo = new(span[0], ConsoleKey.Backspace, false, false, false);
-            this.charsStartIndex++;
-            return true;
-        }
-        else if (span.Length >= MinimalSequenceLength + 1 && span[0] == Escape && span[1] == Escape)
-        {
-            this.charsStartIndex++;
-            if (this.TryParseTerminalInputSequence(out var parsed))
-            {
-                keyInfo = new(parsed.KeyChar, parsed.Key, (parsed.Modifiers & ConsoleModifiers.Shift) != 0, alt: true, (parsed.Modifiers & ConsoleModifiers.Control) != 0);
-                return true;
-            }
-
-            this.charsStartIndex--;
-        }
-        else if (span.Length >= MinimalSequenceLength && this.TryParseTerminalInputSequence(out keyInfo))
-        {
-            return true;
-        }
-
-        if (span.Length == 2 && span[0] == Escape && span[1] != Escape)
-        {
-            this.charsStartIndex++;
-            keyInfo = ParseFromSingleChar(span[0], isAlt: true);
-            this.charsStartIndex++;
-            return true;
-        }
-
-        keyInfo = ParseFromSingleChar(span[0], isAlt: false);
-        this.charsStartIndex++;
-        return true;
-    }
-
     private static ConsoleKeyInfo ParseFromSingleChar(char single, bool isAlt)
     {
         bool isShift = false, isCtrl = false;
@@ -298,6 +240,64 @@ internal sealed class RawConsole
                 _ => ConsoleKey.D4 + single - 28,
             };
         }
+    }
+
+    private bool TryConsumeBuffer(out ConsoleKeyInfo keyInfo)
+    {
+        if (this.IsCharsEmpty)
+        {
+            keyInfo = default;
+            return false;
+        }
+
+        using (this.bufferLock.EnterScope())
+        {
+            return this.TryConsumeBufferInternal(out keyInfo);
+        }
+    }
+
+    private bool TryConsumeBufferInternal(out ConsoleKeyInfo keyInfo)
+    {
+        if (this.IsCharsEmpty)
+        {
+            keyInfo = default;
+            return false;
+        }
+
+        var span = this.CharsSpan;
+        if (span[0] != this.posixDisableValue && span[0] == this.veraseCharacter)
+        {
+            keyInfo = new(span[0], ConsoleKey.Backspace, false, false, false);
+            this.charsStartIndex++;
+            return true;
+        }
+        else if (span.Length >= MinimalSequenceLength + 1 && span[0] == Escape && span[1] == Escape)
+        {
+            this.charsStartIndex++;
+            if (this.TryParseTerminalInputSequence(out var parsed))
+            {
+                keyInfo = new(parsed.KeyChar, parsed.Key, (parsed.Modifiers & ConsoleModifiers.Shift) != 0, alt: true, (parsed.Modifiers & ConsoleModifiers.Control) != 0);
+                return true;
+            }
+
+            this.charsStartIndex--;
+        }
+        else if (span.Length >= MinimalSequenceLength && this.TryParseTerminalInputSequence(out keyInfo))
+        {
+            return true;
+        }
+
+        if (span.Length == 2 && span[0] == Escape && span[1] != Escape)
+        {
+            this.charsStartIndex++;
+            keyInfo = ParseFromSingleChar(span[0], isAlt: true);
+            this.charsStartIndex++;
+            return true;
+        }
+
+        keyInfo = ParseFromSingleChar(span[0], isAlt: false);
+        this.charsStartIndex++;
+        return true;
     }
 
     private bool TryParseTerminalInputSequence(out ConsoleKeyInfo parsed)

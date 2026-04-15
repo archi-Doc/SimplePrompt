@@ -27,7 +27,7 @@ public partial class SimpleConsole : IConsoleService
     private const int InitialWindowHeight = 30;
     private const int MinimumWindowWidth = 30;
     private const int MinimumWindowHeight = 10;
-    private static readonly TimeSpan adjustWindowInterval = TimeSpan.FromMilliseconds(1000);
+    private static readonly TimeSpan AdjustWindowInterval = TimeSpan.FromMilliseconds(1000);
 
     private static SimpleConsole? _instance;
 
@@ -510,7 +510,7 @@ public partial class SimpleConsole : IConsoleService
 
         // Detect window resize.
         var current = DateTime.UtcNow;
-        if ((current - this.adjustWindowTime) > adjustWindowInterval)
+        if ((current - this.adjustWindowTime) > AdjustWindowInterval)
         {
             this.adjustWindowTime = current;
             this.AdjustWindow();
