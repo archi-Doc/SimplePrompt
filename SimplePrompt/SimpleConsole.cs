@@ -507,6 +507,14 @@ public partial class SimpleConsole : IConsoleService
         ConsoleKeyInfo keyInfo = default;
         InputResult inputResult;
 
+        // Detect window resize.
+        var current = DateTime.UtcNow;
+        if ((current - this.adjustWindowTime) > adjustWindowInterval)
+        {
+            this.adjustWindowTime = current;
+            this.AdjustWindow();
+        }
+
         // Read key -> InputKeyQueue
         while (this.RawConsole.TryRead(out keyInfo))
         {
@@ -533,39 +541,16 @@ public partial class SimpleConsole : IConsoleService
             }
 
             this.simpleArrange.Set(currentInstance);
-        }
 
-        // Detect window resize.
-        var current = DateTime.UtcNow;
-        if ((current - this.adjustWindowTime) > adjustWindowInterval)
-        {
-            this.adjustWindowTime = current;
-            this.AdjustWindow();
-        }
-
-        if (currentInstance.CancellationToken.IsCancellationRequested)
-        {// Canceled
-            inputResult = new(InputResultKind.Canceled);
-            goto CompleteInstance;
-        }
-        else if (this.Core.IsTerminated)
-        {// Terminated
-            inputResult = new(InputResultKind.Terminated);
-            goto CompleteInstance;
-        }
-
-        ConsoleKeyInfo pendingKeyInfo = default;
-        using (this.syncObject.EnterScope())
-        {
-            var idx = this.instanceList.IndexOf(currentInstance);
-            if (idx < 0)
-            {// Not found
-                inputResult = new(InputResultKind.Terminated);
+            if (currentInstance.CancellationToken.IsCancellationRequested)
+            {// Canceled
+                inputResult = new(InputResultKind.Canceled);
                 goto CompleteInstance;
             }
-            else if (idx != (this.instanceList.Count - 1))
-            {// Not active instance
-                return;
+            else if (this.Core.IsTerminated)
+            {// Terminated
+                inputResult = new(InputResultKind.Terminated);
+                goto CompleteInstance;
             }
 
             if (!this.inputTextQueue.IsEmpty &&
@@ -646,6 +631,7 @@ ProcessKeyInfo:
             }
 
             bool processInput = true;
+            ConsoleKeyInfo pendingKeyInfo = default;
             if (IsControl(keyInfo))
             {// Control
             }
