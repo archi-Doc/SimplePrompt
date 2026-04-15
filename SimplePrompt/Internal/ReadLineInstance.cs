@@ -84,7 +84,7 @@ internal sealed class ReadLineInstance
     {
         this.simpleConsole = simpleConsole;
         this.TaskCompletionSource = new();
-        this.CancellationToken = cancellationToken;
+        this.CancellationToken = options.CancellationToken;
         this.CurrentLocation.Initialize(simpleConsole, this);
         GhostCopy.Copy(ref options, ref this.options);
     }

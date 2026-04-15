@@ -105,11 +105,20 @@ internal sealed class Program
             KeyInputHook = keyInfo => KeyInputHook(keyInfo),
         };
 
+        var ctsStack = new Stack<CancellationTokenSource>();
         simpleConsole.KeyInputHook = keyInfo =>
         {
             if (keyInfo.Key == ConsoleKey.Q && keyInfo.Modifiers == ConsoleModifiers.Control)
             {// Ctrl+Q
+                /*if (simpleConsole.TryGetCurrentReadLineOptions(out var options))
+                {
+                    options.CancellationTokenSource?.Cancel();
+                }*/
 
+                if (ctsStack.TryPeek(out var cts))
+                {
+                    cts.Cancel();
+                }
             }
 
             return KeyInputHookResult.NotHandled;
@@ -138,14 +147,17 @@ internal sealed class Program
         {
             var options = simpleConsole.DefaultOptions with
             {
+                CancellationTokenSource = new(),
             };
+
+            ctsStack.Push(options.CancellationTokenSource);
 
             var secondary = simpleConsole.DefaultOptions with
             {
                 Prompt = "Secondary> ",
             };
 
-            _ = simpleConsole.ReadLine(secondary);
+            // _ = simpleConsole.ReadLine(secondary);
             var result = await simpleConsole.ReadLine(options);
 
             if (result.Kind == InputResultKind.Terminated)
@@ -189,16 +201,25 @@ internal sealed class Program
             }
             else if (string.Equals(result.Text, "c", StringComparison.OrdinalIgnoreCase))
             {
-                simpleConsole.WriteLine("Freeze ->");
-                await Task.Delay(3_000);
-                simpleConsole.WriteLine("<-");
-                simpleConsole.EnqueueInput("a");
+                try
+                {
+                    simpleConsole.WriteLine("Freeze ->");
+                    await Task.Delay(3_000, options.CancellationToken);
+                    simpleConsole.WriteLine("<-");
+                    simpleConsole.EnqueueInput("a");
+                }
+                catch
+                {
+                    simpleConsole.WriteLine("Canceled2", ConsoleColor.Red);
+                }
             }
             else
             {
                 var text = BaseHelper.RemoveCrLf(result.Text);
                 simpleConsole.WriteLine($"Command: {text}");
             }
+
+            ctsStack.Pop();
         }
 
         await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.

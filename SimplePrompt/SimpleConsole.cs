@@ -73,6 +73,8 @@ public partial class SimpleConsole : IConsoleService
 
     public bool EnableColor { get; set; } = true;
 
+    public bool BufferKeyInputWhenUnfocused { get; init; } = true;
+
     /// <summary>
     /// Gets or sets the default options for <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/>.
     /// </summary>
@@ -102,11 +104,12 @@ public partial class SimpleConsole : IConsoleService
     private readonly SimpleTextReader simpleTextReader;
     private readonly SimpleArrange simpleArrange;
     private readonly ConcurrentQueue<string?> inputTextQueue = new();
-    private readonly Queue<ConsoleKeyInfo> inputKeyQueue = new(); // Process()
+    private readonly Queue<ConsoleKeyInfo> inputKeyQueue = new(); // Not thread-safe, but it is only used by Process().
     private readonly PosixSignalRegistration? posixSignalRegistration;
 
     private readonly Lock syncObject = new();
     private List<ReadLineInstance> instanceList = [];
+
     private DateTime adjustWindowTime;
 
     #endregion
@@ -433,6 +436,23 @@ public partial class SimpleConsole : IConsoleService
     public void WriteLine(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, true, color);
 
+    public bool TryGetCurrentReadLineOptions([MaybeNullWhen(false)] out ReadLineOptions readLineOptions)
+    {
+        using (this.syncObject.EnterScope())
+        {
+            if (this.TryGetActiveInstance(out var instance))
+            {
+                readLineOptions = instance.Options;
+                return true;
+            }
+            else
+            {
+                readLineOptions = default;
+                return false;
+            }
+        }
+    }
+
     /*public void WriteLineAndForget(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         var job = this.worker.Rent();
@@ -531,7 +551,9 @@ public partial class SimpleConsole : IConsoleService
                 continue;
             }
 
-            if (this.inputKeyQueue.Count < WindowBufferSize)
+            if (this.inputKeyQueue.Count < WindowBufferSize &&
+                (this.BufferKeyInputWhenUnfocused ||
+                this.instanceList.Count > 0))
             {
                 this.inputKeyQueue.Enqueue(keyInfo);
             }

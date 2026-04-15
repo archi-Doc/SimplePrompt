@@ -112,4 +112,8 @@ public record class ReadLineOptions
     /// If <see langword="null"/> is returned, the input is rejected and the user is prompted to enter it again.
     /// </summary>
     public TextInputHook? TextInputHook { get; init; }
+
+    public CancellationTokenSource? CancellationTokenSource { get; init; }
+
+    public CancellationToken CancellationToken => this.CancellationTokenSource is null ? default : this.CancellationTokenSource.Token;
 }
