@@ -504,7 +504,7 @@ public partial class SimpleConsole : IConsoleService
     }
 
     internal void Process()
-    {
+    {// Called by the worker thread at each IntervalTimeSpan.
         ConsoleKeyInfo keyInfo = default;
         InputResult inputResult;
 
@@ -594,9 +594,8 @@ public partial class SimpleConsole : IConsoleService
         }
 
         while (this.inputKeyQueue.TryDequeue(out keyInfo))
-        {
+        {// Dequeue key input and process it.
 ProcessKeyInfo:
-
             if (keyInfo.KeyChar == '\n' ||
             keyInfo.Key == ConsoleKey.Enter)
             {
@@ -639,28 +638,25 @@ ProcessKeyInfo:
             else
             {// Not control
                 currentInstance.CharBuffer[currentInstance.CharPosition++] = keyInfo.KeyChar;
-                using (this.syncObject.EnterScope())
+                if (this.inputKeyQueue.TryDequeue(out keyInfo))
                 {
-                    if (this.inputKeyQueue.TryDequeue(out keyInfo))
+                    processInput = false;
+                    if (currentInstance.CharPosition >= (ReadLineInstance.CharBufferSize - 2))
                     {
-                        processInput = false;
-                        if (currentInstance.CharPosition >= (ReadLineInstance.CharBufferSize - 2))
+                        if (currentInstance.CharPosition >= ReadLineInstance.CharBufferSize ||
+                            char.IsLowSurrogate(keyInfo.KeyChar))
                         {
-                            if (currentInstance.CharPosition >= ReadLineInstance.CharBufferSize ||
-                                char.IsLowSurrogate(keyInfo.KeyChar))
-                            {
-                                processInput = true;
-                            }
+                            processInput = true;
                         }
+                    }
 
-                        if (processInput)
-                        {
-                            pendingKeyInfo = keyInfo;
-                        }
-                        else
-                        {
-                            goto ProcessKeyInfo;
-                        }
+                    if (processInput)
+                    {
+                        pendingKeyInfo = keyInfo;
+                    }
+                    else
+                    {
+                        goto ProcessKeyInfo;
                     }
                 }
             }
@@ -1016,7 +1012,10 @@ Exit:
             try
             {
                 var newCursor = Console.GetCursorPosition();
-                this.simpleArrange.Arrange(newCursor, false);
+                using (this.syncObject.EnterScope())
+                {
+                    this.simpleArrange.Arrange(newCursor, false);
+                }
             }
             catch
             {

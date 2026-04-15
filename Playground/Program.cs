@@ -105,6 +105,16 @@ internal sealed class Program
             KeyInputHook = keyInfo => KeyInputHook(keyInfo),
         };
 
+        simpleConsole.KeyInputHook = keyInfo =>
+        {
+            if (keyInfo.Key == ConsoleKey.Q && keyInfo.Modifiers == ConsoleModifiers.Control)
+            {// Ctrl+Q
+
+            }
+
+            return KeyInputHookResult.NotHandled;
+        };
+
         Console.Write("Input: ");
         _ = Console.ReadLine();
 
@@ -135,7 +145,7 @@ internal sealed class Program
                 Prompt = "Secondary> ",
             };
 
-            //_ = simpleConsole.ReadLine(secondary);
+            _ = simpleConsole.ReadLine(secondary);
             var result = await simpleConsole.ReadLine(options);
 
             if (result.Kind == InputResultKind.Terminated)
@@ -182,6 +192,7 @@ internal sealed class Program
                 simpleConsole.WriteLine("Freeze ->");
                 await Task.Delay(3_000);
                 simpleConsole.WriteLine("<-");
+                simpleConsole.EnqueueInput("a");
             }
             else
             {
