@@ -140,29 +140,32 @@ public partial class SimpleConsole : IConsoleService
 #pragma warning disable CA1416 // Validate platform compatibility
             this.posixSignalRegistration = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
             {
-                var cursor = Console.GetCursorPosition();
+                (int Left, int Top) cursor;
+                try
+                {
+                    cursor = Console.GetCursorPosition();
+                }
+                catch
+                {
+                    return;
+                }
+
                 using (this.syncObject.EnterScope())
                 {// Adjusts the cursor position when attached to a console.
                     if (this.TryGetActiveInstance(out var activeInstance))
                     {
-                        try
-                        {
-                            if (cursor.Top != this._cursorTop ||
-                                cursor.Left != this._cursorLeft)
-                            {// Cursor changed
-                                if (activeInstance.LineList.Count > 0)
-                                {
-                                    activeInstance.LineList[0].Top = cursor.Top;
-                                    activeInstance.ResetCursor(CursorOperation.None);
-                                    activeInstance.Redraw();
-                                    activeInstance.CurrentLocation.Restore(CursorOperation.None);
-                                }
-
-                                // this.simpleArrange.Arrange(cursor, true);
+                        if (cursor.Top != this._cursorTop ||
+                            cursor.Left != this._cursorLeft)
+                        {// Cursor changed
+                            if (activeInstance.LineList.Count > 0)
+                            {
+                                activeInstance.LineList[0].Top = cursor.Top;
+                                activeInstance.ResetCursor(CursorOperation.None);
+                                activeInstance.Redraw();
+                                activeInstance.CurrentLocation.Restore(CursorOperation.None);
                             }
-                        }
-                        catch
-                        {
+
+                            // this.simpleArrange.Arrange(cursor, true);
                         }
                     }
                 }
