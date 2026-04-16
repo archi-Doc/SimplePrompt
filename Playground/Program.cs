@@ -123,8 +123,8 @@ internal sealed class Program
             return KeyInputHookResult.NotHandled;
         };
 
-        Console.Write("Input: ");
-        _ = Console.ReadLine();
+        // Console.Write("Input: ");
+        // _ = Console.ReadLine();
 
         /*_ = Task.Run(async () =>
         {
