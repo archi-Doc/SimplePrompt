@@ -555,11 +555,13 @@ public partial class SimpleConsole : IConsoleService
                 continue;
             }
 
-            if (this.inputKeyQueue.Count < WindowBufferSize &&
-                (this.BufferKeyInputWhenUnfocused ||
-                this.instanceList.Count > 0))
+            if (this.BufferKeyInputWhenUnfocused ||
+                this.instanceList.Count > 0)
             {
-                this.inputKeyQueue.Enqueue(keyInfo);
+                if (this.inputKeyQueue.Count < WindowBufferSize)
+                {
+                    this.inputKeyQueue.Enqueue(keyInfo);
+                }
             }
         }
 
