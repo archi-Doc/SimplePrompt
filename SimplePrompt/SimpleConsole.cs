@@ -203,7 +203,7 @@ public partial class SimpleConsole : IConsoleService
                 return Task<InputResult>.FromResult(new InputResult(InputResultKind.Terminated));
             }
 
-            if (this.instanceList.Find(x => x.Options == options) is { } existingInstance)
+            if (this.instanceList.Find(x => object.ReferenceEquals(x.Options, options)) is { } existingInstance)
             {
                 return existingInstance.TaskCompletionSource.Task;
             }
