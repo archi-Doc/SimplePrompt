@@ -177,11 +177,6 @@ public partial class SimpleConsole : IConsoleService
         }
     }
 
-    public void Terminate()
-    {
-        this.worker.Dispose();
-    }
-
     /// <summary>
     /// Asynchronously reads a line of input from the console with support for multiline editing.
     /// </summary>

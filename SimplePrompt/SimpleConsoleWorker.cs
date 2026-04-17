@@ -15,7 +15,7 @@ internal sealed class SimpleConsoleWorker : TaskCore
     private static async Task Process(object? parameter)
     {
         var worker = (SimpleConsoleWorker)parameter!;
-        while (await worker.Delay(IntervalTimeSpan).ConfigureAwait(false))
+        while (await worker.simpleConsole.Core.Delay(IntervalTimeSpan).ConfigureAwait(false))
         {
             worker.simpleConsole.Process();
         }
