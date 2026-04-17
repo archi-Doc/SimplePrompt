@@ -6,7 +6,7 @@ using Arc.Threading;
 
 namespace SimplePrompt;
 
-internal sealed class SimpleConsoleWorker : ThreadCore
+/*internal sealed class SimpleConsoleWorker : ThreadCore
 {
     private readonly SimpleConsole simpleConsole;
 
@@ -29,9 +29,9 @@ internal sealed class SimpleConsoleWorker : ThreadCore
         this.simpleConsole = simpleConsole;
         // this.Thread.IsBackground = true;
     }
-}
+}*/
 
-/*internal sealed class SimpleConsoleWorker : TaskCore
+internal sealed class SimpleConsoleWorker : TaskCore
 {
     private static readonly TimeSpan IntervalTimeSpan = TimeSpan.FromMilliseconds(10);
 
@@ -53,4 +53,4 @@ internal sealed class SimpleConsoleWorker : ThreadCore
     {
         this.simpleConsole = simpleConsole;
     }
-}*/
+}

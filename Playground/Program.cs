@@ -204,7 +204,8 @@ internal sealed class Program
                 try
                 {
                     simpleConsole.WriteLine("Freeze ->");
-                    await Task.Delay(3_000, ctsStack.Peek().Token);
+                    Thread.Sleep(30000);
+                    // await Task.Delay(3_000, ctsStack.Peek().Token);
                     simpleConsole.WriteLine("<-");
                     simpleConsole.EnqueueInput("a");
                 }
