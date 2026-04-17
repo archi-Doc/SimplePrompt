@@ -735,11 +735,8 @@ CompleteInstance:
             this.RemoveInstance(currentInstance);
         }
 
-        Task.Run(() =>
-        {
-            currentInstance.TaskCompletionSource.SetResult(inputResult);
-            ReadLineInstance.Return(currentInstance);
-        });
+        currentInstance.TaskCompletionSource.SetResult(inputResult);
+        ReadLineInstance.Return(currentInstance);
 
         string? ProcessTextInputHook(string result)
         {
