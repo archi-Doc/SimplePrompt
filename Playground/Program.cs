@@ -213,6 +213,20 @@ internal sealed class Program
                     simpleConsole.WriteLine("Canceled2", ConsoleColor.Red);
                 }
             }
+            else if (string.Equals(result.Text, "d", StringComparison.OrdinalIgnoreCase))
+            {
+                var options2 = ReadLineOptions.SingleLine with
+                {
+                    Prompt = "Nested>> ",
+                };
+
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(100); // Wait briefly to allow ReadLine() to be nested.
+                    var result = await simpleConsole.ReadLine(options2);
+                    Console.WriteLine($"Nested: {result.Text}");
+                });
+            }
             else
             {
                 var text = BaseHelper.RemoveCrLf(result.Text);
