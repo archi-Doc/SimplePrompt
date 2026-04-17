@@ -38,7 +38,7 @@ internal sealed class ReadLineInstance
 
     public RawConsole RawConsole => this.simpleConsole.RawConsole;
 
-    public TaskCompletionSource<InputResult> TaskCompletionSource { get; private set; } = new();
+    public TaskCompletionSource<InputResult> TaskCompletionSource { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public CancellationToken CancellationToken { get; private set; }
 
