@@ -204,7 +204,17 @@ internal sealed class Program
                 try
                 {
                     simpleConsole.WriteLine("Freeze ->");
-                    await Task.Delay(3_000, ctsStack.Peek().Token);
+                    for (var i = 0; i < 100; i++)
+                    {
+                        Thread.Sleep(100);
+                        if (ctsStack.Peek().IsCancellationRequested)
+                        {
+                            simpleConsole.WriteLine("Canceled");
+                            break;
+                        }
+                    }
+
+                    // await Task.Delay(3_000, ctsStack.Peek().Token);
                     simpleConsole.WriteLine("<-");
                     simpleConsole.EnqueueInput("a");
                 }

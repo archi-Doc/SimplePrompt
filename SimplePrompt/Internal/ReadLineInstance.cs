@@ -38,7 +38,7 @@ internal sealed class ReadLineInstance
 
     public RawConsole RawConsole => this.simpleConsole.RawConsole;
 
-    public TaskCompletionSource<InputResult> TaskCompletionSource { get; private set; } = new();
+    public TaskCompletionSource<InputResult> TaskCompletionSource { get; private set; }
 
     public CancellationToken CancellationToken { get; private set; }
 
@@ -83,7 +83,7 @@ internal sealed class ReadLineInstance
     public void Initialize(SimpleConsole simpleConsole, ReadLineOptions options, CancellationToken cancellationToken)
     {
         this.simpleConsole = simpleConsole;
-        this.TaskCompletionSource = new();
+        this.TaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
         this.CancellationToken = cancellationToken;
         this.CurrentLocation.Initialize(simpleConsole, this);
         GhostCopy.Copy(ref options, ref this.options);
