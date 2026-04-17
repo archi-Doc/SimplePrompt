@@ -92,17 +92,6 @@ internal sealed class Program
         logger.GetWriter()?.Write("Start");
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        /*Console.Write("Input: ");
-        _ = Console.ReadLine();
-        _ = Task.Run(async () =>
-        {
-            WriteLineRaw("1");
-            await Task.Delay(10);
-            WriteLineRaw("2");
-            await Task.Delay(100);
-            WriteLineRaw("3");
-        });*/
-
         var simpleConsole = SimpleConsole.GetOrCreate();
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {
@@ -113,11 +102,30 @@ internal sealed class Program
             AllowEmptyLineInput = true,
             CancelOnEscape = true,
             // MaskingCharacter = '?',
-            KeyInputHook = keyInfo => KeyInputHook(keyInfo),
+            KeyInputHook = KeyInputHookMethod,
         };
 
-        Console.Write("Input: ");
-        _ = Console.ReadLine();
+        var ctsStack = new Stack<CancellationTokenSource>();
+        simpleConsole.KeyInputHook = (ref keyInfo) =>
+        {
+            if (keyInfo.Key == ConsoleKey.Q && keyInfo.Modifiers == ConsoleModifiers.Control)
+            {// Ctrl+Q
+                // keyInfo = new('z', ConsoleKey.Z, shift: false, alt: false, control: false);
+                // return KeyInputHookResult.NotHandled;
+
+                if (ctsStack.TryPeek(out var cts))
+                {
+                    cts.Cancel();
+                    return KeyInputHookResult.Handled;
+                }
+            }
+
+            return KeyInputHookResult.NotHandled;
+        };
+
+        // Console.Write("Input: ");
+        // _ = Console.ReadLine();
+
         /*_ = Task.Run(async () =>
         {
             WriteLineRaw("1");
@@ -131,26 +139,26 @@ internal sealed class Program
 
         Console.WriteLine(true);
         Console.WriteLine(1.23d);
-
-        /*_ = Task.Run(async () =>
-        {
-            await Task.Delay(1000);
-            simpleConsole.EnqueueInput("Queued");
-            await Task.Delay(1000);
-            simpleConsole.EnqueueInput(null);
-        });*/
-
-        // simpleConsole.Write("ABC");
-        // _ = await simpleConsole.ReadLine();
-
+        var top = SimpleConsole.CursorTop;
+        var position = SimpleConsole.GetCursorPosition();
 
         while (!ThreadCore.Root.IsTerminated)
         {
             var options = simpleConsole.DefaultOptions with
             {
+                // CancellationTokenSource = new(),
             };
 
-            var result = await simpleConsole.ReadLine(options);
+            var currentCts = new CancellationTokenSource();
+            ctsStack.Push(currentCts);
+
+            var secondary = simpleConsole.DefaultOptions with
+            {
+                Prompt = "Secondary> ",
+            };
+
+            // _ = simpleConsole.ReadLine(secondary);
+            var result = await simpleConsole.ReadLine(options, currentCts.Token);
 
             if (result.Kind == InputResultKind.Terminated)
             {
@@ -191,11 +199,41 @@ internal sealed class Program
                     Console.WriteLine("ABC123ABC123\r\nABC123ABC123\nABC123ABC123");
                 });
             }
+            else if (string.Equals(result.Text, "c", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    simpleConsole.WriteLine("Freeze ->");
+                    await Task.Delay(3_000, ctsStack.Peek().Token);
+                    simpleConsole.WriteLine("<-");
+                    simpleConsole.EnqueueInput("a");
+                }
+                catch
+                {
+                    simpleConsole.WriteLine("Canceled2", ConsoleColor.Red);
+                }
+            }
+            else if (string.Equals(result.Text, "d", StringComparison.OrdinalIgnoreCase))
+            {
+                var options2 = ReadLineOptions.SingleLine with
+                {
+                    Prompt = "Nested>> ",
+                };
+
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(100); // Wait briefly to allow ReadLine() to be nested.
+                    var result = await simpleConsole.ReadLine(options2);
+                    Console.WriteLine($"Nested: {result.Text}");
+                });
+            }
             else
             {
                 var text = BaseHelper.RemoveCrLf(result.Text);
                 simpleConsole.WriteLine($"Command: {text}");
             }
+
+            ctsStack.Pop();
         }
 
         await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.
@@ -207,7 +245,7 @@ internal sealed class Program
 
         ThreadCore.Root.TerminationEvent.Set(); // The termination process is complete (#1).
 
-        KeyInputHookResult KeyInputHook(ConsoleKeyInfo keyInfo)
+        KeyInputHookResult KeyInputHookMethod(ref ConsoleKeyInfo keyInfo)
         {
             if (keyInfo.Key == ConsoleKey.F1)
             {
@@ -224,7 +262,7 @@ internal sealed class Program
                 var options2 = ReadLineOptions.SingleLine with
                 {
                     Prompt = "Nested>>> ",
-                    KeyInputHook = keyInfo => KeyInputHook(keyInfo),
+                    KeyInputHook = KeyInputHookMethod,
                 };
 
                 _ = Task.Run(async () =>

@@ -57,7 +57,7 @@ internal sealed class SimpleArrange
             }
         }
 
-        if (this.simpleConsole.CursorTop != newCursor.Top/* ||
+        if (this.simpleConsole._cursorTop != newCursor.Top/* ||
                 this.simpleConsole.CursorLeft != newCursor.Left*/)
         {
             redraw = true;

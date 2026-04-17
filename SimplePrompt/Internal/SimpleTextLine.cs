@@ -52,9 +52,9 @@ internal sealed class SimpleTextLine
 
     public ReadLineInstance ReadLineInstance { get; private set; }
 
-    public int WindowWidth => this.SimpleConsole.WindowWidth;
+    public int WindowWidth => this.SimpleConsole._windowWidth;
 
-    public int WindowHeight => this.SimpleConsole.WindowHeight;
+    public int WindowHeight => this.SimpleConsole._windowHeight;
 
     public int Index { get; internal set; }
 
@@ -69,12 +69,12 @@ internal sealed class SimpleTextLine
     /// <summary>
     /// Gets the cursor's horizontal position relative to the line's left edge.
     /// </summary>
-    public int CursorLeft => this.SimpleConsole.CursorLeft;
+    public int CursorLeft => this.SimpleConsole._cursorLeft;
 
     /// <summary>
     /// Gets the cursor's vertical position relative to the line's top edge.
     /// </summary>
-    public int CursorTop => this.SimpleConsole.CursorTop - this.Top;
+    public int CursorTop => this.SimpleConsole._cursorTop - this.Top;
 
     public int Height => this.rows.Count;
 
@@ -106,11 +106,11 @@ internal sealed class SimpleTextLine
         this.ReadLineInstance = default!;
     }
 
+    public bool EndsWithEmptyRow => this.Rows.Count > 0 && this.Rows[this.Rows.Count - 1].Length == 0;
+
     internal ReadOnlySpan<char> PromptSpan => this.charArray.AsSpan(0, this.PromptLength);
 
     internal ReadOnlySpan<char> InputSpan => this.charArray.AsSpan(this.PromptLength, this.InputLength);
-
-    public bool EndsWithEmptyRow => this.Rows.Count > 0 && this.Rows[this.Rows.Count - 1].Length == 0;
 
     public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
     {
@@ -165,7 +165,7 @@ internal sealed class SimpleTextLine
             }
             else if (key == ConsoleKey.UpArrow)
             {// History or move line
-                if (this.ReadLineInstance.Mode.IsMultiline)
+                if (this.ReadLineInstance.Mode.IsMultiline())
                 {// Up
                     this.ReadLineInstance.CurrentLocation.MoveHorizontal(true);
                     // this.ReadLineInstance.CurrentLocation.ChangeLine(-1, true);
@@ -178,7 +178,7 @@ internal sealed class SimpleTextLine
             }
             else if (key == ConsoleKey.DownArrow)
             {// History or move line
-                if (this.ReadLineInstance.Mode.IsMultiline)
+                if (this.ReadLineInstance.Mode.IsMultiline())
                 {// Down
                     this.ReadLineInstance.CurrentLocation.MoveHorizontal(false);
                 }
@@ -278,7 +278,7 @@ internal sealed class SimpleTextLine
         written += span.Length;
         buffer = buffer.Slice(span.Length);
 
-        if (startCursor.Left != this.SimpleConsole.CursorLeft || startCursor.Top != this.SimpleConsole.CursorTop)
+        if (startCursor.Left != this.SimpleConsole._cursorLeft || startCursor.Top != this.SimpleConsole._cursorTop)
         {// Move cursor
             span = ConsoleHelper.SetCursorSpan;
             span.CopyTo(buffer);
@@ -414,18 +414,18 @@ internal sealed class SimpleTextLine
 
         if (restoreCursor)
         {
-            this.SimpleConsole.CursorLeft = startCursor.Left;
-            this.SimpleConsole.CursorTop = startCursor.Top - scroll;
+            this.SimpleConsole._cursorLeft = startCursor.Left;
+            this.SimpleConsole._cursorTop = startCursor.Top - scroll;
         }
         else
         {
-            this.SimpleConsole.CursorLeft = endCursor.Left;
-            this.SimpleConsole.CursorTop = endCursor.Top - scroll;
+            this.SimpleConsole._cursorLeft = endCursor.Left;
+            this.SimpleConsole._cursorTop = endCursor.Top - scroll;
         }
 
-        if (this.SimpleConsole.CursorLeft == 0)
+        if (this.SimpleConsole._cursorLeft == 0)
         {
-            this.SimpleConsole.SetCursorPosition(this.SimpleConsole.CursorLeft, this.SimpleConsole.CursorTop, CursorOperation.None);
+            this.SimpleConsole.SetCursorPosition(this.SimpleConsole._cursorLeft, this.SimpleConsole._cursorTop, CursorOperation.None);
         }
     }
 
@@ -448,6 +448,15 @@ internal sealed class SimpleTextLine
         }
 
         return this.GetEndCursor();
+    }
+
+    internal void Clear()
+    {
+        this._inputLength = 0;
+        this._inputWidth = 0;
+
+        this.ReleaseRows();
+        this.ResetRows();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -477,7 +486,7 @@ internal sealed class SimpleTextLine
         }
 
         var start = 0;
-        var windowWidth = this.SimpleConsole.WindowWidth;
+        var windowWidth = this.SimpleConsole._windowWidth;
         while (start < this.PromptLength)
         {// Prepare rows
             var width = 0;
@@ -605,15 +614,6 @@ internal sealed class SimpleTextLine
 
         this.Clear();
         this.ReadLineInstance.CurrentLocation.Reset(this, CursorOperation.ForceSet);
-    }
-
-    internal void Clear()
-    {
-        this._inputLength = 0;
-        this._inputWidth = 0;
-
-        this.ReleaseRows();
-        this.ResetRows();
     }
 
     private void ProcessCharBuffer(Span<char> charBuffer)

@@ -1,4 +1,6 @@
-﻿namespace DelayTest;
+﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
+
+namespace DelayTest;
 
 internal sealed class Program
 {
@@ -31,7 +33,6 @@ internal sealed class Program
             Console.Write("e");
         }
     }
-
 
     private static async Task ReadLine()
     {

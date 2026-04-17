@@ -28,4 +28,4 @@ public enum KeyInputHookResult
 /// </summary>
 /// <param name="keyInfo">The <see cref="ConsoleKeyInfo"/> containing information about the pressed key.</param>
 /// <returns>The hook result.</returns>
-public delegate KeyInputHookResult KeyInputHook(ConsoleKeyInfo keyInfo);
+public delegate KeyInputHookResult KeyInputHook(ref ConsoleKeyInfo keyInfo);

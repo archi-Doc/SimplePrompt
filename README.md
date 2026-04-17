@@ -107,6 +107,23 @@ public record class ReadLineOptions
     {
     };
 
+    public static readonly ReadLineOptions YesNo = new()
+    {
+        MaxInputLength = 3,
+        MultilineDelimiter = default,
+        CancelOnEscape = false,
+        TextInputHook = text =>
+        {
+            var st = text.Trim().ToLowerInvariant();
+            if (st == "y" || st == "yes" || st == "n" || st == "no")
+            {
+                return text;
+            }
+
+            return null;
+        },
+    };
+
     /// <summary>
     /// Gets the color used for user input in the console.
     /// Default is <see cref="ConsoleColor.Yellow"/>.
@@ -118,6 +135,12 @@ public record class ReadLineOptions
     /// Default is 64KB.
     /// </summary>
     public int MaxInputLength { get; init; } = 1024 * 64;
+
+    /*/// <summary>
+    /// Gets the color used for the prompt in the console.
+    /// Default is <see cref="ConsoleColor.Red"/>.
+    /// </summary>
+    public ConsoleColor PromptColor { get; init; } = ConsoleColor.White;*/
 
     /// <summary>
     /// Gets the string displayed as the prompt for single-line input.<br/>
@@ -180,6 +203,36 @@ public record class ReadLineOptions
 
 ## Features
 
-### Nested ReadLine
+### Nested ReadLine()
+
+While waiting in `ReadLine()`, you can call the next `ReadLine()` and nest it.
+ When the second `ReadLine()` finishes, the original `ReadLine()` is restored.
+
+```csharp
+var result = await simpleConsole.ReadLine(options, currentCts.Token);
+if (string.Equals(result.Text, "d", StringComparison.OrdinalIgnoreCase))
+{
+    var options2 = ReadLineOptions.SingleLine with
+    {
+        Prompt = "Nested>> ",
+    };
+
+    _ = Task.Run(async () =>
+    {
+        await Task.Delay(100); // Wait briefly to allow ReadLine() to be nested.
+        var result = await simpleConsole.ReadLine(options2);
+        Console.WriteLine($"Nested: {result.Text}");
+    });
+}
+```
+
+
 
 ### Queued Input
+
+By calling `EnqueueInput()`, you can emulate user input as if the user had typed it.
+
+```csharp
+simpleConsole.EnqueueInput("a");
+```
+

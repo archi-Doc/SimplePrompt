@@ -13,10 +13,8 @@ internal static class SimplePromptHelper
 
     public static ReadOnlySpan<char> ForceNewLineCursor => " \e[1D";
 
-    extension(ReadLineMode mode)
-    {
-        public bool IsMultiline => mode != ReadLineMode.Singleline;
-    }
+    public static bool IsMultiline(this ReadLineMode mode)
+        => mode != ReadLineMode.Singleline;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool TryCopy(ReadOnlySpan<char> source, ref Span<char> destination)

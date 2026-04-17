@@ -73,7 +73,7 @@ internal sealed class Program
             {// Multiline prompt example
                 Prompt = "Description (n or F3:Nested, y or F4:Yes or No)\r\n\n<---\nInput> ",
                 // Prompt = "Input> ",
-                KeyInputHook = keyInfo => KeyInputHook(keyInfo),
+                KeyInputHook = KeyInputHookMethod,
             };
 
             var result = await simpleConsole.ReadLine(options);
@@ -92,7 +92,7 @@ internal sealed class Program
             }
         }
 
-        KeyInputHookResult KeyInputHook(ConsoleKeyInfo keyInfo)
+        KeyInputHookResult KeyInputHookMethod(ref ConsoleKeyInfo keyInfo)
         {
             if (keyInfo.Key == ConsoleKey.F1)
             {
@@ -123,7 +123,7 @@ internal sealed class Program
             var options2 = ReadLineOptions.SingleLine with
             {
                 Prompt = "Nested>>> ",
-                KeyInputHook = keyInfo => KeyInputHook(keyInfo),
+                KeyInputHook = KeyInputHookMethod,
             };
 
             await Task.Delay(100);
@@ -172,7 +172,7 @@ internal sealed class Program
                 AllowEmptyLineInput = true,
                 MaxInputLength = 20,
                 MaskingCharacter = '$',
-                KeyInputHook = keyInfo =>
+                KeyInputHook = (ref keyInfo) =>
                 {
                     if (keyInfo.Key == ConsoleKey.F1)
                     {
