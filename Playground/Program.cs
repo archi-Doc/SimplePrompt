@@ -204,7 +204,7 @@ internal sealed class Program
                 try
                 {
                     simpleConsole.WriteLine("Freeze ->");
-                    for (var i = 0; i < 100; i++)
+                    for (var i = 0; i < 30; i++)
                     {
                         Thread.Sleep(100);
                         if (ctsStack.Peek().IsCancellationRequested)
@@ -246,7 +246,7 @@ internal sealed class Program
             ctsStack.Pop();
         }
 
-        await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.
+        await ThreadCore.Root.WaitForTermination(); // Wait for the termination infinitely.
         if (product.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
         {
             logger.GetWriter()?.Write("End");
