@@ -55,7 +55,7 @@ internal sealed class Program
         // await TestConsoleMode(simpleConsole);
         await TestMultilinePrompt(simpleConsole);
 
-        await ThreadCore.Root.WaitForTerminationAsync(-1); // Wait for the termination infinitely.
+        await ThreadCore.Root.WaitForTermination(); // Wait for the termination infinitely.
         if (product.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
         {
             logger.GetWriter()?.Write("End");
