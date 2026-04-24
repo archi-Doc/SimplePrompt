@@ -40,7 +40,7 @@ internal sealed class SimpleConsoleWorker : TaskCore
     private static async Task Process(object? parameter)
     {
         var worker = (SimpleConsoleWorker)parameter!;
-        while (await worker.simpleConsole.Core.Delay(IntervalTimeSpan).ConfigureAwait(false))
+        while (await worker.simpleConsole.Core.Delay(IntervalTimeSpan, default).ConfigureAwait(false))
         {
             worker.simpleConsole.Process();
         }
