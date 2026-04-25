@@ -65,7 +65,10 @@ internal sealed class Program
         Console.CancelKeyPress += (s, e) =>
         {// Ctrl+C pressed
             e.Cancel = true;
-            ThreadCore.Root.Terminate(); // Send a termination signal to the root.
+
+            var keyInfo = new ConsoleKeyInfo(keyChar: '\u0003', ConsoleKey.C, false, false, true);
+            SimpleConsole.GetOrCreate().EnqueueKey(keyInfo);
+            // ThreadCore.Root.Terminate(); // Send a termination signal to the root.
         };
 
         var builder = new UnitBuilder()
@@ -147,6 +150,16 @@ internal sealed class Program
             var options = simpleConsole.DefaultOptions with
             {
                 // CancellationTokenSource = new(),
+                KeyInputHook = (ref keyInfo) =>
+                {
+                    if (keyInfo.Key == ConsoleKey.C && keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control))
+                    {
+                        ThreadCore.Root.Terminate(); // Send a termination signal to the root.
+                        return KeyInputHookResult.Handled;
+                    }
+
+                    return KeyInputHookResult.NotHandled;
+                }
             };
 
             var currentCts = new CancellationTokenSource();
