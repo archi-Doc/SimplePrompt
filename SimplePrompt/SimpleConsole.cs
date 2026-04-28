@@ -608,7 +608,7 @@ public partial class SimpleConsole : IConsoleService
         using (this.syncObject.EnterScope())
         {
             for (var i = 0; i < this.instanceList.Count - 1; i++)
-            {
+            {// If there are any canceled instances among the pending ReadLineInstances, notify and remove them.
                 var instance = this.instanceList[i];
                 if (instance.CancellationToken.IsCancellationRequested)
                 {
