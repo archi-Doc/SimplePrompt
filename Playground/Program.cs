@@ -66,9 +66,9 @@ internal sealed class Program
         {// Ctrl+C pressed
             e.Cancel = true;
 
-            var keyInfo = new ConsoleKeyInfo(keyChar: '\u0003', ConsoleKey.C, false, false, true);
-            SimpleConsole.GetOrCreate().EnqueueKey(keyInfo);
-            // ThreadCore.Root.Terminate(); // Send a termination signal to the root.
+            // var keyInfo = new ConsoleKeyInfo(keyChar: '\u0003', ConsoleKey.C, false, false, true);
+            // SimpleConsole.GetOrCreate().EnqueueKey(keyInfo);
+            ThreadCore.Root.Terminate(); // Send a termination signal to the root.
         };
 
         var builder = new UnitBuilder()
@@ -127,7 +127,9 @@ internal sealed class Program
         };
 
         var result2 = await simpleConsole.ReadLine();
+        simpleConsole.WriteLine("Abort");
         result2 = await simpleConsole.ReadLine();
+        simpleConsole.WriteLine("Abort2");
 
         // Console.Write("Input: ");
         // _ = Console.ReadLine();
