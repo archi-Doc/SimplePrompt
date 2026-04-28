@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
@@ -606,6 +607,17 @@ public partial class SimpleConsole : IConsoleService
         ReadLineInstance? currentInstance;
         using (this.syncObject.EnterScope())
         {
+            for (var i = 0; i < this.instanceList.Count - 1; i++)
+            {// If there are any canceled instances among the pending ReadLineInstances, notify and remove them.
+                var instance = this.instanceList[i];
+                if (instance.CancellationToken.IsCancellationRequested)
+                {
+                    this.instanceList.RemoveAt(i--);
+                    instance.TaskCompletionSource.SetResult(new(InputResultKind.Canceled));
+                    ReadLineInstance.Return(instance);
+                }
+            }
+
             if (!this.TryGetActiveInstance(out currentInstance))
             {// No active instance
                 return;

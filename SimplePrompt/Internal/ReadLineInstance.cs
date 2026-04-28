@@ -83,6 +83,7 @@ internal sealed class ReadLineInstance
     public void Initialize(SimpleConsole simpleConsole, ReadLineOptions options, CancellationToken cancellationToken)
     {
         this.simpleConsole = simpleConsole;
+        this.LineList.Clear();
         this.TaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
         this.CancellationToken = cancellationToken;
         this.CurrentLocation.Initialize(simpleConsole, this);
