@@ -197,9 +197,15 @@ public partial class SimpleConsole : IConsoleService
 
         using (this.syncObject.EnterScope())
         {
-            if (this.worker.IsTerminated)
+            if (this.worker.IsTerminated ||
+                this.Core.IsTerminated)
             {
                 return Task<InputResult>.FromResult(new InputResult(InputResultKind.Terminated));
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return Task<InputResult>.FromResult(new InputResult(InputResultKind.Canceled));
             }
 
             if (this.instanceList.Find(x => object.ReferenceEquals(x.Options, options)) is { } existingInstance)

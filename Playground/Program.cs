@@ -126,6 +126,9 @@ internal sealed class Program
             return KeyInputHookResult.NotHandled;
         };
 
+        var result2 = await simpleConsole.ReadLine();
+        result2 = await simpleConsole.ReadLine();
+
         // Console.Write("Input: ");
         // _ = Console.ReadLine();
 
