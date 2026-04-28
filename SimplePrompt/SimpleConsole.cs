@@ -540,6 +540,13 @@ public partial class SimpleConsole : IConsoleService
     {
         using (this.syncObject.EnterScope())
         {
+            if (this.instanceList.Count > 0)
+            {// New line
+                this.instanceList[^1].CurrentLocation.MoveToEnd();
+                this.UnderlyingTextWriter.WriteLine();
+                this.NewLineCursor();
+            }
+
             foreach (var x in this.instanceList)
             {
                 x.TaskCompletionSource.SetResult(new(InputResultKind.Terminated));
