@@ -107,7 +107,8 @@ public partial class SimpleConsole : IConsoleService
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly SimpleTextReader simpleTextReader;
     private readonly SimpleArrange simpleArrange;
-    private readonly ConcurrentQueue<string?> inputTextQueue = new();
+    private readonly ConcurrentQueue<string?> concurrentTextQueue = new();
+    private readonly ConcurrentQueue<ConsoleKeyInfo> concurrentKeyQueue = new();
     private readonly Queue<ConsoleKeyInfo> inputKeyQueue = new(); // Not thread-safe, but it is only used by Process().
     private readonly PosixSignalRegistration? posixSignalRegistration;
 
@@ -280,7 +281,19 @@ public partial class SimpleConsole : IConsoleService
     /// </param>
     public void EnqueueInput(string? message)
     {
-        this.inputTextQueue.Enqueue(message); // ConcurrentQueue
+        this.concurrentTextQueue.Enqueue(message);
+    }
+
+    /// <summary>
+    /// Enqueues a key event to be processed by the console key input queue.
+    /// This enables programmatic key injection equivalent to user key presses.
+    /// </summary>
+    /// <param name="keyInfo">
+    /// The key information to enqueue, including key code, character, and modifier state.
+    /// </param>
+    public void EnqueueKey(ConsoleKeyInfo keyInfo)
+    {
+        this.concurrentKeyQueue.Enqueue(keyInfo);
     }
 
     Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
@@ -569,6 +582,19 @@ public partial class SimpleConsole : IConsoleService
             }
         }
 
+        // KeyInfo queue -> InputKeyQueue
+        while (this.concurrentKeyQueue.TryDequeue(out keyInfo))
+        {
+            if (this.BufferKeyInputWhenUnfocused ||
+                this.instanceList.Count > 0)
+            {
+                if (this.inputKeyQueue.Count < WindowBufferSize)
+                {
+                    this.inputKeyQueue.Enqueue(keyInfo);
+                }
+            }
+        }
+
         // Get the current instance
         ReadLineInstance? currentInstance;
         using (this.syncObject.EnterScope())
@@ -591,9 +617,9 @@ public partial class SimpleConsole : IConsoleService
                 goto CompleteInstance;
             }
 
-            if (!this.inputTextQueue.IsEmpty &&
+            if (!this.concurrentTextQueue.IsEmpty &&
                 currentInstance.IsEmptyInput() &&
-                this.inputTextQueue.TryDequeue(out var queuedMessage))
+                this.concurrentTextQueue.TryDequeue(out var queuedMessage))
             {
                 var queuedSpan = queuedMessage.AsSpan();
                 do
