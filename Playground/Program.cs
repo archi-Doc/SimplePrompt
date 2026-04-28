@@ -126,22 +126,15 @@ internal sealed class Program
             return KeyInputHookResult.NotHandled;
         };
 
-        var result2 = await simpleConsole.ReadLine();
-        simpleConsole.WriteLine("Abort");
-        result2 = await simpleConsole.ReadLine();
-        simpleConsole.WriteLine("Abort2");
+        var cts = new CancellationTokenSource();
+        cts.CancelAfter(2000);
+        _ = simpleConsole.ReadLine(default, cts.Token);
 
-        // Console.Write("Input: ");
-        // _ = Console.ReadLine();
-
-        /*_ = Task.Run(async () =>
+        while (ThreadCore.Root.CanContinue)
         {
-            WriteLineRaw("1");
-            await Task.Delay(10);
-            WriteLineRaw("2");
-            await Task.Delay(100);
-            WriteLineRaw("3");
-        });*/
+            var result2 = await simpleConsole.ReadLine(new ReadLineOptions() with { Prompt = "aaa> " });
+            Console.WriteLine(result2.Text);
+        }
 
         Console.WriteLine("\u001b[90m[\u001b[39m\u001b[22m\u001b[40m\u001b[1m\u001b[37mINF\u001b[39m\u001b[22m\u001b[49m ITestInterface\u001b[90m] \u001b[39m\u001b[22m\u001b[1m\u001b[37mtttttttttttttttttttttttttttttttttttttttttttttttttttttt\u001b[39m\u001b[22m");
 
