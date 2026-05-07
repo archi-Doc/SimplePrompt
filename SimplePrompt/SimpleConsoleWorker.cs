@@ -48,8 +48,8 @@ internal sealed class SimpleConsoleWorker : TaskCore
         worker.simpleConsole.Abort();
     }
 
-    public SimpleConsoleWorker(SimpleConsole simpleConsole, ThreadCoreBase? parent, bool startImmediately = true)
-        : base(parent, Process, startImmediately)
+    public SimpleConsoleWorker(ExecutionRoot root, SimpleConsole simpleConsole)
+        : base(root.IndependentGroup, Process)
     {
         this.simpleConsole = simpleConsole;
     }

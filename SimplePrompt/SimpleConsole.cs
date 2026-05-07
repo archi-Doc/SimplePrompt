@@ -120,7 +120,7 @@ public partial class SimpleConsole : IConsoleService
 
     #endregion
 
-    private SimpleConsole()
+    private SimpleConsole(ExecutionRoot root)
     {
         try
         {
