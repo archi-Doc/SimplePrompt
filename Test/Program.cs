@@ -10,18 +10,20 @@ namespace Playground;
 
 internal sealed class Program
 {
+    private static ExecutionRoot? root;
+
     public static async Task Main(string[] args)
     {
         AppCloseHandler.Set(() =>
-        {// Console window closing or process terminated.
-            ThreadCore.Root.Terminate(); // Send a termination signal to the root.
-            ThreadCore.Root.TerminationEvent.WaitOne(2_000); // Wait until the termination process is complete (#1).
+        {// Closing the console window or terminating the process.
+            root?.RequestTermination(); // Send a termination signal to the root.
+            root?.WaitForTermination(TimeSpan.FromSeconds(2)).Wait();
         });
 
         Console.CancelKeyPress += (s, e) =>
-        {// Ctrl+C pressed
+        {// Ctrl+C pressed.
             e.Cancel = true;
-            ThreadCore.Root.Terminate(); // Send a termination signal to the root.
+            root?.RequestTermination(); // Send a termination signal to the root.
         };
 
         var builder = new UnitBuilder()
@@ -43,31 +45,30 @@ internal sealed class Program
                 });
             });
 
-        var product = builder.Build();
-        var logger = product.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
+        var unit = builder.Build();
+        root = unit.Context.Root;
+        var logger = unit.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
         logger.GetWriter()?.Write("Start");
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        var simpleConsole = SimpleConsole.GetOrCreate();
+        var simpleConsole = SimpleConsole.Create(root);
         Console.WriteLine(Environment.OSVersion.ToString());
 
         // Tests
         // await TestConsoleMode(simpleConsole);
         await TestMultilinePrompt(simpleConsole);
 
-        await ThreadCore.Root.WaitForTermination(); // Wait for the termination infinitely.
-        if (product.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
+        await root.WaitForTermination(); // Wait for the termination infinitely.
+        if (unit.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
         {
             logger.GetWriter()?.Write("End");
             await logUnit.FlushAndTerminate();
         }
-
-        ThreadCore.Root.TerminationEvent.Set(); // The termination process is complete (#1).
     }
 
     private static async Task TestMultilinePrompt(SimpleConsole simpleConsole)
     {
-        while (!ThreadCore.Root.IsTerminated)
+        while (root?.IsTerminated == false)
         {
             var options = simpleConsole.DefaultOptions with
             {// Multiline prompt example
@@ -160,7 +161,7 @@ internal sealed class Program
     {
         Interop.SetConsoleMode(); // Causes "Press any key to close this window..." issue.
 
-        while (!ThreadCore.Root.IsTerminated)
+        while (root?.IsTerminated == false)
         {
             var options = simpleConsole.DefaultOptions with
             {
@@ -214,7 +215,7 @@ internal sealed class Program
         }
         else if (string.Equals(result.Text, "exit", StringComparison.OrdinalIgnoreCase))
         {// exit
-            ThreadCore.Root.Terminate(); // Send a termination signal to the root.
+            root?.RequestTermination(); // Send a termination signal to the root.
             return false;
         }
         else if (string.IsNullOrEmpty(result.Text))

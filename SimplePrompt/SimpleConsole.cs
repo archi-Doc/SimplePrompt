@@ -33,11 +33,14 @@ public partial class SimpleConsole : IConsoleService
     private static SimpleConsole? _instance;
 
     /// <summary>
-    /// Gets or creates the singleton instance of <see cref="SimpleConsole"/> using thread-safe lazy initialization.
-    /// If an instance already exists, it returns the existing instance; otherwise, it creates and initializes a new one.
+    /// Creates the singleton <see cref="SimpleConsole"/> instance if it does not already exist.
     /// </summary>
-    /// <returns>The singleton <see cref="SimpleConsole"/> instance.</returns>
-    public static SimpleConsole GetOrCreate()
+    /// <param name="root">The execution root used to initialize background console processing.</param>
+    /// <returns>
+    /// The shared <see cref="SimpleConsole"/> instance. If another thread already created the instance,
+    /// that existing instance is returned.
+    /// </returns>
+    public static SimpleConsole Create(ExecutionRoot root)
     {
         var instance = Volatile.Read(ref _instance);
         if (instance is not null)
@@ -45,7 +48,7 @@ public partial class SimpleConsole : IConsoleService
             return instance;
         }
 
-        instance = new SimpleConsole();
+        instance = new SimpleConsole(root);
         var original = Interlocked.CompareExchange(ref _instance, instance, null);
         if (original is not null)
         {
@@ -56,6 +59,24 @@ public partial class SimpleConsole : IConsoleService
         return instance;
     }
 
+    /// <summary>
+    /// Gets the current singleton <see cref="SimpleConsole"/> instance.
+    /// </summary>
+    /// <returns>The existing shared <see cref="SimpleConsole"/> instance.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when <see cref="Create(ExecutionRoot)"/> has not been called yet.
+    /// </exception>
+    public static SimpleConsole Get()
+    {
+        var instance = Volatile.Read(ref _instance);
+        if (instance is null)
+        {
+            throw new InvalidOperationException("A SimpleConsole instance has not been created.");
+        }
+
+        return instance;
+    }
+
     internal static char[] RentWindowBuffer()
         => ArrayPool<char>.Shared.Rent(WindowBufferSize);
 
@@ -63,12 +84,6 @@ public partial class SimpleConsole : IConsoleService
         => ArrayPool<char>.Shared.Return(buffer);
 
     #region FieldAndProperty
-
-    /// <summary>
-    /// Gets or sets the <see cref="ThreadCoreBase"/> used for thread coordination and cancellation.<br/>
-    /// Default is <see cref="ThreadCore.Root"/>.
-    /// </summary>
-    public ThreadCoreBase Core { get; set; } = ThreadCore.Root;
 
     public KeyInputHook? KeyInputHook { get; set; }
 
@@ -135,7 +150,7 @@ public partial class SimpleConsole : IConsoleService
         this.RawConsole = new(this);
         this.simpleArrange = new(this);
         this.DefaultOptions = new();
-        this.worker = new(this, ThreadCore.Root);
+        this.worker = new(root, this);
 
         try
         {
@@ -198,9 +213,8 @@ public partial class SimpleConsole : IConsoleService
 
         using (this.syncObject.EnterScope())
         {
-            if (this.worker.IsTerminated ||
-                this.Core.IsTerminated)
-            {
+            if (this.worker.IsTerminated)
+            {// this.Core.IsTerminated
                 return Task<InputResult>.FromResult(new InputResult(InputResultKind.Terminated));
             }
 
@@ -630,7 +644,7 @@ public partial class SimpleConsole : IConsoleService
                 inputResult = new(InputResultKind.Canceled);
                 goto CompleteInstance;
             }
-            else if (this.Core.IsTerminated)
+            else if (this.worker.IsTerminated)
             {// Terminated
                 inputResult = new(InputResultKind.Terminated);
                 goto CompleteInstance;
