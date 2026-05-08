@@ -4,17 +4,17 @@ namespace SimplePrompt;
 
 public partial class SimpleConsole
 {
-    public static int CursorLeft => SimpleConsole.GetOrCreate()._cursorLeft;
+    public static int CursorLeft => SimpleConsole.Get()._cursorLeft;
 
-    public static int CursorTop => SimpleConsole.GetOrCreate()._cursorTop;
+    public static int CursorTop => SimpleConsole.Get()._cursorTop;
 
-    public static int WindowWidth => SimpleConsole.GetOrCreate()._windowWidth;
+    public static int WindowWidth => SimpleConsole.Get()._windowWidth;
 
-    public static int WindowHeight => SimpleConsole.GetOrCreate()._windowHeight;
+    public static int WindowHeight => SimpleConsole.Get()._windowHeight;
 
     public static (int Left, int Top) GetCursorPosition()
     {
-        var simpleConsole = SimpleConsole.GetOrCreate();
+        var simpleConsole = SimpleConsole.Get();
         return (simpleConsole._cursorLeft, simpleConsole._cursorTop);
     }
 

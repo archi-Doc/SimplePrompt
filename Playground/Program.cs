@@ -18,6 +18,8 @@ public enum YesOrNo
 
 internal sealed class Program
 {
+    private static ExecutionRoot? root;
+
     private static void WriteLineRaw(string? message = null)
         => Console.WriteLine(message);
 
@@ -57,18 +59,15 @@ internal sealed class Program
     public static async Task Main(string[] args)
     {
         AppCloseHandler.Set(() =>
-        {// Console window closing or process terminated.
-            ThreadCore.Root.Terminate(); // Send a termination signal to the root.
-            ThreadCore.Root.TerminationEvent.WaitOne(2_000); // Wait until the termination process is complete (#1).
+        {// Closing the console window or terminating the process.
+            root?.RequestTermination(); // Send a termination signal to the root.
+            root?.WaitForTermination(TimeSpan.FromSeconds(2)).Wait();
         });
 
         Console.CancelKeyPress += (s, e) =>
-        {// Ctrl+C pressed
+        {// Ctrl+C pressed.
             e.Cancel = true;
-
-            // var keyInfo = new ConsoleKeyInfo(keyChar: '\u0003', ConsoleKey.C, false, false, true);
-            // SimpleConsole.GetOrCreate().EnqueueKey(keyInfo);
-            ThreadCore.Root.Terminate(); // Send a termination signal to the root.
+            root?.RequestTermination(); // Send a termination signal to the root.
         };
 
         var builder = new UnitBuilder()
@@ -90,12 +89,13 @@ internal sealed class Program
                 });
             });
 
-        var product = builder.Build();
-        var logger = product.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
+        var unit = builder.Build();
+        root = unit.Context.Root;
+        var logger = unit.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
         logger.GetWriter()?.Write("Start");
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        var simpleConsole = SimpleConsole.GetOrCreate();
+        var simpleConsole = SimpleConsole.Create(root);
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {
             // MaxInputLength = 4,
@@ -126,16 +126,6 @@ internal sealed class Program
             return KeyInputHookResult.NotHandled;
         };
 
-        var cts = new CancellationTokenSource();
-        cts.CancelAfter(2000);
-        _ = simpleConsole.ReadLine(default, cts.Token);
-
-        while (ThreadCore.Root.CanContinue)
-        {
-            var result2 = await simpleConsole.ReadLine(new ReadLineOptions() with { Prompt = "aaa> " });
-            Console.WriteLine(result2.Text);
-        }
-
         Console.WriteLine("\u001b[90m[\u001b[39m\u001b[22m\u001b[40m\u001b[1m\u001b[37mINF\u001b[39m\u001b[22m\u001b[49m ITestInterface\u001b[90m] \u001b[39m\u001b[22m\u001b[1m\u001b[37mtttttttttttttttttttttttttttttttttttttttttttttttttttttt\u001b[39m\u001b[22m");
 
         Console.WriteLine(true);
@@ -143,7 +133,7 @@ internal sealed class Program
         var top = SimpleConsole.CursorTop;
         var position = SimpleConsole.GetCursorPosition();
 
-        while (!ThreadCore.Root.IsTerminated)
+        while (!root.IsTerminated)
         {
             var options = simpleConsole.DefaultOptions with
             {
@@ -152,7 +142,7 @@ internal sealed class Program
                 {
                     if (keyInfo.Key == ConsoleKey.C && keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control))
                     {
-                        ThreadCore.Root.Terminate(); // Send a termination signal to the root.
+                        root.RequestTermination(); // Send a termination signal to the root.
                         return KeyInputHookResult.Handled;
                     }
 
@@ -182,7 +172,7 @@ internal sealed class Program
             }
             else if (string.Equals(result.Text, "exit", StringComparison.OrdinalIgnoreCase))
             {// exit
-                ThreadCore.Root.Terminate(); // Send a termination signal to the root.
+                root.RequestTermination(); // Send a termination signal to the root.
                 break;
             }
             else if (string.Equals(result.Text, "clear", StringComparison.OrdinalIgnoreCase))
@@ -257,14 +247,12 @@ internal sealed class Program
             ctsStack.Pop();
         }
 
-        await ThreadCore.Root.WaitForTermination(); // Wait for the termination infinitely.
-        if (product.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
+        await root.WaitForTermination(); // Wait for the termination infinitely.
+        if (unit.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
         {
             logger.GetWriter()?.Write("End");
             await logUnit.FlushAndTerminate();
         }
-
-        ThreadCore.Root.TerminationEvent.Set(); // The termination process is complete (#1).
 
         KeyInputHookResult KeyInputHookMethod(ref ConsoleKeyInfo keyInfo)
         {

@@ -6,12 +6,12 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
 
 #pragma warning disable CA1001 // Types that own disposable fields should be disposable
+#pragma warning disable SA1202 // Elements should be ordered by access
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 #pragma warning disable SA1401 // Fields should be private
 
@@ -21,7 +21,7 @@ namespace SimplePrompt;
 /// Provides a simple console interface with advanced input handling capabilities including multiline support and custom prompts.
 /// This class implements <see cref="IConsoleService"/> and manages console input/output operations.
 /// </summary>
-public partial class SimpleConsole : IConsoleService
+public partial class SimpleConsole : IConsoleService, IDisposable
 {
     private const int WindowBufferSize = 32 * 1024;
     private const int InitialWindowWidth = 120;
@@ -33,11 +33,14 @@ public partial class SimpleConsole : IConsoleService
     private static SimpleConsole? _instance;
 
     /// <summary>
-    /// Gets or creates the singleton instance of <see cref="SimpleConsole"/> using thread-safe lazy initialization.
-    /// If an instance already exists, it returns the existing instance; otherwise, it creates and initializes a new one.
+    /// Creates the singleton <see cref="SimpleConsole"/> instance if it does not already exist.
     /// </summary>
-    /// <returns>The singleton <see cref="SimpleConsole"/> instance.</returns>
-    public static SimpleConsole GetOrCreate()
+    /// <param name="root">The execution root used to initialize background console processing.</param>
+    /// <returns>
+    /// The shared <see cref="SimpleConsole"/> instance. If another thread already created the instance,
+    /// that existing instance is returned.
+    /// </returns>
+    public static SimpleConsole Create(ExecutionRoot root)
     {
         var instance = Volatile.Read(ref _instance);
         if (instance is not null)
@@ -45,7 +48,7 @@ public partial class SimpleConsole : IConsoleService
             return instance;
         }
 
-        instance = new SimpleConsole();
+        instance = new SimpleConsole(root);
         var original = Interlocked.CompareExchange(ref _instance, instance, null);
         if (original is not null)
         {
@@ -56,6 +59,24 @@ public partial class SimpleConsole : IConsoleService
         return instance;
     }
 
+    /// <summary>
+    /// Gets the current singleton <see cref="SimpleConsole"/> instance.
+    /// </summary>
+    /// <returns>The existing shared <see cref="SimpleConsole"/> instance.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when <see cref="Create(ExecutionRoot)"/> has not been called yet.
+    /// </exception>
+    public static SimpleConsole Get()
+    {
+        var instance = Volatile.Read(ref _instance);
+        if (instance is null)
+        {
+            throw new InvalidOperationException("A SimpleConsole instance has not been created.");
+        }
+
+        return instance;
+    }
+
     internal static char[] RentWindowBuffer()
         => ArrayPool<char>.Shared.Rent(WindowBufferSize);
 
@@ -63,12 +84,6 @@ public partial class SimpleConsole : IConsoleService
         => ArrayPool<char>.Shared.Return(buffer);
 
     #region FieldAndProperty
-
-    /// <summary>
-    /// Gets or sets the <see cref="ThreadCoreBase"/> used for thread coordination and cancellation.<br/>
-    /// Default is <see cref="ThreadCore.Root"/>.
-    /// </summary>
-    public ThreadCoreBase Core { get; set; } = ThreadCore.Root;
 
     public KeyInputHook? KeyInputHook { get; set; }
 
@@ -104,6 +119,7 @@ public partial class SimpleConsole : IConsoleService
     internal int _cursorLeft;
     internal int _cursorTop;
 
+    private readonly ExecutionRoot root;
     private readonly SimpleConsoleWorker worker;
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly SimpleTextReader simpleTextReader;
@@ -120,7 +136,7 @@ public partial class SimpleConsole : IConsoleService
 
     #endregion
 
-    private SimpleConsole()
+    private SimpleConsole(ExecutionRoot root)
     {
         try
         {
@@ -130,12 +146,13 @@ public partial class SimpleConsole : IConsoleService
         {
         }
 
+        this.root = root;
         this.simpleTextWriter = new(this, Console.Out);
         this.simpleTextReader = new(this, Console.In);
         this.RawConsole = new(this);
         this.simpleArrange = new(this);
         this.DefaultOptions = new();
-        this.worker = new(this, ThreadCore.Root);
+        this.worker = new(root, this);
 
         try
         {
@@ -179,6 +196,39 @@ public partial class SimpleConsole : IConsoleService
         }
     }
 
+    #region IDisposable
+
+    private int disposed; // 0 = false, 1 = true
+
+    void IDisposable.Dispose()
+    {
+        this.Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (Interlocked.Exchange(ref this.disposed, 1) != 0)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            // Managed resources
+            this.worker.Dispose();
+        }
+
+        // Unmanaged resources, if any
+    }
+
+    protected void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref this.disposed) != 0, this.GetType());
+    }
+
+    #endregion
+
     /// <summary>
     /// Asynchronously reads a line of input from the console with support for multiline editing.
     /// </summary>
@@ -191,6 +241,8 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
+        this.ThrowIfDisposed();
+
         // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
         this.PrepareWindow();
         // this.RunJob(JobKind.PrepareWindow);
@@ -198,9 +250,8 @@ public partial class SimpleConsole : IConsoleService
 
         using (this.syncObject.EnterScope())
         {
-            if (this.worker.IsTerminated ||
-                this.Core.IsTerminated)
-            {
+            if (this.worker.IsTerminated)
+            {// this.Core.IsTerminated
                 return Task<InputResult>.FromResult(new InputResult(InputResultKind.Terminated));
             }
 
@@ -630,7 +681,8 @@ public partial class SimpleConsole : IConsoleService
                 inputResult = new(InputResultKind.Canceled);
                 goto CompleteInstance;
             }
-            else if (this.Core.IsTerminated)
+            else if (this.root.IsTerminated ||
+                this.worker.IsTerminated)
             {// Terminated
                 inputResult = new(InputResultKind.Terminated);
                 goto CompleteInstance;

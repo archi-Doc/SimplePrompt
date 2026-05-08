@@ -1,6 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using Arc;
+using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt;
 
@@ -10,7 +11,8 @@ internal sealed class Program
 {
     public static async Task Main(string[] args)
     {
-        var simpleConsole = SimpleConsole.GetOrCreate(); // Create the singleton SimplePrompt instance. Note that all Console calls (such as Console.Out) will go through SimpleConsole.
+        var root = new ExecutionRoot();
+        var simpleConsole = SimpleConsole.Create(root); // Create the singleton SimplePrompt instance. Note that all Console calls (such as Console.Out) will go through SimpleConsole.
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {// Set the default ReadLine options.
             InputColor = ConsoleColor.Yellow,

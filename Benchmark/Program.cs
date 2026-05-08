@@ -31,7 +31,6 @@ public class Program
         ]);
 
         switcher.Run(args);
-        ThreadCore.Root.Terminate();
     }
 
     public static void DebugRun<T>()
