@@ -32,7 +32,7 @@ namespace SimplePrompt;
     }
 }*/
 
-internal sealed class SimpleConsoleWorker : TaskCore<SimpleConsoleWorker>
+/*internal sealed class SimpleConsoleWorker : TaskCore<SimpleConsoleWorker>
 {
     private static readonly TimeSpan IntervalTimeSpan = TimeSpan.FromMilliseconds(10);
 
@@ -52,5 +52,31 @@ internal sealed class SimpleConsoleWorker : TaskCore<SimpleConsoleWorker>
         : base(root.BaseGroup, Process)
     {
         this.simpleConsole = simpleConsole;
+    }
+}*/
+
+internal sealed class SimpleConsoleWorker
+{
+    private static readonly TimeSpan IntervalTimeSpan = TimeSpan.FromMilliseconds(10);
+
+    public SimpleConsoleWorker(SimpleConsole simpleConsole)
+    {
+        _ = Task.Run(async () =>
+        {
+            while (true)
+            {
+                try
+                {
+                    await Task.Delay(IntervalTimeSpan);
+                }
+                catch
+                {
+                    simpleConsole.Abort();
+                    return;
+                }
+
+                simpleConsole.Process();
+            }
+        });
     }
 }

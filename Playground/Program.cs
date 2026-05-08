@@ -95,7 +95,7 @@ internal sealed class Program
         logger.GetWriter()?.Write("Start");
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
-        var simpleConsole = SimpleConsole.Create(root);
+        var simpleConsole = SimpleConsole.Instance;
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {
             // MaxInputLength = 4,

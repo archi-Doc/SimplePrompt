@@ -6,7 +6,6 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using Arc;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
@@ -22,7 +21,7 @@ namespace SimplePrompt;
 /// Provides a simple console interface with advanced input handling capabilities including multiline support and custom prompts.
 /// This class implements <see cref="IConsoleService"/> and manages console input/output operations.
 /// </summary>
-public partial class SimpleConsole : IConsoleService, IDisposable
+public partial class SimpleConsole : IConsoleService // , IDisposable
 {
     private const int WindowBufferSize = 32 * 1024;
     private const int InitialWindowWidth = 120;
@@ -33,7 +32,29 @@ public partial class SimpleConsole : IConsoleService, IDisposable
 
     private static SimpleConsole? _instance;
 
-    /// <summary>
+    public static SimpleConsole Instance
+    {
+        get
+        {
+            var instance = Volatile.Read(ref _instance);
+            if (instance is not null)
+            {
+                return instance;
+            }
+
+            instance = new SimpleConsole();
+            var original = Interlocked.CompareExchange(ref _instance, instance, null);
+            if (original is not null)
+            {
+                return original;
+            }
+
+            instance.Initialize();
+            return instance;
+        }
+    }
+
+    /*/// <summary>
     /// Creates the singleton <see cref="SimpleConsole"/> instance if it does not already exist.
     /// </summary>
     /// <param name="root">The execution root used to initialize background console processing.</param>
@@ -76,7 +97,7 @@ public partial class SimpleConsole : IConsoleService, IDisposable
         }
 
         return instance;
-    }
+    }*/
 
     internal static char[] RentWindowBuffer()
         => ArrayPool<char>.Shared.Rent(WindowBufferSize);
@@ -120,7 +141,7 @@ public partial class SimpleConsole : IConsoleService, IDisposable
     internal int _cursorLeft;
     internal int _cursorTop;
 
-    private readonly ExecutionRoot root;
+    // private readonly ExecutionRoot root;
     private readonly SimpleConsoleWorker worker;
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly SimpleTextReader simpleTextReader;
@@ -137,7 +158,7 @@ public partial class SimpleConsole : IConsoleService, IDisposable
 
     #endregion
 
-    private SimpleConsole(ExecutionRoot root)
+    private SimpleConsole()
     {
         try
         {
@@ -147,13 +168,13 @@ public partial class SimpleConsole : IConsoleService, IDisposable
         {
         }
 
-        this.root = root;
+        // this.root = root;
         this.simpleTextWriter = new(this, Console.Out);
         this.simpleTextReader = new(this, Console.In);
         this.RawConsole = new(this);
         this.simpleArrange = new(this);
         this.DefaultOptions = new();
-        this.worker = new(root, this);
+        this.worker = new(this);
 
         try
         {
@@ -197,7 +218,7 @@ public partial class SimpleConsole : IConsoleService, IDisposable
         }
     }
 
-    #region IDisposable
+    /*#region IDisposable
 
     private int disposed; // 0 = false, 1 = true
 
@@ -217,7 +238,7 @@ public partial class SimpleConsole : IConsoleService, IDisposable
         if (disposing)
         {
             // Managed resources
-            this.worker.Dispose();
+            // this.worker.Dispose();
         }
 
         // Unmanaged resources, if any
@@ -228,7 +249,7 @@ public partial class SimpleConsole : IConsoleService, IDisposable
         ObjectDisposedException.ThrowIf(Volatile.Read(ref this.disposed) != 0, this.GetType());
     }
 
-    #endregion
+    #endregion*/
 
     /// <summary>
     /// Asynchronously reads a line of input from the console with support for multiline editing.
@@ -242,7 +263,7 @@ public partial class SimpleConsole : IConsoleService, IDisposable
     /// </returns>
     public Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
-        this.ThrowIfDisposed();
+        // this.ThrowIfDisposed();
 
         // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
         this.PrepareWindow();
@@ -251,10 +272,10 @@ public partial class SimpleConsole : IConsoleService, IDisposable
 
         using (this.syncObject.EnterScope())
         {
-            if (this.worker.IsTerminated)
-            {// this.Core.IsTerminated
+            /*if (this.root.IsTerminated)
+            {
                 return Task<InputResult>.FromResult(new InputResult(InputResultKind.Terminated));
-            }
+            }*/
 
             if (cancellationToken.IsCancellationRequested)
             {
@@ -682,12 +703,13 @@ public partial class SimpleConsole : IConsoleService, IDisposable
                 inputResult = new(InputResultKind.Canceled);
                 goto CompleteInstance;
             }
-            else if (this.root.IsTerminated ||
+
+            /*else if (this.root.IsTerminated ||
                 this.worker.IsTerminated)
             {// Terminated
                 inputResult = new(InputResultKind.Terminated);
                 goto CompleteInstance;
-            }
+            }*/
 
             if (!this.concurrentTextQueue.IsEmpty &&
                 currentInstance.IsEmptyInput() &&
