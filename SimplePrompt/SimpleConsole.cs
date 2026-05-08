@@ -30,29 +30,16 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     private const int MinimumWindowHeight = 10;
     private static readonly TimeSpan AdjustWindowInterval = TimeSpan.FromMilliseconds(100);
 
-    private static SimpleConsole? _instance;
-
-    public static SimpleConsole Instance
-    {
-        get
+    private static readonly Lazy<SimpleConsole> LazyInstance = new(
+        static () =>
         {
-            var instance = Volatile.Read(ref _instance);
-            if (instance is not null)
-            {
-                return instance;
-            }
-
-            instance = new SimpleConsole();
-            var original = Interlocked.CompareExchange(ref _instance, instance, null);
-            if (original is not null)
-            {
-                return original;
-            }
-
+            var instance = new SimpleConsole();
             instance.Initialize();
             return instance;
-        }
-    }
+        },
+        LazyThreadSafetyMode.ExecutionAndPublication);
+
+    public static SimpleConsole Instance => LazyInstance.Value;
 
     /*/// <summary>
     /// Creates the singleton <see cref="SimpleConsole"/> instance if it does not already exist.
@@ -107,6 +94,8 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
 
     #region FieldAndProperty
 
+    public ExecutionGroup? ExecutionGroup { get; set; }
+
     public KeyInputHook? KeyInputHook { get; set; }
 
     public bool EnableColor { get; set; } = true;
@@ -141,7 +130,6 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     internal int _cursorLeft;
     internal int _cursorTop;
 
-    // private readonly ExecutionRoot root;
     private readonly SimpleConsoleWorker worker;
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly SimpleTextReader simpleTextReader;
@@ -168,7 +156,6 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         {
         }
 
-        // this.root = root;
         this.simpleTextWriter = new(this, Console.Out);
         this.simpleTextReader = new(this, Console.In);
         this.RawConsole = new(this);
@@ -272,10 +259,10 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
 
         using (this.syncObject.EnterScope())
         {
-            /*if (this.root.IsTerminated)
+            if (this.ExecutionGroup?.IsTerminated == true)
             {
                 return Task<InputResult>.FromResult(new InputResult(InputResultKind.Terminated));
-            }*/
+            }
 
             if (cancellationToken.IsCancellationRequested)
             {
@@ -703,13 +690,12 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                 inputResult = new(InputResultKind.Canceled);
                 goto CompleteInstance;
             }
-
-            /*else if (this.root.IsTerminated ||
-                this.worker.IsTerminated)
+            else if (this.ExecutionGroup?.IsTerminated == true/* ||
+                this.worker.IsTerminated*/)
             {// Terminated
                 inputResult = new(InputResultKind.Terminated);
                 goto CompleteInstance;
-            }*/
+            }
 
             if (!this.concurrentTextQueue.IsEmpty &&
                 currentInstance.IsEmptyInput() &&

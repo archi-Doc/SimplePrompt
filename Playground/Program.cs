@@ -96,6 +96,7 @@ internal sealed class Program
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         var simpleConsole = SimpleConsole.Instance;
+        simpleConsole.ExecutionGroup = root;
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {
             // MaxInputLength = 4,

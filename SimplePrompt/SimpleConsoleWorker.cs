@@ -65,18 +65,29 @@ internal sealed class SimpleConsoleWorker
         {
             while (true)
             {
-                try
+                if (simpleConsole.ExecutionGroup is { } group)
                 {
-                    await Task.Delay(IntervalTimeSpan);
+                    if (await group.Delay(IntervalTimeSpan).ConfigureAwait(false) != true)
+                    {
+                        break;
+                    }
                 }
-                catch
+                else
                 {
-                    simpleConsole.Abort();
-                    return;
+                    try
+                    {
+                        await Task.Delay(IntervalTimeSpan).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        break;
+                    }
                 }
 
                 simpleConsole.Process();
             }
+
+            simpleConsole.Abort();
         });
     }
 }
