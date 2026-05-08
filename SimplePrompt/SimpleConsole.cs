@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.InteropServices;
+using Arc;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;

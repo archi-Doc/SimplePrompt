@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using Arc;
 using Arc.Threading;
 
 #pragma warning disable CA1001 // Types that own disposable fields should be disposable
