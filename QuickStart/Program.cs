@@ -11,8 +11,7 @@ internal sealed class Program
 {
     public static async Task Main(string[] args)
     {
-        var root = new ExecutionRoot();
-        var simpleConsole = SimpleConsole.Instance; // Create the singleton SimplePrompt instance. Note that all Console calls (such as Console.Out) will go through SimpleConsole.
+        var simpleConsole = SimpleConsole.Instance; // Get the singleton SimplePrompt instance. Note that all Console calls (such as Console.Out) will go through SimpleConsole.
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {// Set the default ReadLine options.
             InputColor = ConsoleColor.Yellow,

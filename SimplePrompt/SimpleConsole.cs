@@ -41,51 +41,6 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
 
     public static SimpleConsole Instance => LazyInstance.Value;
 
-    /*/// <summary>
-    /// Creates the singleton <see cref="SimpleConsole"/> instance if it does not already exist.
-    /// </summary>
-    /// <param name="root">The execution root used to initialize background console processing.</param>
-    /// <returns>
-    /// The shared <see cref="SimpleConsole"/> instance. If another thread already created the instance,
-    /// that existing instance is returned.
-    /// </returns>
-    public static SimpleConsole Create(ExecutionRoot root)
-    {
-        var instance = Volatile.Read(ref _instance);
-        if (instance is not null)
-        {
-            return instance;
-        }
-
-        instance = new SimpleConsole(root);
-        var original = Interlocked.CompareExchange(ref _instance, instance, null);
-        if (original is not null)
-        {
-            return original;
-        }
-
-        instance.Initialize();
-        return instance;
-    }
-
-    /// <summary>
-    /// Gets the current singleton <see cref="SimpleConsole"/> instance.
-    /// </summary>
-    /// <returns>The existing shared <see cref="SimpleConsole"/> instance.</returns>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when <see cref="Create(ExecutionRoot)"/> has not been called yet.
-    /// </exception>
-    public static SimpleConsole Get()
-    {
-        var instance = Volatile.Read(ref _instance);
-        if (instance is null)
-        {
-            throw new InvalidOperationException("A SimpleConsole instance has not been created.");
-        }
-
-        return instance;
-    }*/
-
     internal static char[] RentWindowBuffer()
         => ArrayPool<char>.Shared.Rent(WindowBufferSize);
 
@@ -94,10 +49,19 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
 
     #region FieldAndProperty
 
+    /// <summary>
+    /// Gets or sets the execution group used to coordinate asynchronous console-related operations.
+    /// </summary>
     public ExecutionGroup? ExecutionGroup { get; set; }
 
+    /// <summary>
+    /// Gets or sets an optional callback that can intercept and process key input events before the default input handling logic is applied.
+    /// </summary>
     public KeyInputHook? KeyInputHook { get; set; }
 
+    /// <summary>
+    /// Gets or sets a value indicating whether ANSI/color output is enabled for console rendering.
+    /// </summary>
     public bool EnableColor { get; set; } = true;
 
     /// <summary>

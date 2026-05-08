@@ -32,7 +32,7 @@ Install-Package SimplePrompt
 This is a small sample code to use **SimplePrompt**.
 
 ```c#
-var simpleConsole = SimpleConsole.GetOrCreate(); // Create the singleton SimplePrompt instance. Note that all Console calls (such as Console.Out) will go through SimpleConsole.
+var simpleConsole = SimpleConsole.Instance; // Get the singleton SimplePrompt instance. Note that all Console calls (such as Console.Out) will go through SimpleConsole.
 simpleConsole.DefaultOptions = new ReadLineOptions()
 {// Set the default ReadLine options.
     InputColor = ConsoleColor.Yellow,
