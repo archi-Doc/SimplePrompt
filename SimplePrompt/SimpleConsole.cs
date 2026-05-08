@@ -6,12 +6,12 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.InteropServices;
-using Arc.Collections;
 using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt.Internal;
 
 #pragma warning disable CA1001 // Types that own disposable fields should be disposable
+#pragma warning disable SA1202 // Elements should be ordered by access
 #pragma warning disable SA1204 // Static elements should appear before instance elements
 #pragma warning disable SA1401 // Fields should be private
 
@@ -21,7 +21,7 @@ namespace SimplePrompt;
 /// Provides a simple console interface with advanced input handling capabilities including multiline support and custom prompts.
 /// This class implements <see cref="IConsoleService"/> and manages console input/output operations.
 /// </summary>
-public partial class SimpleConsole : IConsoleService
+public partial class SimpleConsole : IConsoleService, IDisposable
 {
     private const int WindowBufferSize = 32 * 1024;
     private const int InitialWindowWidth = 120;
@@ -119,6 +119,7 @@ public partial class SimpleConsole : IConsoleService
     internal int _cursorLeft;
     internal int _cursorTop;
 
+    private readonly ExecutionRoot root;
     private readonly SimpleConsoleWorker worker;
     private readonly SimpleTextWriter simpleTextWriter;
     private readonly SimpleTextReader simpleTextReader;
@@ -145,6 +146,7 @@ public partial class SimpleConsole : IConsoleService
         {
         }
 
+        this.root = root;
         this.simpleTextWriter = new(this, Console.Out);
         this.simpleTextReader = new(this, Console.In);
         this.RawConsole = new(this);
@@ -194,6 +196,39 @@ public partial class SimpleConsole : IConsoleService
         }
     }
 
+    #region IDisposable
+
+    private int disposed; // 0 = false, 1 = true
+
+    void IDisposable.Dispose()
+    {
+        this.Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (Interlocked.Exchange(ref this.disposed, 1) != 0)
+        {
+            return;
+        }
+
+        if (disposing)
+        {
+            // Managed resources
+            this.worker.Dispose();
+        }
+
+        // Unmanaged resources, if any
+    }
+
+    protected void ThrowIfDisposed()
+    {
+        ObjectDisposedException.ThrowIf(Volatile.Read(ref this.disposed) != 0, this.GetType());
+    }
+
+    #endregion
+
     /// <summary>
     /// Asynchronously reads a line of input from the console with support for multiline editing.
     /// </summary>
@@ -206,6 +241,8 @@ public partial class SimpleConsole : IConsoleService
     /// </returns>
     public Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
+        this.ThrowIfDisposed();
+
         // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
         this.PrepareWindow();
         // this.RunJob(JobKind.PrepareWindow);
@@ -644,7 +681,8 @@ public partial class SimpleConsole : IConsoleService
                 inputResult = new(InputResultKind.Canceled);
                 goto CompleteInstance;
             }
-            else if (this.worker.IsTerminated)
+            else if (this.root.IsTerminated ||
+                this.worker.IsTerminated)
             {// Terminated
                 inputResult = new(InputResultKind.Terminated);
                 goto CompleteInstance;
