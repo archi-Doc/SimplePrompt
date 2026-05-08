@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using Arc;
 using Arc.Threading;
 
 #pragma warning disable CA1001 // Types that own disposable fields should be disposable
@@ -31,7 +32,7 @@ namespace SimplePrompt;
     }
 }*/
 
-internal sealed class SimpleConsoleWorker : TaskCore<SimpleConsoleWorker>
+/*internal sealed class SimpleConsoleWorker : TaskCore<SimpleConsoleWorker>
 {
     private static readonly TimeSpan IntervalTimeSpan = TimeSpan.FromMilliseconds(10);
 
@@ -51,5 +52,42 @@ internal sealed class SimpleConsoleWorker : TaskCore<SimpleConsoleWorker>
         : base(root.BaseGroup, Process)
     {
         this.simpleConsole = simpleConsole;
+    }
+}*/
+
+internal sealed class SimpleConsoleWorker
+{
+    private static readonly TimeSpan IntervalTimeSpan = TimeSpan.FromMilliseconds(10);
+
+    public SimpleConsoleWorker(SimpleConsole simpleConsole)
+    {
+        _ = Task.Run(async () =>
+        {
+            while (true)
+            {
+                if (simpleConsole.ExecutionGroup is { } group)
+                {
+                    if (await group.Delay(IntervalTimeSpan).ConfigureAwait(false) != true)
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    try
+                    {
+                        await Task.Delay(IntervalTimeSpan).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        break;
+                    }
+                }
+
+                simpleConsole.Process();
+            }
+
+            simpleConsole.Abort();
+        });
     }
 }
