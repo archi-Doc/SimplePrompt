@@ -39,6 +39,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         },
         LazyThreadSafetyMode.ExecutionAndPublication);
 
+    /// <summary>
+    /// Gets the lazily initialized singleton instance of <see cref="SimpleConsole"/>.<br/>
+    /// The instance is created on first access and initialized exactly once in a thread-safe manner.<br/>
+    /// Note that all Console calls (such as Console.Out) will go through SimpleConsole.
+    /// </summary>
     public static SimpleConsole Instance => LazyInstance.Value;
 
     internal static char[] RentWindowBuffer()
