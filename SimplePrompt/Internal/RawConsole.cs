@@ -141,7 +141,7 @@ internal sealed class RawConsole
                 var length = Encoding.UTF8.GetMaxByteCount(data.Length);
 
                 byte[]? pooledName = null;
-                Span<byte> buffer = length <= BaseConstants.StackallocThreshold ?
+                Span<byte> buffer = length <= BaseHelper.StackallocThreshold ?
                     stackalloc byte[length] :
                     (pooledName = ArrayPool<byte>.Shared.Rent(length));
 
