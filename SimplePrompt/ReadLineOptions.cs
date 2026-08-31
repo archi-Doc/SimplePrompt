@@ -17,14 +17,14 @@ public record class ReadLineOptions
     {
         MaxInputLength = 1024,
         MultilineDelimiter = null,
-        LineContinuation = default,
-        AllowEmptyLineInput = false,
+        LineContinuationCharacter = default,
+        AllowEmptyInput = false,
     };
 
     /// <summary>
     /// Options with the default settings, where multiline input is enabled by the <c>"""</c> delimiter.
     /// </summary>
-    public static readonly ReadLineOptions MultiLine = new()
+    public static readonly ReadLineOptions Multiline = new()
     {
     };
 
@@ -89,7 +89,7 @@ public record class ReadLineOptions
     /// The continuation characters are removed and the lines are joined without a newline.<br/>
     /// Default is <c><see langword="default"/></c> (no line continuation).
     /// </summary>
-    public char LineContinuation { get; init; }
+    public char LineContinuationCharacter { get; init; }
 
     /// <summary>
     /// Gets a value indicating whether to cancel the ReadLine operation when the Escape key is pressed.<br/>
@@ -98,11 +98,11 @@ public record class ReadLineOptions
     public bool CancelOnEscape { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether an empty line (pressing Enter with no characters entered) is treated as valid input.<br/>
+    /// Gets a value indicating whether an empty input (pressing Enter without entering any character) completes the operation.<br/>
     /// When <see langword="false"/>, Enter is ignored until at least one character is entered.<br/>
     /// Default is <see langword="false"/>.
     /// </summary>
-    public bool AllowEmptyLineInput { get; init; }
+    public bool AllowEmptyInput { get; init; }
 
     /// <summary>
     /// Gets the character used to mask user input in the console (e.g., for password entry).<br/>

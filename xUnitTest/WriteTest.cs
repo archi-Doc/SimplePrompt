@@ -194,7 +194,7 @@ public class WriteTest(SimpleConsoleFixture fixture)
         try
         {
             fixture.ClearOutput();
-            var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, InputColor = ConsoleColor.Green });
+            var task = fixture.ReadLine(new() { AllowEmptyInput = true, InputColor = ConsoleColor.Green });
             fixture.Type("plain");
             fixture.Key(ConsoleKey.Enter);
             Assert.Equal("plain", await fixture.Wait(task));
@@ -215,7 +215,7 @@ public class WriteTest(SimpleConsoleFixture fixture)
         await fixture.WaitForIdle();
         fixture.ClearOutput();
 
-        var task = fixture.ReadLine(new() { Prompt = "busy> ", AllowEmptyLineInput = true });
+        var task = fixture.ReadLine(new() { Prompt = "busy> ", AllowEmptyInput = true });
         fixture.Type("typed");
         await SimpleConsoleFixture.Delay(50);
 
@@ -247,7 +247,7 @@ public class WriteTest(SimpleConsoleFixture fixture)
     public async Task ClearScreenWhileReadLineIsInProgress()
     {
         await fixture.WaitForIdle();
-        var task = fixture.ReadLine(new() { Prompt = "kept> ", AllowEmptyLineInput = true });
+        var task = fixture.ReadLine(new() { Prompt = "kept> ", AllowEmptyInput = true });
         fixture.Type("input");
         await SimpleConsoleFixture.Delay(50);
 
@@ -343,7 +343,7 @@ public class WriteTest(SimpleConsoleFixture fixture)
     public async Task ConsoleOutWriteLineWhileReadLineIsInProgress()
     {
         await fixture.WaitForIdle();
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true });
         fixture.Type("kept");
         await SimpleConsoleFixture.Delay(50);
 
@@ -377,9 +377,9 @@ public class WriteTest(SimpleConsoleFixture fixture)
         service.WriteLine("service writeline");
         Assert.Contains("service write", fixture.Sink.ToString());
 
-        // Without a real console these simply return default values instead of throwing.
+        // KeyAvailable does not throw even when no console is attached.
+        // ReadKey() is not tested here because it blocks until a key is pressed when a console is attached.
         _ = service.KeyAvailable;
-        _ = service.ReadKey(true);
     }
 
     [Fact]

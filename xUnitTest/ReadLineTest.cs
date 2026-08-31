@@ -24,7 +24,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task EmptyInput()
     {
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true });
         fixture.Key(ConsoleKey.Enter);
         Assert.Equal(string.Empty, await fixture.Wait(task));
     }
@@ -32,7 +32,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task EmptyInputNotAllowed()
     {
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = false });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = false });
         fixture.Key(ConsoleKey.Enter); // Ignored.
         fixture.Key(ConsoleKey.Enter); // Ignored.
         fixture.Type("text");
@@ -125,7 +125,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task ClearLineWithWideCharacterPrompt()
     {
-        var task = fixture.ReadLine(new() { Prompt = "あ> ", AllowEmptyLineInput = true });
+        var task = fixture.ReadLine(new() { Prompt = "あ> ", AllowEmptyInput = true });
         fixture.Type("かなカナ");
         fixture.Key(ConsoleKey.U, 'u', control: true); // Ctrl+U
         fixture.Type("ok");
@@ -147,7 +147,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task WideCharacterPrompt()
     {
-        var task = fixture.ReadLine(new() { Prompt = "あ> ", AllowEmptyLineInput = true });
+        var task = fixture.ReadLine(new() { Prompt = "あ> ", AllowEmptyInput = true });
         fixture.Type("かなカナ漢字");
         fixture.Key(ConsoleKey.Backspace);
         fixture.Key(ConsoleKey.Enter);
@@ -157,7 +157,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task MultiLinePrompt()
     {
-        var task = fixture.ReadLine(new() { Prompt = "line1\nline2\n> ", AllowEmptyLineInput = true });
+        var task = fixture.ReadLine(new() { Prompt = "line1\nline2\n> ", AllowEmptyInput = true });
         fixture.Type("input");
         fixture.Key(ConsoleKey.Enter);
         Assert.Equal("input", await fixture.Wait(task));
@@ -166,7 +166,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task EmptyPrompt()
     {
-        var task = fixture.ReadLine(new() { Prompt = string.Empty, AllowEmptyLineInput = true });
+        var task = fixture.ReadLine(new() { Prompt = string.Empty, AllowEmptyInput = true });
         fixture.Type("no prompt");
         fixture.Key(ConsoleKey.Enter);
         Assert.Equal("no prompt", await fixture.Wait(task));
@@ -186,7 +186,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     public async Task VeryLongInput()
     {
         var text = string.Concat(Enumerable.Repeat("0123456789", 500)); // 5,000 characters
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, MaxInputLength = 8192 });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, MaxInputLength = 8192 });
         fixture.Type(text);
         fixture.Key(ConsoleKey.Enter);
         Assert.Equal(text, await fixture.Wait(task));
@@ -292,7 +292,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task MultilineDelimiter()
     {
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, MultilineDelimiter = "\"\"\"" });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, MultilineDelimiter = "\"\"\"" });
         fixture.Type("\"\"\"");
         fixture.Key(ConsoleKey.Enter);
         fixture.Type("line1");
@@ -305,7 +305,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task MultilineDisabled()
     {
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, MultilineDelimiter = null });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, MultilineDelimiter = null });
         fixture.Type("\"\"\"");
         fixture.Key(ConsoleKey.Enter); // Completes the input because multiline is disabled.
         Assert.Equal("\"\"\"", await fixture.Wait(task));
@@ -314,7 +314,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task MultilineDeleteLine()
     {
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, MultilineDelimiter = "\"\"\"" });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, MultilineDelimiter = "\"\"\"" });
         fixture.Type("\"\"\"");
         fixture.Key(ConsoleKey.Enter);
         fixture.Type("second");
@@ -328,7 +328,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task MultilineMoveBetweenLines()
     {
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, MultilineDelimiter = "\"\"\"" });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, MultilineDelimiter = "\"\"\"" });
         fixture.Type("\"\"\"");
         fixture.Key(ConsoleKey.Enter);
         fixture.Type("first");
@@ -347,7 +347,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task LineContinuation()
     {
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, MultilineDelimiter = null, LineContinuation = '\\' });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, MultilineDelimiter = null, LineContinuationCharacter = '\\' });
         fixture.Type("abc\\");
         fixture.Key(ConsoleKey.Enter);
         fixture.Type("def");
@@ -358,7 +358,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task LineContinuationThreeLines()
     {
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, MultilineDelimiter = null, LineContinuation = '\\' });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, MultilineDelimiter = null, LineContinuationCharacter = '\\' });
         fixture.Type("a\\");
         fixture.Key(ConsoleKey.Enter);
         fixture.Type("b\\");
@@ -372,7 +372,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     public async Task MaskedInput()
     {
         fixture.ClearOutput();
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, MaskingCharacter = '*' });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, MaskingCharacter = '*' });
         fixture.Type("secret");
         fixture.Key(ConsoleKey.Backspace);
         fixture.Key(ConsoleKey.Enter);
@@ -443,7 +443,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task EscapeIsIgnoredWhenCancelOnEscapeIsFalse()
     {
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, CancelOnEscape = false });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, CancelOnEscape = false });
         fixture.Type("abc");
         fixture.Key(ConsoleKey.Escape, '\e');
         fixture.Key(ConsoleKey.Enter);
@@ -453,7 +453,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task SameOptionsShareTask()
     {
-        var options = new ReadLineOptions() { AllowEmptyLineInput = true };
+        var options = new ReadLineOptions() { AllowEmptyInput = true };
         var task = fixture.Console.ReadLine(options, TestContext.Current.CancellationToken);
         Assert.Same(task, fixture.Console.ReadLine(options, TestContext.Current.CancellationToken));
         fixture.Type("once");
@@ -464,9 +464,9 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task NestedReadLine()
     {
-        var outer = fixture.ReadLine(new() { Prompt = "outer> ", AllowEmptyLineInput = true });
+        var outer = fixture.ReadLine(new() { Prompt = "outer> ", AllowEmptyInput = true });
         await SimpleConsoleFixture.Delay(50);
-        var inner = fixture.ReadLine(new() { Prompt = "inner> ", AllowEmptyLineInput = true });
+        var inner = fixture.ReadLine(new() { Prompt = "inner> ", AllowEmptyInput = true });
 
         // The nested (latest) instance receives the input.
         fixture.Type("inner text");
@@ -484,7 +484,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     public async Task CanceledByToken()
     {
         using var cts = new CancellationTokenSource();
-        var task = fixture.Console.ReadLine(new() { AllowEmptyLineInput = true }, cts.Token);
+        var task = fixture.Console.ReadLine(new() { AllowEmptyInput = true }, cts.Token);
         await SimpleConsoleFixture.Delay(50);
         await cts.CancelAsync();
         Assert.Equal(InputResultKind.Canceled, (await fixture.WaitResult(task)).Kind);
@@ -495,7 +495,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     {
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
-        var task = fixture.Console.ReadLine(new() { AllowEmptyLineInput = true }, cts.Token);
+        var task = fixture.Console.ReadLine(new() { AllowEmptyInput = true }, cts.Token);
         Assert.Equal(InputResultKind.Canceled, (await fixture.WaitResult(task)).Kind);
     }
 
@@ -503,9 +503,9 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     public async Task PendingInstanceCanceledByToken()
     {
         using var cts = new CancellationTokenSource();
-        var pending = fixture.Console.ReadLine(new() { Prompt = "pending> ", AllowEmptyLineInput = true }, cts.Token);
+        var pending = fixture.Console.ReadLine(new() { Prompt = "pending> ", AllowEmptyInput = true }, cts.Token);
         await SimpleConsoleFixture.Delay(50);
-        var active = fixture.ReadLine(new() { Prompt = "active> ", AllowEmptyLineInput = true });
+        var active = fixture.ReadLine(new() { Prompt = "active> ", AllowEmptyInput = true });
         await SimpleConsoleFixture.Delay(50);
 
         // Cancel the instance which is not currently active.
@@ -539,7 +539,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
         await fixture.WaitForIdle();
         Assert.False(fixture.Console.TryGetCurrentReadLineOptions(out _));
 
-        var task = fixture.ReadLine(new() { Prompt = "current> ", AllowEmptyLineInput = true });
+        var task = fixture.ReadLine(new() { Prompt = "current> ", AllowEmptyInput = true });
         await SimpleConsoleFixture.Delay(50);
         Assert.True(fixture.Console.TryGetCurrentReadLineOptions(out var options));
         Assert.Equal("current> ", options.Prompt);
@@ -552,7 +552,7 @@ public class ReadLineTest(SimpleConsoleFixture fixture)
     public async Task DefaultOptionsAreUsed()
     {
         var previous = fixture.Console.DefaultOptions;
-        fixture.Console.DefaultOptions = new() { Prompt = "default> ", AllowEmptyLineInput = true };
+        fixture.Console.DefaultOptions = new() { Prompt = "default> ", AllowEmptyInput = true };
         try
         {
             var task = fixture.Console.ReadLine(default, TestContext.Current.CancellationToken);

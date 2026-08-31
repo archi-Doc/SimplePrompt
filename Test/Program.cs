@@ -134,7 +134,7 @@ internal sealed class Program
 
         async Task YesOrNoPrompt()
         {
-            var options = ReadLineOptions.MultiLine with
+            var options = ReadLineOptions.Multiline with
             {
                 Prompt = "Yes or No?\r\n[Y/n] ",
                 MultilineDelimiter = "|",
@@ -170,7 +170,7 @@ internal sealed class Program
                 MultilineDelimiter = "...",
                 InputColor = ConsoleColor.Cyan,
                 CancelOnEscape = false,
-                AllowEmptyLineInput = true,
+                AllowEmptyInput = true,
                 MaxInputLength = 20,
                 MaskingCharacter = '$',
                 KeyInputHook = (ref keyInfo) =>

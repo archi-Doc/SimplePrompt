@@ -20,9 +20,9 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
         Assert.Equal("> ", options.Prompt);
         Assert.Equal("# ", options.MultilinePrompt);
         Assert.Equal("\"\"\"", options.MultilineDelimiter);
-        Assert.Equal(default, options.LineContinuation);
+        Assert.Equal(default, options.LineContinuationCharacter);
         Assert.False(options.CancelOnEscape);
-        Assert.False(options.AllowEmptyLineInput);
+        Assert.False(options.AllowEmptyInput);
         Assert.Equal(default, options.MaskingCharacter);
         Assert.Null(options.KeyInputHook);
         Assert.Null(options.TextInputHook);
@@ -33,14 +33,14 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
     {
         Assert.Equal(1024, ReadLineOptions.SingleLine.MaxInputLength);
         Assert.Null(ReadLineOptions.SingleLine.MultilineDelimiter);
-        Assert.Equal(default, ReadLineOptions.SingleLine.LineContinuation);
-        Assert.False(ReadLineOptions.SingleLine.AllowEmptyLineInput);
+        Assert.Equal(default, ReadLineOptions.SingleLine.LineContinuationCharacter);
+        Assert.False(ReadLineOptions.SingleLine.AllowEmptyInput);
     }
 
     [Fact]
-    public void MultiLinePreset()
+    public void MultilinePreset()
     {
-        Assert.Equal("\"\"\"", ReadLineOptions.MultiLine.MultilineDelimiter);
+        Assert.Equal("\"\"\"", ReadLineOptions.Multiline.MultilineDelimiter);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task MaxInputLengthLimitsTheInput()
     {
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, MaxInputLength = 5 });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, MaxInputLength = 5 });
         fixture.Type("abcdefghij"); // Only the first five characters are accepted.
         fixture.Key(ConsoleKey.Enter);
         Assert.Equal("abcde", await fixture.Wait(task));
@@ -85,7 +85,7 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
     public async Task MaxInputLengthLimitsMultipleLines()
     {
         // The newline between the input lines is counted as well: "|ab" + '\n' + "|cdefg" is exactly ten characters.
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, MaxInputLength = 10, MultilineDelimiter = "|" });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, MaxInputLength = 10, MultilineDelimiter = "|" });
         fixture.Type("|ab");
         fixture.Key(ConsoleKey.Enter);
         fixture.Type("|cdefghij");
@@ -97,7 +97,7 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
     public async Task MultilinePromptIsDisplayed()
     {
         fixture.ClearOutput();
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, MultilineDelimiter = "|", MultilinePrompt = "... " });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, MultilineDelimiter = "|", MultilinePrompt = "... " });
         fixture.Type("|");
         fixture.Key(ConsoleKey.Enter);
         fixture.Type("second|");
@@ -111,7 +111,7 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
     {
         var task = fixture.ReadLine(new()
         {
-            AllowEmptyLineInput = true,
+            AllowEmptyInput = true,
             TextInputHook = text => text.ToUpperInvariant(),
         });
 
@@ -126,7 +126,7 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
         var count = 0;
         var task = fixture.ReadLine(new()
         {
-            AllowEmptyLineInput = true,
+            AllowEmptyInput = true,
             TextInputHook = text =>
             {
                 count++;
@@ -150,7 +150,7 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
     {
         var task = fixture.ReadLine(new()
         {
-            AllowEmptyLineInput = true,
+            AllowEmptyInput = true,
             KeyInputHook = (ref ConsoleKeyInfo keyInfo) =>
                 keyInfo.KeyChar == 'x' ? KeyInputHookResult.Handled : KeyInputHookResult.NotHandled,
         });
@@ -165,7 +165,7 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
     {
         var task = fixture.ReadLine(new()
         {
-            AllowEmptyLineInput = true,
+            AllowEmptyInput = true,
             KeyInputHook = (ref ConsoleKeyInfo keyInfo) =>
             {
                 if (keyInfo.KeyChar == 'a')
@@ -187,7 +187,7 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
     {
         var task = fixture.ReadLine(new()
         {
-            AllowEmptyLineInput = true,
+            AllowEmptyInput = true,
             KeyInputHook = (ref ConsoleKeyInfo keyInfo) =>
                 keyInfo.Key == ConsoleKey.F1 ? KeyInputHookResult.Cancel : KeyInputHookResult.NotHandled,
         });
@@ -259,7 +259,7 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
         {
             var task = fixture.ReadLine(new()
             {
-                AllowEmptyLineInput = true,
+                AllowEmptyInput = true,
                 KeyInputHook = (ref ConsoleKeyInfo keyInfo) =>
                     keyInfo.KeyChar == 'b' ? KeyInputHookResult.Handled : KeyInputHookResult.NotHandled,
             });
@@ -278,7 +278,7 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
     public async Task InputColorIsApplied()
     {
         fixture.ClearOutput();
-        var task = fixture.ReadLine(new() { AllowEmptyLineInput = true, InputColor = ConsoleColor.Blue });
+        var task = fixture.ReadLine(new() { AllowEmptyInput = true, InputColor = ConsoleColor.Blue });
         fixture.Type("blue");
         fixture.Key(ConsoleKey.Enter);
         Assert.Equal("blue", await fixture.Wait(task));
@@ -288,7 +288,7 @@ public class ReadLineOptionsTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task SingleLinePresetIgnoresTheDelimiter()
     {
-        var options = ReadLineOptions.SingleLine with { AllowEmptyLineInput = true };
+        var options = ReadLineOptions.SingleLine with { AllowEmptyInput = true };
         var task = fixture.ReadLine(options);
         fixture.Type("\"\"\"");
         fixture.Key(ConsoleKey.Enter); // Multiline is disabled, so the input completes.

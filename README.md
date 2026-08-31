@@ -60,7 +60,7 @@ simpleConsole.DefaultOptions = new ReadLineOptions()
     MultilinePrompt = "# ",
     MultilineDelimiter = "|",
     CancelOnEscape = true,
-    AllowEmptyLineInput = true,
+    AllowEmptyInput = true,
 };
 
 Console.Out.Write("SimplePrompt example\r\n");
@@ -137,12 +137,12 @@ var result = await simpleConsole.ReadLine(options);
 | `Prompt` | `string` | `"> "` | The prompt string. It may contain newlines; the last line becomes the input line. |
 | `InputColor` | `ConsoleColor` | `Yellow` | The color of the user input. |
 | `MaxInputLength` | `int` | `65536` | The maximum number of input characters. The newline between input lines is counted as one character, and characters exceeding the limit are discarded. |
-| `AllowEmptyLineInput` | `bool` | `false` | Whether pressing Enter with no input completes the operation. When `false`, Enter is ignored until at least one character is entered. |
+| `AllowEmptyInput` | `bool` | `false` | Whether pressing Enter with no input completes the operation. When `false`, Enter is ignored until at least one character is entered. |
 | `CancelOnEscape` | `bool` | `false` | Whether the Escape key cancels the operation. |
 | `MaskingCharacter` | `char` | `'\0'` | The character echoed instead of the input (e.g. for a password). The result still contains the actual text. |
 | `MultilineDelimiter` | `string?` | `"""` | The string which switches multiline input on and off. `null` disables multiline input. |
 | `MultilinePrompt` | `string` | `"# "` | The prompt for the second and subsequent lines of multiline input. |
-| `LineContinuation` | `char` | `'\0'` | The character which continues the line onto the next line (e.g. `'\\'`). `'\0'` disables it. |
+| `LineContinuationCharacter` | `char` | `'\0'` | The character which continues the line onto the next line (e.g. `'\\'`). `'\0'` disables it. |
 | `KeyInputHook` | `KeyInputHook?` | `null` | Called for every key before it is processed. See [Input Hooks](#input-hooks). |
 | `TextInputHook` | `TextInputHook?` | `null` | Called when the input is submitted, to validate or transform it. See [Input Hooks](#input-hooks). |
 
@@ -151,7 +151,7 @@ Presets are provided for common cases.
 | Preset | Description |
 | --- | --- |
 | `ReadLineOptions.SingleLine` | Single line input (multiline disabled, max 1024 characters, empty input not accepted). |
-| `ReadLineOptions.MultiLine` | The default settings, where multiline input is enabled by the `"""` delimiter. |
+| `ReadLineOptions.Multiline` | The default settings, where multiline input is enabled by the `"""` delimiter. |
 | `ReadLineOptions.YesNo` | Accepts only "y", "yes", "n" or "no" (case-insensitive); any other input is asked again. |
 
 
@@ -198,10 +198,10 @@ When a line contains an odd number of `MultilineDelimiter`, multiline input star
 # line2"""      ->  """\nline1\nline2"""
 ```
 
-Alternatively, `LineContinuation` continues the input while a line ends with the specified character. The continuation characters are removed and the lines are joined without a newline.
+Alternatively, `LineContinuationCharacter` continues the input while a line ends with the specified character. The continuation characters are removed and the lines are joined without a newline.
 
 ```csharp
-var options = ReadLineOptions.SingleLine with { LineContinuation = '\\' };
+var options = ReadLineOptions.SingleLine with { LineContinuationCharacter = '\\' };
 ```
 
 ```
@@ -328,6 +328,7 @@ simpleConsole.ExecutionGroup = root;
 | `DefaultOptions` | The options used when `ReadLine()` is called without options. |
 | `KeyInputHook` | The console-wide key input hook. |
 | `EnableColor` | Whether color escape sequences are emitted. |
+| `BufferKeyInputWhileIdle` | Whether keys pressed while no input operation is in progress are kept for the next one. |
 | `IsReadLineInProgress` | Whether an input operation is in progress. |
 | `TryGetCurrentReadLineOptions(out options)` | Gets the options of the operation which is currently accepting input. |
 | `UnderlyingTextWriter` | The original `Console.Out`. |

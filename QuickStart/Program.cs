@@ -19,7 +19,7 @@ internal sealed class Program
             MultilinePrompt = "# ",
             MultilineDelimiter = "|",
             CancelOnEscape = true,
-            AllowEmptyLineInput = true,
+            AllowEmptyInput = true,
         };
 
         Console.Out.Write("SimplePrompt example\r\n");

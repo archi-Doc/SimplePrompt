@@ -18,7 +18,7 @@ internal enum ReadLineMode
     Delimiter,
 
     /// <summary>
-    /// Multiple lines started by <see cref="ReadLineOptions.LineContinuation"/>.
+    /// Multiple lines started by <see cref="ReadLineOptions.LineContinuationCharacter"/>.
     /// The continuation characters are removed and the lines are joined without a newline.
     /// </summary>
     LineContinuation,
