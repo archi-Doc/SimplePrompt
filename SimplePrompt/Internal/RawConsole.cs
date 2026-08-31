@@ -105,8 +105,8 @@ internal sealed class RawConsole
                     this.charsStartIndex = 0;
                     this.charsEndIndex = this.encoding.GetChars(this.bytes.AsSpan(0, validLength), this.chars.AsSpan());
                     this.bytesLength -= validLength;
-                    if (validLength < this.bytesLength)
-                    {// Move remaining bytes to the front
+                    if (this.bytesLength > 0)
+                    {// Move the remaining bytes (an incomplete UTF-8 sequence) to the front.
                         this.bytes.AsSpan(validLength, this.bytesLength).CopyTo(this.bytes.AsSpan());
                     }
 
@@ -288,10 +288,9 @@ internal sealed class RawConsole
         }
 
         if (span.Length == 2 && span[0] == Escape && span[1] != Escape)
-        {
-            this.charsStartIndex++;
-            keyInfo = ParseFromSingleChar(span[0], isAlt: true);
-            this.charsStartIndex++;
+        {// Escape + character: Alt + key
+            keyInfo = ParseFromSingleChar(span[1], isAlt: true);
+            this.charsStartIndex += 2;
             return true;
         }
 

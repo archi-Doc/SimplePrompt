@@ -39,7 +39,6 @@ internal sealed class SimpleArrange
         }
 
         var line = lineList[location.LineIndex];
-        // Log($"Width:{this.simpleConsole.WindowWidth} Height:{this.simpleConsole.WindowHeight}\n");
         foreach (var x in lineList)
         {
             if (x.Rows.Count > 0)
@@ -52,8 +51,6 @@ internal sealed class SimpleArrange
                 {
                     redraw = true;
                 }
-
-                // Log($"Arrange {x.Index} Row changed:{rowChanged} Width diff:{widthDiff}\n");
             }
         }
 
@@ -91,12 +88,5 @@ internal sealed class SimpleArrange
         this.readLineInstance.ResetCursor(CursorOperation.None);
         this.readLineInstance.Redraw();
         this.readLineInstance.CurrentLocation.Restore(CursorOperation.None);
-
-        // this.simpleConsole.Clear(false);
-    }
-
-    private static void Log(string message)
-    {
-        File.AppendAllText("log.txt", message);
     }
 }

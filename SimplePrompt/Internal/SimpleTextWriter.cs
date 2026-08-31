@@ -26,16 +26,16 @@ internal sealed class SimpleTextWriter : TextWriter
         => this.SimpleConsole.WriteSpan(string.Format(this.FormatProvider, format, arg0), true);
 
     public override void Write([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0, object? arg1)
-        => this.SimpleConsole.WriteSpan(string.Format(this.UnderlyingTextWriter.FormatProvider, format, arg0, arg1), false);
+        => this.SimpleConsole.WriteSpan(string.Format(this.FormatProvider, format, arg0, arg1), false);
 
     public override void WriteLine([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0, object? arg1)
-        => this.SimpleConsole.WriteSpan(string.Format(this.UnderlyingTextWriter.FormatProvider, format, arg0, arg1), true);
+        => this.SimpleConsole.WriteSpan(string.Format(this.FormatProvider, format, arg0, arg1), true);
 
     public override void Write([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0, object? arg1, object? arg2)
-        => this.SimpleConsole.WriteSpan(string.Format(this.UnderlyingTextWriter.FormatProvider, format, arg0, arg1, arg2), false);
+        => this.SimpleConsole.WriteSpan(string.Format(this.FormatProvider, format, arg0, arg1, arg2), false);
 
     public override void WriteLine([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0, object? arg1, object? arg2)
-        => this.SimpleConsole.WriteSpan(string.Format(this.UnderlyingTextWriter.FormatProvider, format, arg0, arg1, arg2), true);
+        => this.SimpleConsole.WriteSpan(string.Format(this.FormatProvider, format, arg0, arg1, arg2), true);
 
     public override void Write([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, params object?[] arg)
         => this.SimpleConsole.WriteSpan(string.Format(this.FormatProvider, format, arg), false);

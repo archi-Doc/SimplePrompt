@@ -1,7 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Runtime.CompilerServices;
 using Arc;
 using Arc.Collections;
@@ -66,16 +65,6 @@ internal sealed class SimpleTextLine
 
     public int InitialRowIndex { get; private set; }
 
-    /// <summary>
-    /// Gets the cursor's horizontal position relative to the line's left edge.
-    /// </summary>
-    public int CursorLeft => this.SimpleConsole._cursorLeft;
-
-    /// <summary>
-    /// Gets the cursor's vertical position relative to the line's top edge.
-    /// </summary>
-    public int CursorTop => this.SimpleConsole._cursorTop - this.Top;
-
     public int Height => this.rows.Count;
 
     public int PromptLength => this._promptLength;
@@ -96,8 +85,6 @@ internal sealed class SimpleTextLine
 
     internal byte[] WidthArray => this.widthArray;
 
-    internal bool IsEmpty => this.rows.Count == 0;
-
     #endregion
 
     private SimpleTextLine()
@@ -117,7 +104,6 @@ internal sealed class SimpleTextLine
         if (charBuffer.Length > 0)
         {
             this.ProcessCharBuffer(charBuffer);
-            // this.SimpleConsole.CheckCursor();
         }
 
         if (keyInfo.Key != ConsoleKey.None)
@@ -199,23 +185,7 @@ internal sealed class SimpleTextLine
     }
 
     public override string ToString()
-    {
-        if (this.rows.Count == 0)
-        {
-            return string.Empty;
-        }
-        else
-        {
-            if (this.rows.Count == 0)
-            {
-                return $"{this.rows.Count} lines";
-            }
-            else
-            {
-                return $"{this.rows.Count} lines: {this.rows[0].ToString()}";
-            }
-        }
-    }
+        => this.rows.Count == 0 ? string.Empty : $"{this.rows.Count} lines: {this.rows[0].ToString()}";
 
     internal bool TryGetRowFromArrayPosition(int arrayPosition, [MaybeNullWhen(false)] out SimpleTextRow row)
     {
@@ -251,153 +221,89 @@ internal sealed class SimpleTextLine
 
     internal void Write(int startIndex, int endIndex, bool restoreCursor, int removedWidth, bool eraseLine = false)
     {
-        int x, y, w, length;
         if (endIndex < 0)
-        {
+        {// The entire line
             startIndex = 0;
             endIndex = this.TotalLength;
-            length = this.InputLength;
-        }
-        else
-        {
-            length = endIndex - startIndex;
         }
 
         var startCursor = this.GetCursor(startIndex);
         var endCursor = endIndex == this.TotalLength ? this.GetEndCursor() : this.GetCursor(endIndex);
         var scroll = endCursor.Top - this.WindowHeight + 1;
 
-        ReadOnlySpan<char> span;
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var buffer = windowBuffer.AsSpan();
-        var written = 0;
 
         // Hide cursor
-        span = ConsoleHelper.HideCursorSpan;
-        span.CopyTo(buffer);
-        written += span.Length;
-        buffer = buffer.Slice(span.Length);
+        SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref buffer);
 
         if (startCursor.Left != this.SimpleConsole._cursorLeft || startCursor.Top != this.SimpleConsole._cursorTop)
         {// Move cursor
-            span = ConsoleHelper.SetCursorSpan;
-            span.CopyTo(buffer);
-            buffer = buffer.Slice(span.Length);
-            written += span.Length;
-
-            x = startCursor.Top + 1;
-            y = startCursor.Left + 1;
-            x.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
-            buffer = buffer.Slice(w);
-            written += w;
-            buffer[0] = ';';
-            buffer = buffer.Slice(1);
-            written += 1;
-            y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
-            buffer = buffer.Slice(w);
-            written += w;
-            buffer[0] = 'H';
-            buffer = buffer.Slice(1);
-            written += 1;
+            SimplePromptHelper.TryCopySetCursor(ref buffer, startCursor.Left, startCursor.Top);
         }
 
         if (restoreCursor)
         {// Save cursor
-            span = ConsoleHelper.SaveCursorSpan;
-            span.CopyTo(buffer);
-            written += span.Length;
-            buffer = buffer.Slice(span.Length);
+            SimplePromptHelper.TryCopy(ConsoleHelper.SaveCursorSpan, ref buffer);
         }
 
-        if (startIndex < this.PromptLength && this.PromptLength > 0)
+        if (startIndex < this.PromptLength)
         {// Prompt
+            SimplePromptHelper.TryCopy(this.charArray.AsSpan(0, this.PromptLength), ref buffer);
             startIndex = this.PromptLength;
-            span = this.CharArray.AsSpan(0, this.PromptLength);
-            span.CopyTo(buffer);
-            written += span.Length;
-            buffer = buffer.Slice(span.Length);
         }
+
+        var length = endIndex - startIndex;
 
         // Input color
-        span = ConsoleHelper.GetForegroundColorEscapeCode(this.ReadLineInstance.Options.InputColor).AsSpan();
-        span.CopyTo(buffer);
-        written += span.Length;
-        buffer = buffer.Slice(span.Length);
+        var colorSpan = this.SimpleConsole.GetColorEscapeCode(this.ReadLineInstance.Options.InputColor);
+        SimplePromptHelper.TryCopy(colorSpan, ref buffer);
 
         // Characters
         var maskingCharacter = this.ReadLineInstance.Options.MaskingCharacter;
         if (maskingCharacter == default)
         {// Plain
-            span = this.charArray.AsSpan(startIndex, length);
-            span.CopyTo(buffer);
-            written += span.Length;
-            buffer = buffer.Slice(span.Length);
+            SimplePromptHelper.TryCopy(this.charArray.AsSpan(startIndex, length), ref buffer);
         }
         else
         {// Masked
-            var widthSpan = this.widthArray.AsSpan(startIndex, length);
-            var totalWidth = endIndex < 0 ? this.TotalWidth : (int)BaseHelper.Sum(widthSpan);
-            buffer.Slice(0, totalWidth).Fill(maskingCharacter);
-            written += totalWidth;
-            buffer = buffer.Slice(totalWidth);
+            var totalWidth = (int)BaseHelper.Sum(this.widthArray.AsSpan(startIndex, length));
+            if (totalWidth <= buffer.Length)
+            {
+                buffer.Slice(0, totalWidth).Fill(maskingCharacter);
+                buffer = buffer.Slice(totalWidth);
+            }
         }
 
         if (endCursor.Left == 0)
         {// New line at the end
-            span = SimplePromptHelper.ForceNewLineCursor;
-            span.CopyTo(buffer);
-            written += span.Length;
-            buffer = buffer.Slice(span.Length);
+            SimplePromptHelper.TryCopy(SimplePromptHelper.ForceNewLineCursor, ref buffer);
         }
 
         // Reset color
-        span = ConsoleHelper.ResetSpan;
-        span.CopyTo(buffer);
-        written += span.Length;
-        buffer = buffer.Slice(span.Length);
-
-        if (removedWidth == 1)
+        if (colorSpan.Length > 0)
         {
-            buffer[0] = ' ';
-            written += 1;
-            buffer = buffer.Slice(1);
+            SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref buffer);
         }
-        else if (removedWidth == 2)
-        {
-            buffer[0] = ' ';
-            buffer[1] = ' ';
-            written += 2;
-            buffer = buffer.Slice(2);
+
+        if (removedWidth > 0 && removedWidth <= buffer.Length)
+        {// Erase the columns that the removed character occupied.
+            buffer.Slice(0, removedWidth).Fill(' ');
+            buffer = buffer.Slice(removedWidth);
         }
 
         if (eraseLine)
         {// Erase line
-            /*if ((startCursor + totalWidth) % this.WindowWidth == 0)
-            {// Add one space to clear the next line (add a space and move to the next line).
-                buffer[0] = ' ';
-                written += 1;
-                buffer = buffer.Slice(1);
-            }*/
-
-            span = ConsoleHelper.EraseToEndOfLineSpan;
-            span.CopyTo(buffer);
-            written += span.Length;
-            buffer = buffer.Slice(span.Length);
+            SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref buffer);
         }
 
         if (restoreCursor)
         {// Restore cursor
-            span = ConsoleHelper.RestoreCursorSpan;
-            span.CopyTo(buffer);
-            written += span.Length;
-            buffer = buffer.Slice(span.Length);
+            SimplePromptHelper.TryCopy(ConsoleHelper.RestoreCursorSpan, ref buffer);
         }
 
         // Show cursor
-        span = ConsoleHelper.ShowCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;
+        SimplePromptHelper.TryCopy(ConsoleHelper.ShowCursorSpan, ref buffer);
 
         if (scroll > 0)
         {
@@ -408,8 +314,7 @@ internal sealed class SimpleTextLine
             scroll = 0;
         }
 
-        // this.SimpleConsole.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written));
-        this.SimpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        this.SimpleConsole.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - buffer.Length));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
 
         if (restoreCursor)
@@ -525,20 +430,20 @@ internal sealed class SimpleTextLine
         }
     }
 
-    private int RemoveBuffer1(int index)
-    {
-        var width = this.widthArray[index];
-        this.charArray.AsSpan(index + 1, this.TotalLength - index).CopyTo(this.charArray.AsSpan(index));
-        this.widthArray.AsSpan(index + 1, this.TotalLength - index).CopyTo(this.widthArray.AsSpan(index));
+    private int RemoveBuffer(int index, int count)
+    {// Removes 'count' characters at 'index' and returns the removed width.
+        var width = 0;
+        for (var i = 0; i < count; i++)
+        {
+            width += this.widthArray[index + i];
+        }
 
-        return width;
-    }
-
-    private int RemoveBuffer2(int index)
-    {
-        var width = this.widthArray[index] + this.widthArray[index + 1];
-        this.charArray.AsSpan(index + 2, this.TotalLength - index).CopyTo(this.charArray.AsSpan(index));
-        this.widthArray.AsSpan(index + 2, this.TotalLength - index).CopyTo(this.widthArray.AsSpan(index));
+        var remaining = this.TotalLength - index - count;
+        if (remaining > 0)
+        {
+            this.charArray.AsSpan(index + count, remaining).CopyTo(this.charArray.AsSpan(index));
+            this.widthArray.AsSpan(index + count, remaining).CopyTo(this.widthArray.AsSpan(index));
+        }
 
         return width;
     }
@@ -573,20 +478,11 @@ internal sealed class SimpleTextLine
             return;
         }
 
-        int removedLength;
-        int removedWidth;
-        if (char.IsLowSurrogate(this.charArray[location.ArrayPosition]) &&
-        ((location.ArrayPosition + 1) < this.TotalLength) &&
-        char.IsHighSurrogate(this.charArray[location.ArrayPosition + 1]))
-        {
-            removedLength = 2;
-            removedWidth = this.RemoveBuffer2(location.ArrayPosition);
-        }
-        else
-        {
-            removedLength = 1;
-            removedWidth = this.RemoveBuffer1(location.ArrayPosition);
-        }
+        // A surrogate pair (high surrogate followed by a low surrogate) must be removed as a single character.
+        var removedLength = (char.IsHighSurrogate(this.charArray[location.ArrayPosition]) &&
+            ((location.ArrayPosition + 1) < this.TotalLength) &&
+            char.IsLowSurrogate(this.charArray[location.ArrayPosition + 1])) ? 2 : 1;
+        var removedWidth = this.RemoveBuffer(location.ArrayPosition, removedLength);
 
         var result = row.AddInput(-removedLength, -removedWidth);
         this.Write(location.ArrayPosition, this.TotalLength, true, Math.Max(0, -result.WidthDiff));
@@ -599,12 +495,13 @@ internal sealed class SimpleTextLine
 
     private void ClearLine()
     {
-        var totalLength = this.PromptWidth + this.InputWidth;
-        this.EnsureBuffer(totalLength);
-        Array.Fill<char>(this.charArray, ' ', this.PromptWidth, this.InputWidth);
-        Array.Fill<byte>(this.widthArray, 1, this.PromptWidth, this.InputWidth);
-        this._inputLength = this.InputWidth;
-        this.Write(this.PromptWidth, this.TotalWidth, false, 0);
+        // Overwrite the displayed input (InputWidth columns) with spaces, then drop the content.
+        var inputWidth = this.InputWidth;
+        this.EnsureBuffer(this.PromptLength + inputWidth);
+        Array.Fill<char>(this.charArray, ' ', this.PromptLength, inputWidth);
+        Array.Fill<byte>(this.widthArray, 1, this.PromptLength, inputWidth);
+        this._inputLength = inputWidth;
+        this.Write(this.PromptLength, this.TotalLength, false, 0);
 
         if (this.Rows.Count > 1)
         {
@@ -714,16 +611,10 @@ internal sealed class SimpleTextLine
     }
 
     private void ReleaseRows()
-    {
-        TemporaryList<SimpleTextRow> list = default;
-        foreach (var x in this.Rows)
+    {// SimpleTextRow.Return() removes the row from this.rows, so iterate backwards.
+        for (var i = this.rows.Count - 1; i >= 0; i--)
         {
-            list.Add(x);
-        }
-
-        foreach (var x in list)
-        {
-            SimpleTextRow.Return(x);
+            SimpleTextRow.Return(this.rows[i]);
         }
     }
 }
