@@ -1,5 +1,6 @@
 // Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Runtime.InteropServices;
 using Arc.Unit;
 using SimplePrompt;
 
@@ -13,9 +14,10 @@ namespace xUnitTest;
 public sealed class SimpleConsoleFixture
 {
     /// <summary>
-    /// The maximum time to wait for a ReadLine operation (the worker polls the input every 10 milliseconds).
+    /// The maximum time to wait for a ReadLine operation (the worker polls the input every 10 milliseconds).<br/>
+    /// It is kept short so that a broken environment fails quickly instead of looking frozen.
     /// </summary>
-    public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(30);
+    public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(15);
 
     /// <summary>
     /// Delays for the specified time (the current test can cancel it).
@@ -76,15 +78,33 @@ public sealed class SimpleConsoleFixture
     /// <param name="task">The task returned by <see cref="ReadLine(ReadLineOptions?)"/>.</param>
     /// <returns>The input text.</returns>
     public async Task<string?> Wait(Task<InputResult> task)
-        => (await task.WaitAsync(Timeout)).Text;
+        => (await this.WaitResult(task)).Text;
 
     /// <summary>
     /// Waits for the ReadLine operation and returns the result.
     /// </summary>
     /// <param name="task">The task returned by <see cref="ReadLine(ReadLineOptions?)"/>.</param>
     /// <returns>The result.</returns>
-    public Task<InputResult> WaitResult(Task<InputResult> task)
-        => task.WaitAsync(Timeout);
+    public async Task<InputResult> WaitResult(Task<InputResult> task)
+    {
+        try
+        {
+            return await task.WaitAsync(Timeout);
+        }
+        catch (TimeoutException)
+        {// The console state is reported because the cause differs between environments (terminal, redirected, CI).
+            throw new TimeoutException($"ReadLine() did not complete within {Timeout.TotalSeconds} seconds. {this.GetEnvironmentInfo()}");
+        }
+    }
+
+    /// <summary>
+    /// Gets the console state which affects the input handling.
+    /// </summary>
+    /// <returns>The description of the state.</returns>
+    public string GetEnvironmentInfo()
+        => $"OS: {RuntimeInformation.OSDescription}, InputRedirected: {System.Console.IsInputRedirected}, " +
+            $"OutputRedirected: {System.Console.IsOutputRedirected}, UseStdin: {this.Console.RawConsole.UseStdin}, " +
+            $"ReadLineInProgress: {this.Console.IsReadLineInProgress}, Window: {SimpleConsole.WindowWidth}x{SimpleConsole.WindowHeight}";
 
     /// <summary>
     /// Enqueues the specified text as if the user had typed it.
@@ -135,7 +155,7 @@ public sealed class SimpleConsoleFixture
         {
             if ((Environment.TickCount64 - start) > (long)Timeout.TotalMilliseconds)
             {
-                throw new TimeoutException("A ReadLine operation is still in progress.");
+                throw new TimeoutException($"A ReadLine operation is still in progress. {this.GetEnvironmentInfo()}");
             }
 
             await Task.Delay(5);

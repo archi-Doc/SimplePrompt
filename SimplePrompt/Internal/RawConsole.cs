@@ -89,14 +89,19 @@ internal sealed class RawConsole
                         return true;
                     }
 
-                    Interop.Sys.InitializeConsoleBeforeRead();
+                    // minChars: 0 makes the read return immediately when no character is available,
+                    // so that the polling loop is never blocked.
+                    Interop.Sys.InitializeConsoleBeforeRead(minChars: 0, decisecondsTimeout: 0);
                     try
                     {
                         var span = this.bytes.AsSpan(this.bytesLength, this.bytes.Length - this.bytesLength);
                         fixed (byte* buffer = span)
                         {
                             var readLength = Interop.Sys.ReadStdin(buffer, span.Length);
-                            this.bytesLength += readLength;
+                            if (readLength > 0)
+                            {// A negative value indicates a read failure; the buffer state must be kept valid.
+                                this.bytesLength += readLength;
+                            }
                         }
                     }
                     finally
@@ -587,6 +592,13 @@ internal sealed class RawConsole
 
     private void InitializeStdin()
     {
+        if (Console.IsInputRedirected)
+        {// Stdin is not a terminal (redirected from a file/pipe, or running without a console).
+         // Reading keys from it would consume unrelated data and could block the polling loop,
+         // and writing escape sequences to it would corrupt the redirected stream.
+            return;
+        }
+
         this.handle = Interop.Sys.Dup(Interop.FileDescriptors.STDIN_FILENO);
 
         Span<Interop.ControlCharacterNames> controlCharacterNames =
