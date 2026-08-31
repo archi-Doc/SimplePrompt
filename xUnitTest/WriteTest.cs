@@ -377,9 +377,9 @@ public class WriteTest(SimpleConsoleFixture fixture)
         service.WriteLine("service writeline");
         Assert.Contains("service write", fixture.Sink.ToString());
 
-        // Without a real console these simply return default values instead of throwing.
+        // KeyAvailable does not throw even when no console is attached.
+        // ReadKey() is not tested here because it blocks until a key is pressed when a console is attached.
         _ = service.KeyAvailable;
-        _ = service.ReadKey(true);
     }
 
     [Fact]

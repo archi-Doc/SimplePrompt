@@ -585,10 +585,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     #endregion
 
     ConsoleKeyInfo IConsoleService.ReadKey(bool intercept)
-    {
+    {// Reads a key directly from the console, blocking until one is pressed.
+     // Note that it bypasses the input queue of SimpleConsole, so it competes with a ReadLine operation in progress.
         try
         {
-            return Console.ReadKey();
+            return Console.ReadKey(intercept);
         }
         catch
         {
