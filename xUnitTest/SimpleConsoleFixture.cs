@@ -36,6 +36,8 @@ public sealed class SimpleConsoleFixture
     public static Task<T> WaitAny<T>(Task<T> task)
         => task.WaitAsync(Timeout, TestContext.Current.CancellationToken);
 
+    private readonly List<CancellationTokenSource> cancellationTokenSources = new();
+
     public SimpleConsoleFixture()
     {
         System.Console.SetOut(this.Sink); // The instance captures Console.Out when it is created.
@@ -65,12 +67,39 @@ public sealed class SimpleConsoleFixture
     public TextReader ConsoleIn { get; }
 
     /// <summary>
-    /// Starts a ReadLine operation.
+    /// Starts a ReadLine operation.<br/>
+    /// It is bound to a cancellation token so that <see cref="WaitForIdle"/> can abandon it if a test fails before completing the input.
     /// </summary>
     /// <param name="options">The options. If not specified, an empty-line-tolerant default is used.</param>
     /// <returns>The task.</returns>
     public Task<InputResult> ReadLine(ReadLineOptions? options = default)
-        => this.Console.ReadLine(options ?? new() { AllowEmptyInput = true });
+    {
+        var cancellationTokenSource = new CancellationTokenSource();
+        lock (this.cancellationTokenSources)
+        {
+            this.cancellationTokenSources.Add(cancellationTokenSource);
+        }
+
+        return this.Console.ReadLine(options ?? new() { AllowEmptyInput = true }, cancellationTokenSource.Token);
+    }
+
+    /// <summary>
+    /// Cancels every ReadLine operation started through <see cref="ReadLine(ReadLineOptions?)"/>.<br/>
+    /// A failed test may leave an operation in progress, which would break every subsequent test.
+    /// </summary>
+    public void CancelPendingReadLine()
+    {
+        lock (this.cancellationTokenSources)
+        {
+            foreach (var x in this.cancellationTokenSources)
+            {
+                x.Cancel();
+                x.Dispose();
+            }
+
+            this.cancellationTokenSources.Clear();
+        }
+    }
 
     /// <summary>
     /// Waits for the ReadLine operation and returns the input text.
@@ -151,9 +180,17 @@ public sealed class SimpleConsoleFixture
     public async Task WaitForIdle()
     {
         var start = Environment.TickCount64;
+        var canceled = false;
         while (this.Console.IsReadLineInProgress)
         {
-            if ((Environment.TickCount64 - start) > (long)Timeout.TotalMilliseconds)
+            var elapsed = Environment.TickCount64 - start;
+            if (!canceled && elapsed > 1000)
+            {// A previous test probably failed before completing its input; abandon it so that this test can run.
+                canceled = true;
+                this.CancelPendingReadLine();
+            }
+
+            if (elapsed > (long)Timeout.TotalMilliseconds)
             {
                 throw new TimeoutException($"A ReadLine operation is still in progress. {this.GetEnvironmentInfo()}");
             }
