@@ -138,9 +138,9 @@ internal sealed class ReadLineInstance
             var lineContinuation = false;
             if (this.Mode == ReadLineMode.Singleline)
             {// Single line mode -> Multiple line mode
-                if (this.Options.LineContinuation != default)
+                if (this.Options.LineContinuationCharacter != default)
                 {
-                    if (line.InputLength > 0 && line.InputSpan[^1] == this.Options.LineContinuation)
+                    if (line.InputLength > 0 && line.InputSpan[^1] == this.Options.LineContinuationCharacter)
                     {// Multiple line (LineContinuation)
                         this.Mode = ReadLineMode.LineContinuation;
                     }
@@ -148,7 +148,7 @@ internal sealed class ReadLineInstance
             }
             else if (this.Mode == ReadLineMode.LineContinuation)
             {
-                if (line.InputLength > 0 && line.InputSpan[^1] == this.Options.LineContinuation)
+                if (line.InputLength > 0 && line.InputSpan[^1] == this.Options.LineContinuationCharacter)
                 {// Multiple line (LineContinuation)
                 }
                 else

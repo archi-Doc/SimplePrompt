@@ -114,7 +114,7 @@ internal sealed class SimpleTextLine
             var key = keyInfo.Key;
             if (key == ConsoleKey.Enter)
             {// Exit or Multiline """
-                if (!this.ReadLineInstance.Options.AllowEmptyLineInput)
+                if (!this.ReadLineInstance.Options.AllowEmptyInput)
                 {
                     if (this.ReadLineInstance.IsEmptyInput())
                     {// Empty input

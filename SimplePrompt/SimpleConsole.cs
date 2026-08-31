@@ -84,12 +84,12 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     public bool EnableColor { get; set; } = true;
 
     /// <summary>
-    /// Gets a value indicating whether key input is buffered while no <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress.<br/>
+    /// Gets or sets a value indicating whether key input is buffered while no <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress.<br/>
     /// When <see langword="true"/>, keys pressed in the meantime are queued and consumed by the next operation;<br/>
     /// when <see langword="false"/>, they are discarded.<br/>
     /// Default is <see langword="true"/>.
     /// </summary>
-    public bool BufferKeyInputWhenUnfocused { get; init; } = true;
+    public bool BufferKeyInputWhileIdle { get; set; } = true;
 
     /// <summary>
     /// Gets or sets the options used when <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> is called without options.
@@ -293,12 +293,12 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// The queued text is consumed when a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress
     /// and its input is still empty; otherwise it stays queued for the next operation.
     /// </summary>
-    /// <param name="message">
+    /// <param name="text">
     /// The input text to enqueue. If <see langword="null"/>, it is equivalent to pressing Enter without input.
     /// </param>
-    public void EnqueueInput(string? message)
+    public void EnqueueInput(string? text)
     {
-        this.concurrentTextQueue.Enqueue(message);
+        this.concurrentTextQueue.Enqueue(text);
     }
 
     /// <summary>
@@ -562,21 +562,21 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <summary>
     /// Tries to get the options of the <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation which is currently accepting input.
     /// </summary>
-    /// <param name="readLineOptions">When this method returns <see langword="true"/>, contains the options of the active operation.<br/>
+    /// <param name="options">When this method returns <see langword="true"/>, contains the options of the active operation.<br/>
     /// Note that this is a copy of the options passed to <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/>, not the same instance.</param>
     /// <returns><see langword="true"/> if a ReadLine operation is in progress; otherwise, <see langword="false"/>.</returns>
-    public bool TryGetCurrentReadLineOptions([MaybeNullWhen(false)] out ReadLineOptions readLineOptions)
+    public bool TryGetCurrentReadLineOptions([MaybeNullWhen(false)] out ReadLineOptions options)
     {
         using (this.syncObject.EnterScope())
         {
             if (this.TryGetActiveInstance(out var instance))
             {
-                readLineOptions = instance.Options;
+                options = instance.Options;
                 return true;
             }
             else
             {
-                readLineOptions = default;
+                options = default;
                 return false;
             }
         }
@@ -1247,7 +1247,7 @@ Exit:
             return;
         }
 
-        if (this.BufferKeyInputWhenUnfocused ||
+        if (this.BufferKeyInputWhileIdle ||
             this.instanceList.Count > 0)
         {
             if (this.inputKeyQueue.Count < WindowBufferSize)

@@ -68,7 +68,7 @@ public sealed class SimpleConsoleFixture
     /// <param name="options">The options. If not specified, an empty-line-tolerant default is used.</param>
     /// <returns>The task.</returns>
     public Task<InputResult> ReadLine(ReadLineOptions? options = default)
-        => this.Console.ReadLine(options ?? new() { AllowEmptyLineInput = true });
+        => this.Console.ReadLine(options ?? new() { AllowEmptyInput = true });
 
     /// <summary>
     /// Waits for the ReadLine operation and returns the input text.
