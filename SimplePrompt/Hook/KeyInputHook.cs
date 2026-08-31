@@ -1,4 +1,4 @@
-﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
+// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 namespace SimplePrompt;
 
@@ -18,13 +18,15 @@ public enum KeyInputHookResult
     Handled = 1,
 
     /// <summary>
-    /// The key input was handled by the hook and the current input operation should be canceled.
+    /// The key input was handled by the hook and the current input operation should be canceled.<br/>
+    /// When returned from <see cref="SimpleConsole.KeyInputHook"/>, the key is discarded but the operation is not canceled.
     /// </summary>
     Cancel = 2,
 }
 
 /// <summary>
-/// Represents a method that handles key input events during console read operations.
+/// Represents a method that handles key input events during console read operations.<br/>
+/// The key can be modified through <paramref name="keyInfo"/>; the modified key is processed instead of the original one.
 /// </summary>
 /// <param name="keyInfo">The <see cref="ConsoleKeyInfo"/> containing information about the pressed key.</param>
 /// <returns>The hook result.</returns>

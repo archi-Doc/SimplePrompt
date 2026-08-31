@@ -5,6 +5,9 @@ using System.Runtime.CompilerServices;
 
 namespace SimplePrompt.Internal;
 
+/// <summary>
+/// Tracks the caret position of a ReadLine operation (line, row, position in the buffer and column) and moves the cursor accordingly.
+/// </summary>
 internal sealed class SimpleTextLocation
 {
     private SimpleConsole simpleConsole = default!;

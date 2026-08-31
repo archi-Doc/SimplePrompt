@@ -4,6 +4,9 @@ using SimplePrompt.Internal;
 
 namespace SimplePrompt;
 
+/// <summary>
+/// Rearranges the input lines of the active ReadLine operation when the console window is resized.
+/// </summary>
 internal sealed class SimpleArrange
 {
     #region FieldAndProperty

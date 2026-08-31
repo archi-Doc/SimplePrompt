@@ -11,6 +11,11 @@ using Arc;
 
 namespace SimplePrompt.Internal;
 
+/// <summary>
+/// Reads keys from and writes escape sequences to the terminal.
+/// <br/>
+/// On Unix it reads stdin directly and decodes the terminal escape sequences; otherwise it falls back to <see cref="Console"/>.
+/// </summary>
 internal sealed class RawConsole
 {
     public bool UseStdin { get; private set; }

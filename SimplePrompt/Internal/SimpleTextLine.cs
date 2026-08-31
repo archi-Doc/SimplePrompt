@@ -8,6 +8,9 @@ using Arc.Unit;
 
 namespace SimplePrompt.Internal;
 
+/// <summary>
+/// Represents a logical input line (a prompt and its input) which is wrapped into one or more <see cref="SimpleTextRow"/>.
+/// </summary>
 internal sealed class SimpleTextLine
 {
     private const int PoolSize = 32;

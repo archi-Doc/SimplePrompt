@@ -7,6 +7,9 @@ using CrossChannel;
 
 namespace SimplePrompt.Internal;
 
+/// <summary>
+/// Represents a single ReadLine operation: the prompt, the input lines and the task to be completed.
+/// </summary>
 internal sealed class ReadLineInstance
 {
     public const int CharBufferSize = 1024;

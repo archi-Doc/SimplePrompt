@@ -5,6 +5,9 @@ using System.Text;
 
 namespace SimplePrompt.Internal;
 
+/// <summary>
+/// A <see cref="TextWriter"/> installed as <see cref="Console.Out"/> so that Console output goes through <see cref="SimpleConsole"/>.
+/// </summary>
 internal sealed class SimpleTextWriter : TextWriter
 {
     public SimpleConsole SimpleConsole { get; }

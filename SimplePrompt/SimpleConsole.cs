@@ -62,7 +62,10 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     #region FieldAndProperty
 
     /// <summary>
-    /// Gets or sets the execution group used to coordinate asynchronous console-related operations.
+    /// Gets or sets the execution group which controls the lifetime of the input polling loop.<br/>
+    /// When the group is terminated, pending <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operations
+    /// complete with <see cref="InputResultKind.Terminated"/>.<br/>
+    /// If <see langword="null"/>, the polling loop runs until the process exits.
     /// </summary>
     public ExecutionGroup? ExecutionGroup { get; set; }
 
@@ -74,30 +77,33 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     public KeyInputHook? KeyInputHook { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether ANSI/color output is enabled for console rendering.
+    /// Gets or sets a value indicating whether color escape sequences are emitted.<br/>
+    /// When <see langword="false"/>, the text is written without any color sequence.<br/>
+    /// Default is <see langword="true"/>.
     /// </summary>
     public bool EnableColor { get; set; } = true;
 
     /// <summary>
-    /// Gets a value indicating whether key input should be buffered while the console window is unfocused.
-    /// When <see langword="true"/>, key events are queued and processed after focus is restored.
+    /// Gets a value indicating whether key input is buffered while no <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress.<br/>
+    /// When <see langword="true"/>, keys pressed in the meantime are queued and consumed by the next operation;<br/>
+    /// when <see langword="false"/>, they are discarded.<br/>
+    /// Default is <see langword="true"/>.
     /// </summary>
     public bool BufferKeyInputWhenUnfocused { get; init; } = true;
 
     /// <summary>
-    /// Gets or sets the default options for <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/>.
+    /// Gets or sets the options used when <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> is called without options.
     /// </summary>
     public ReadLineOptions DefaultOptions { get; set; }
 
     /// <summary>
-    /// Gets the underlying <see cref="TextWriter"/> used for console output operations.
-    /// This writer is used internally for all text output to the console.
+    /// Gets the <see cref="TextWriter"/> which was <see cref="Console.Out"/> when this instance was created.<br/>
+    /// The rendered output is written to it, and it can be used to bypass <see cref="SimpleConsole"/>.
     /// </summary>
     public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
     /// <summary>
-    /// Gets a value indicating whether a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is currently in progress.<br/>
-    /// Returns <see langword="true"/> if at least one active instance exists in the instance list; otherwise, <see langword="false"/>.
+    /// Gets a value indicating whether at least one <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress.
     /// </summary>
     public bool IsReadLineInProgress => this.instanceList.Count > 0;
 
@@ -184,14 +190,18 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     }
 
     /// <summary>
-    /// Asynchronously reads a line of input from the console with support for multiline editing.
+    /// Asynchronously reads a line of input from the console with support for multiline editing.<br/>
+    /// It can be called while another operation is in progress; the latest one receives the input,<br/>
+    /// and the previous one is restored when it completes.<br/>
+    /// Calling it again with the same <paramref name="options"/> instance returns the task of the operation already in progress.
     /// </summary>
     /// <param name="options">The options for the console input, including prompts and behavior settings.<br/>
     /// If not specified, <see cref="DefaultOptions" /> will be used.
     /// </param>
     /// <param name="cancellationToken">A cancellation token to cancel the read operation.</param>
     /// <returns>
-    /// A task that represents the asynchronous operation. The task result contains an <see cref="InputResult"/>.
+    /// A task that represents the asynchronous operation. The task result contains an <see cref="InputResult"/>,<br/>
+    /// whose <see cref="InputResult.Kind"/> indicates whether the input was completed, canceled or terminated.
     /// </returns>
     public Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
@@ -240,11 +250,12 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     }
 
     /// <summary>
-    /// Clears the console display or buffer, depending on the specified parameter.
+    /// Clears the console and moves the cursor to the top-left corner.<br/>
+    /// If a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress, the prompt and the input are redrawn.
     /// </summary>
     /// <param name="clearBuffer">
-    /// If <see langword="true"/>, clears the entire console buffer and resets the cursor position to the top-left corner.
-    /// If <see langword="false"/>, clears only the visible console area and resets the cursor position to the top-left corner.
+    /// If <see langword="true"/>, clears the entire console buffer including the scrollback.
+    /// If <see langword="false"/>, clears only the visible area.
     /// </param>
     public void Clear(bool clearBuffer)
     {
@@ -278,11 +289,12 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     }
 
     /// <summary>
-    /// Enqueues a string input message to be processed by the console input queue.<br/>
-    /// This allows programmatic injection of input as if it were typed by the user.
+    /// Enqueues a text which is submitted as if the user had typed it and pressed Enter.<br/>
+    /// The queued text is consumed when a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress
+    /// and its input is still empty; otherwise it stays queued for the next operation.
     /// </summary>
     /// <param name="message">
-    /// The input message to enqueue. If <c>null</c>, a null message is enqueued.
+    /// The input text to enqueue. If <see langword="null"/>, it is equivalent to pressing Enter without input.
     /// </param>
     public void EnqueueInput(string? message)
     {
@@ -307,18 +319,43 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
 
     #region Write
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(bool value, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(value.ToString(), false, color);
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(bool value, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(value.ToString(), true, color);
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(char value, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan([value], false, color);
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(char value, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan([value], true, color);
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(decimal value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[64];
@@ -326,6 +363,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(decimal value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[64];
@@ -333,6 +375,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(double value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -340,6 +387,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(double value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -347,6 +399,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(float value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -354,6 +411,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(float value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -361,6 +423,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(int value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -368,6 +435,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(int value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -375,6 +447,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(uint value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -382,6 +459,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(uint value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -389,6 +471,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(long value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -396,6 +483,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(long value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -403,6 +495,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(ulong value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -410,6 +507,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(ulong value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -419,50 +521,50 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
 
     /// <summary>
     /// Writes the specified message to the console without a newline.<br/>
-    /// Note that when ReadLine() is waiting for input, a newline is inserted after the message is displayed.
+    /// Note that while <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> is waiting for input,<br/>
+    /// a newline is appended so that the message does not overlap the input line.
     /// </summary>
     /// <param name="message">The message to write. If empty, nothing is written.</param>
-    /// <param name="color">Specify the message text color.<br/>
-    /// The color may not be applied depending on the implementation.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(ReadOnlySpan<char> message = default, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, false, color);
 
     /// <summary>
     /// Writes the specified message to the console followed by a newline.<br/>
     /// If a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress,<br/>
-    /// the message is written with proper cursor management and the active input instance is redrawn.
+    /// the message is written above the prompt and the input line is redrawn.
     /// </summary>
-    /// <param name="message">
-    /// The message to write. If <c>empty</c>, only a newline is written.
-    /// </param>
-    /// /// <param name="color">Specify the message text color.<br/>
-    /// The color may not be applied depending on the implementation.</param>
+    /// <param name="message">The message to write. If empty, only a newline is written.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(ReadOnlySpan<char> message, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, true, color);
 
     /// <summary>
     /// Writes the specified message to the console without a newline.<br/>
-    /// Note that when ReadLine() is waiting for input, a newline is inserted after the message is displayed.
+    /// Note that while <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> is waiting for input,<br/>
+    /// a newline is appended so that the message does not overlap the input line.
     /// </summary>
-    /// <param name="message">The message to write. If null, nothing is written.</param>
-    /// <param name="color">Specify the message text color.<br/>
-    /// The color may not be applied depending on the implementation.</param>
+    /// <param name="message">The message to write. If <see langword="null"/> or empty, nothing is written.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(string? message, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, false, color);
 
     /// <summary>
     /// Writes the specified message to the console followed by a newline.<br/>
     /// If a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress,<br/>
-    /// the message is written with proper cursor management and the active input instance is redrawn.
+    /// the message is written above the prompt and the input line is redrawn.
     /// </summary>
-    /// <param name="message">
-    /// The message to write. If <c>null</c>, only a newline is written.
-    /// </param>
-    /// /// <param name="color">Specify the message text color.<br/>
-    /// The color may not be applied depending on the implementation.</param>
+    /// <param name="message">The message to write. If <see langword="null"/> or empty, only a newline is written.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, true, color);
 
+    /// <summary>
+    /// Tries to get the options of the <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation which is currently accepting input.
+    /// </summary>
+    /// <param name="readLineOptions">When this method returns <see langword="true"/>, contains the options of the active operation.<br/>
+    /// Note that this is a copy of the options passed to <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/>, not the same instance.</param>
+    /// <returns><see langword="true"/> if a ReadLine operation is in progress; otherwise, <see langword="false"/>.</returns>
     public bool TryGetCurrentReadLineOptions([MaybeNullWhen(false)] out ReadLineOptions readLineOptions)
     {
         using (this.syncObject.EnterScope())

@@ -2,6 +2,9 @@
 
 namespace SimplePrompt.Internal;
 
+/// <summary>
+/// A <see cref="TextReader"/> installed as <see cref="Console.In"/> so that Console.ReadLine() goes through <see cref="SimpleConsole"/>.
+/// </summary>
 internal sealed class SimpleTextReader : TextReader
 {
     public ReadLineOptions ReadLineOptions { get; }

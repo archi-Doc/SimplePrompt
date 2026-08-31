@@ -6,6 +6,9 @@ using Arc.Unit;
 
 namespace SimplePrompt.Internal;
 
+/// <summary>
+/// Provides the character width calculation and the buffer writing helpers.
+/// </summary>
 internal static class SimplePromptHelper
 {
     public static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
