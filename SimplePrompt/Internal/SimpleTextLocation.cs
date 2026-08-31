@@ -5,7 +5,10 @@ using System.Runtime.CompilerServices;
 
 namespace SimplePrompt.Internal;
 
-internal sealed record class SimpleTextLocation
+/// <summary>
+/// Tracks the caret position of a ReadLine operation (line, row, position in the buffer and column) and moves the cursor accordingly.
+/// </summary>
+internal sealed class SimpleTextLocation
 {
     private SimpleConsole simpleConsole = default!;
     private ReadLineInstance readLineInstance = default!;
@@ -115,12 +118,10 @@ internal sealed record class SimpleTextLocation
     public void MoveFirst()
     {
         this.RowIndex = 0;
-        if (!this.TryGetLineAndRow(out var line, out var row))
+        if (this.TryGetLine(out var line))
         {
-            return;
+            this.Reset(line);
         }
-
-        this.Reset(line);
     }
 
     public void MoveLast()
@@ -343,7 +344,7 @@ internal sealed record class SimpleTextLocation
         this.LocationToCursor();
     }
 
-    public void ChangeLine(int diff, bool keepCursorPosition = false)
+    public void ChangeLine(int diff)
     {
         var nextLine = this.LineIndex + diff;
         if (nextLine < 0)
@@ -417,7 +418,6 @@ internal sealed record class SimpleTextLocation
             return;
         }
 
-        top = top < 0 ? 0 : top;
         top = top >= this.simpleConsole._windowHeight ? this.simpleConsole._windowHeight - 1 : top;
         left = left >= this.simpleConsole._windowWidth ? this.simpleConsole._windowWidth - 1 : left;
         this.CursorPosition = left;
@@ -430,24 +430,6 @@ internal sealed record class SimpleTextLocation
         else if (cursorOperation == CursorOperation.Show)
         {
             this.simpleConsole.ShowCursor();
-        }
-    }
-
-    internal void CursorFirst()
-    {
-        if (this.readLineInstance.LineList.Count == 0)
-        {
-            return;
-        }
-
-        var line = this.readLineInstance.LineList[0];
-        var top = line.Top;
-        var left = 0;
-
-        if (this.simpleConsole._cursorTop != top ||
-            this.simpleConsole._cursorLeft != left)
-        {
-            this.simpleConsole.SetCursorPosition(left, top, CursorOperation.None);
         }
     }
 

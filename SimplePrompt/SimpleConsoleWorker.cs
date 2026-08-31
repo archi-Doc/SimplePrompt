@@ -1,60 +1,10 @@
-﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
-
-using Arc;
-using Arc.Threading;
-
-#pragma warning disable CA1001 // Types that own disposable fields should be disposable
+// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 namespace SimplePrompt;
 
-/*internal sealed class SimpleConsoleWorker : ThreadCore
-{
-    private readonly SimpleConsole simpleConsole;
-
-    private static void Process(object? parameter)
-    {
-        var worker = (SimpleConsoleWorker)parameter!;
-        while (!worker.simpleConsole.Core.IsTerminated)
-        {
-            worker.simpleConsole.Process();
-
-            Thread.Sleep(10);
-        }
-
-        worker.simpleConsole.Abort();
-    }
-
-    public SimpleConsoleWorker(SimpleConsole simpleConsole, ThreadCoreBase? parent, bool startImmediately = true)
-        : base(parent, Process, startImmediately)
-    {
-        this.simpleConsole = simpleConsole;
-        // this.Thread.IsBackground = true;
-    }
-}*/
-
-/*internal sealed class SimpleConsoleWorker : TaskCore<SimpleConsoleWorker>
-{
-    private static readonly TimeSpan IntervalTimeSpan = TimeSpan.FromMilliseconds(10);
-
-    private readonly SimpleConsole simpleConsole;
-
-    private static async Task Process(SimpleConsoleWorker worker)
-    {
-        while (await worker.Delay(IntervalTimeSpan).ConfigureAwait(false))
-        {
-            worker.simpleConsole.Process();
-        }
-
-        worker.simpleConsole.Abort();
-    }
-
-    public SimpleConsoleWorker(ExecutionRoot root, SimpleConsole simpleConsole)
-        : base(root.BaseGroup, Process)
-    {
-        this.simpleConsole = simpleConsole;
-    }
-}*/
-
+/// <summary>
+/// Polls the console at a fixed interval and drives <see cref="SimpleConsole.Process"/>.
+/// </summary>
 internal sealed class SimpleConsoleWorker
 {
     private static readonly TimeSpan IntervalTimeSpan = TimeSpan.FromMilliseconds(10);
@@ -63,6 +13,8 @@ internal sealed class SimpleConsoleWorker
     {
         _ = Task.Run(async () =>
         {
+            // A single PeriodicTimer avoids allocating a delay task on every iteration.
+            using var timer = new PeriodicTimer(IntervalTimeSpan);
             while (true)
             {
                 if (simpleConsole.ExecutionGroup is { } group)
@@ -72,19 +24,18 @@ internal sealed class SimpleConsoleWorker
                         break;
                     }
                 }
-                else
+                else if (!await timer.WaitForNextTickAsync().ConfigureAwait(false))
                 {
-                    try
-                    {
-                        await Task.Delay(IntervalTimeSpan).ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                        break;
-                    }
+                    break;
                 }
 
-                simpleConsole.Process();
+                try
+                {
+                    simpleConsole.Process();
+                }
+                catch
+                {// Never let a transient failure terminate the loop; that would hang every pending ReadLine().
+                }
             }
 
             simpleConsole.Abort();

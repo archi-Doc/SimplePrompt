@@ -6,10 +6,17 @@ using Arc.Unit;
 
 namespace SimplePrompt.Internal;
 
+/// <summary>
+/// Provides the character width calculation and the buffer writing helpers.
+/// </summary>
 internal static class SimplePromptHelper
 {
     public static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
-    public static readonly ConsoleKeyInfo SpaceKeyInfo = new(' ', ConsoleKey.Spacebar, false, false, false);
+
+    /// <summary>
+    /// The maximum number of characters required by the row/column part of a set-cursor sequence ("999999;999999H").
+    /// </summary>
+    private const int MaxSetCursorPositionLength = 24;
 
     public static ReadOnlySpan<char> ForceNewLineCursor => " \e[1D";
 
@@ -31,10 +38,23 @@ internal static class SimplePromptHelper
 
     public static byte GetCharWidth(int codePoint)
     {
+        // Fast path: ASCII (the vast majority of the input/output).
+        if (codePoint < 0x7F)
+        {
+            return codePoint < 0x20 ? (byte)0 : (byte)1;
+        }
+
         // Control characters
-        if (codePoint < 0x20 || (codePoint >= 0x7F && codePoint < 0xA0))
+        if (codePoint < 0xA0)
         {
             return 0;
+        }
+
+        // Latin-1 supplement to spacing modifier letters: always single width and never a combining mark
+        // (combining diacritical marks start at U+0300).
+        if (codePoint < 0x0300)
+        {
+            return 1;
         }
 
         // Extend characters (combining marks)
@@ -109,14 +129,34 @@ internal static class SimplePromptHelper
         return 1;
     }
 
-    public static int GetWidth(ReadOnlySpan<char> text)
+    /// <summary>
+    /// Writes the "move cursor to (left, top)" escape sequence (CSI row;column H) and advances <paramref name="destination"/>.
+    /// </summary>
+    /// <param name="destination">The destination buffer. It is sliced by the number of written characters.</param>
+    /// <param name="left">The zero-based column.</param>
+    /// <param name="top">The zero-based row.</param>
+    /// <returns><see langword="true"/> if the sequence was written; otherwise, <see langword="false"/>.</returns>
+    public static bool TryCopySetCursor(ref Span<char> destination, int left, int top)
     {
-        var width = 0;
-        foreach (var x in text)
+        // ConsoleHelper.SetCursorSpan + "{top + 1};{left + 1}H"
+        if (destination.Length < (ConsoleHelper.SetCursorSpan.Length + MaxSetCursorPositionLength))
         {
-            width += GetCharWidth(x);
+            return false;
         }
 
-        return width;
+        var buffer = destination;
+        ConsoleHelper.SetCursorSpan.CopyTo(buffer);
+        buffer = buffer.Slice(ConsoleHelper.SetCursorSpan.Length);
+
+        (top + 1).TryFormat(buffer, out var written, default, CultureInfo.InvariantCulture);
+        buffer = buffer.Slice(written);
+        buffer[0] = ';';
+        buffer = buffer.Slice(1);
+
+        (left + 1).TryFormat(buffer, out written, default, CultureInfo.InvariantCulture);
+        buffer = buffer.Slice(written);
+        buffer[0] = 'H';
+        destination = buffer.Slice(1);
+        return true;
     }
 }

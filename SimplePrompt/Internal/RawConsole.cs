@@ -11,6 +11,11 @@ using Arc;
 
 namespace SimplePrompt.Internal;
 
+/// <summary>
+/// Reads keys from and writes escape sequences to the terminal.
+/// <br/>
+/// On Unix it reads stdin directly and decodes the terminal escape sequences; otherwise it falls back to <see cref="Console"/>.
+/// </summary>
 internal sealed class RawConsole
 {
     public bool UseStdin { get; private set; }
@@ -105,8 +110,8 @@ internal sealed class RawConsole
                     this.charsStartIndex = 0;
                     this.charsEndIndex = this.encoding.GetChars(this.bytes.AsSpan(0, validLength), this.chars.AsSpan());
                     this.bytesLength -= validLength;
-                    if (validLength < this.bytesLength)
-                    {// Move remaining bytes to the front
+                    if (this.bytesLength > 0)
+                    {// Move the remaining bytes (an incomplete UTF-8 sequence) to the front.
                         this.bytes.AsSpan(validLength, this.bytesLength).CopyTo(this.bytes.AsSpan());
                     }
 
@@ -169,6 +174,30 @@ internal sealed class RawConsole
         catch
         {
         }
+    }
+
+    /// <summary>
+    /// Decodes the specified characters into key inputs using the same logic as the stdin path.<br/>
+    /// This is a seam which allows the terminal sequence decoding to be exercised without an actual terminal.
+    /// </summary>
+    /// <param name="input">The characters to decode. The length must not exceed the internal buffer capacity.</param>
+    /// <returns>The decoded keys.</returns>
+    internal List<ConsoleKeyInfo> DecodeKeys(ReadOnlySpan<char> input)
+    {
+        var list = new List<ConsoleKeyInfo>();
+        using (this.bufferLock.EnterScope())
+        {
+            input.Slice(0, Math.Min(input.Length, this.chars.Length)).CopyTo(this.chars);
+            this.charsStartIndex = 0;
+            this.charsEndIndex = Math.Min(input.Length, this.chars.Length);
+
+            while (this.TryConsumeBufferInternal(out var keyInfo))
+            {
+                list.Add(keyInfo);
+            }
+        }
+
+        return list;
     }
 
     private static ConsoleKeyInfo ParseFromSingleChar(char single, bool isAlt)
@@ -288,10 +317,9 @@ internal sealed class RawConsole
         }
 
         if (span.Length == 2 && span[0] == Escape && span[1] != Escape)
-        {
-            this.charsStartIndex++;
-            keyInfo = ParseFromSingleChar(span[0], isAlt: true);
-            this.charsStartIndex++;
+        {// Escape + character: Alt + key
+            keyInfo = ParseFromSingleChar(span[1], isAlt: true);
+            this.charsStartIndex += 2;
             return true;
         }
 

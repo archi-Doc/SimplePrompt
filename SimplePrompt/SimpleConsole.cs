@@ -1,10 +1,8 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Runtime.InteropServices;
 using Arc.Threading;
 using Arc.Unit;
@@ -28,7 +26,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     private const int InitialWindowHeight = 30;
     private const int MinimumWindowWidth = 30;
     private const int MinimumWindowHeight = 10;
-    private static readonly TimeSpan AdjustWindowInterval = TimeSpan.FromMilliseconds(100);
+    private const long AdjustWindowIntervalInMilliseconds = 100;
 
     private static readonly Lazy<SimpleConsole> LazyInstance = new(
         static () =>
@@ -46,6 +44,15 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// </summary>
     public static SimpleConsole Instance => LazyInstance.Value;
 
+    /// <summary>
+    /// Gets the foreground color escape code for the specified color,<br/>
+    /// or an empty span if colors are disabled or the default color is specified.
+    /// </summary>
+    /// <param name="color">The console color.</param>
+    /// <returns>The escape code.</returns>
+    internal ReadOnlySpan<char> GetColorEscapeCode(ConsoleColor color)
+        => (this.EnableColor && color != ConsoleHelper.DefaultColor) ? ConsoleHelper.GetForegroundColorEscapeCode(color) : default;
+
     internal static char[] RentWindowBuffer()
         => ArrayPool<char>.Shared.Rent(WindowBufferSize);
 
@@ -55,40 +62,48 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     #region FieldAndProperty
 
     /// <summary>
-    /// Gets or sets the execution group used to coordinate asynchronous console-related operations.
+    /// Gets or sets the execution group which controls the lifetime of the input polling loop.<br/>
+    /// When the group is terminated, pending <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operations
+    /// complete with <see cref="InputResultKind.Terminated"/>.<br/>
+    /// If <see langword="null"/>, the polling loop runs until the process exits.
     /// </summary>
     public ExecutionGroup? ExecutionGroup { get; set; }
 
     /// <summary>
-    /// Gets or sets an optional callback that can intercept and process key input events before the default input handling logic is applied.
+    /// Gets or sets an optional callback that can intercept and process key input events before the default input handling logic is applied.<br/>
+    /// It is applied to every key, whether it comes from the terminal or from <see cref="EnqueueKey(ConsoleKeyInfo)"/>.<br/>
+    /// If the callback returns anything other than <see cref="KeyInputHookResult.NotHandled"/>, the key is discarded.
     /// </summary>
     public KeyInputHook? KeyInputHook { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether ANSI/color output is enabled for console rendering.
+    /// Gets or sets a value indicating whether color escape sequences are emitted.<br/>
+    /// When <see langword="false"/>, the text is written without any color sequence.<br/>
+    /// Default is <see langword="true"/>.
     /// </summary>
     public bool EnableColor { get; set; } = true;
 
     /// <summary>
-    /// Gets a value indicating whether key input should be buffered while the console window is unfocused.
-    /// When <see langword="true"/>, key events are queued and processed after focus is restored.
+    /// Gets a value indicating whether key input is buffered while no <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress.<br/>
+    /// When <see langword="true"/>, keys pressed in the meantime are queued and consumed by the next operation;<br/>
+    /// when <see langword="false"/>, they are discarded.<br/>
+    /// Default is <see langword="true"/>.
     /// </summary>
     public bool BufferKeyInputWhenUnfocused { get; init; } = true;
 
     /// <summary>
-    /// Gets or sets the default options for <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/>.
+    /// Gets or sets the options used when <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> is called without options.
     /// </summary>
     public ReadLineOptions DefaultOptions { get; set; }
 
     /// <summary>
-    /// Gets the underlying <see cref="TextWriter"/> used for console output operations.
-    /// This writer is used internally for all text output to the console.
+    /// Gets the <see cref="TextWriter"/> which was <see cref="Console.Out"/> when this instance was created.<br/>
+    /// The rendered output is written to it, and it can be used to bypass <see cref="SimpleConsole"/>.
     /// </summary>
     public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
     /// <summary>
-    /// Gets a value indicating whether a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is currently in progress.<br/>
-    /// Returns <see langword="true"/> if at least one active instance exists in the instance list; otherwise, <see langword="false"/>.
+    /// Gets a value indicating whether at least one <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress.
     /// </summary>
     public bool IsReadLineInProgress => this.instanceList.Count > 0;
 
@@ -109,9 +124,9 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     private readonly PosixSignalRegistration? posixSignalRegistration;
 
     private readonly Lock syncObject = new();
-    private List<ReadLineInstance> instanceList = [];
+    private readonly List<ReadLineInstance> instanceList = [];
 
-    private DateTime adjustWindowTime;
+    private long adjustWindowTime;
 
     #endregion
 
@@ -174,73 +189,44 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         }
     }
 
-    /*#region IDisposable
-
-    private int disposed; // 0 = false, 1 = true
-
-    void IDisposable.Dispose()
-    {
-        this.Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (Interlocked.Exchange(ref this.disposed, 1) != 0)
-        {
-            return;
-        }
-
-        if (disposing)
-        {
-            // Managed resources
-            // this.worker.Dispose();
-        }
-
-        // Unmanaged resources, if any
-    }
-
-    protected void ThrowIfDisposed()
-    {
-        ObjectDisposedException.ThrowIf(Volatile.Read(ref this.disposed) != 0, this.GetType());
-    }
-
-    #endregion*/
-
     /// <summary>
-    /// Asynchronously reads a line of input from the console with support for multiline editing.
+    /// Asynchronously reads a line of input from the console with support for multiline editing.<br/>
+    /// It can be called while another operation is in progress; the latest one receives the input,<br/>
+    /// and the previous one is restored when it completes.<br/>
+    /// Calling it again with the same <paramref name="options"/> instance returns the task of the operation already in progress.
     /// </summary>
     /// <param name="options">The options for the console input, including prompts and behavior settings.<br/>
     /// If not specified, <see cref="DefaultOptions" /> will be used.
     /// </param>
     /// <param name="cancellationToken">A cancellation token to cancel the read operation.</param>
     /// <returns>
-    /// A task that represents the asynchronous operation. The task result contains an <see cref="InputResult"/>.
+    /// A task that represents the asynchronous operation. The task result contains an <see cref="InputResult"/>,<br/>
+    /// whose <see cref="InputResult.Kind"/> indicates whether the input was completed, canceled or terminated.
     /// </returns>
     public Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
-        // this.ThrowIfDisposed();
-
         // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
         this.PrepareWindow();
-        // this.RunJob(JobKind.PrepareWindow);
-        // this.CheckCursor();
 
+        options ??= this.DefaultOptions;
         using (this.syncObject.EnterScope())
         {
             if (this.ExecutionGroup?.IsTerminated == true)
             {
-                return Task<InputResult>.FromResult(new InputResult(InputResultKind.Terminated));
+                return Task.FromResult(new InputResult(InputResultKind.Terminated));
             }
 
             if (cancellationToken.IsCancellationRequested)
             {
-                return Task<InputResult>.FromResult(new InputResult(InputResultKind.Canceled));
+                return Task.FromResult(new InputResult(InputResultKind.Canceled));
             }
 
-            if (this.instanceList.Find(x => object.ReferenceEquals(x.Options, options)) is { } existingInstance)
-            {
-                return existingInstance.TaskCompletionSource.Task;
+            foreach (var x in this.instanceList)
+            {// If a ReadLine with the same options is already in progress, return its task.
+                if (object.ReferenceEquals(x.OptionsSource, options))
+                {
+                    return x.TaskCompletionSource.Task;
+                }
             }
 
             if (this.instanceList.Count > 0)
@@ -255,21 +241,21 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
             }
 
             // Create and prepare a ReadLineInstance.
-            var currentInstance = ReadLineInstance.Rent(this, options ?? this.DefaultOptions, cancellationToken);
+            var currentInstance = ReadLineInstance.Rent(this, options, cancellationToken);
             this.instanceList.Add(currentInstance);
             currentInstance.Prepare();
-            // this.CheckCursor();
 
             return currentInstance.TaskCompletionSource.Task;
         }
     }
 
     /// <summary>
-    /// Clears the console display or buffer, depending on the specified parameter.
+    /// Clears the console and moves the cursor to the top-left corner.<br/>
+    /// If a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress, the prompt and the input are redrawn.
     /// </summary>
     /// <param name="clearBuffer">
-    /// If <see langword="true"/>, clears the entire console buffer and resets the cursor position to the top-left corner.
-    /// If <see langword="false"/>, clears only the visible console area and resets the cursor position to the top-left corner.
+    /// If <see langword="true"/>, clears the entire console buffer including the scrollback.
+    /// If <see langword="false"/>, clears only the visible area.
     /// </param>
     public void Clear(bool clearBuffer)
     {
@@ -288,7 +274,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         }
         else
         {
-            this.RawConsole.WriteInternal($"\e[2J");
+            this.RawConsole.WriteInternal("\e[2J"); // Erase the entire screen.
             this.SetCursorPosition(0, 0, CursorOperation.None);
         }
 
@@ -303,11 +289,12 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     }
 
     /// <summary>
-    /// Enqueues a string input message to be processed by the console input queue.<br/>
-    /// This allows programmatic injection of input as if it were typed by the user.
+    /// Enqueues a text which is submitted as if the user had typed it and pressed Enter.<br/>
+    /// The queued text is consumed when a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress
+    /// and its input is still empty; otherwise it stays queued for the next operation.
     /// </summary>
     /// <param name="message">
-    /// The input message to enqueue. If <c>null</c>, a null message is enqueued.
+    /// The input text to enqueue. If <see langword="null"/>, it is equivalent to pressing Enter without input.
     /// </param>
     public void EnqueueInput(string? message)
     {
@@ -315,8 +302,9 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     }
 
     /// <summary>
-    /// Enqueues a key event to be processed by the console key input queue.
-    /// This enables programmatic key injection equivalent to user key presses.
+    /// Enqueues a key event to be processed by the console key input queue.<br/>
+    /// This enables programmatic key injection equivalent to user key presses,<br/>
+    /// including the processing by <see cref="KeyInputHook"/>.
     /// </summary>
     /// <param name="keyInfo">
     /// The key information to enqueue, including key code, character, and modifier state.
@@ -331,18 +319,43 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
 
     #region Write
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(bool value, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(value.ToString(), false, color);
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(bool value, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(value.ToString(), true, color);
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(char value, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan([value], false, color);
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(char value, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan([value], true, color);
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(decimal value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[64];
@@ -350,6 +363,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(decimal value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[64];
@@ -357,6 +375,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(double value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -364,6 +387,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(double value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -371,6 +399,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(float value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -378,6 +411,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(float value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -385,6 +423,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(int value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -392,6 +435,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(int value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -399,6 +447,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(uint value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -406,6 +459,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(uint value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -413,6 +471,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(long value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -420,6 +483,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(long value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -427,6 +495,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), true, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(ulong value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -434,6 +507,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.WriteSpan(buffer.Slice(0, written), false, color);
     }
 
+    /// <summary>
+    /// Writes the text representation of the specified value to the console, followed by a newline.
+    /// </summary>
+    /// <param name="value">The value to write.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(ulong value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
         Span<char> buffer = stackalloc char[32];
@@ -443,50 +521,50 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
 
     /// <summary>
     /// Writes the specified message to the console without a newline.<br/>
-    /// Note that when ReadLine() is waiting for input, a newline is inserted after the message is displayed.
+    /// Note that while <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> is waiting for input,<br/>
+    /// a newline is appended so that the message does not overlap the input line.
     /// </summary>
     /// <param name="message">The message to write. If empty, nothing is written.</param>
-    /// <param name="color">Specify the message text color.<br/>
-    /// The color may not be applied depending on the implementation.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(ReadOnlySpan<char> message = default, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, false, color);
 
     /// <summary>
     /// Writes the specified message to the console followed by a newline.<br/>
     /// If a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress,<br/>
-    /// the message is written with proper cursor management and the active input instance is redrawn.
+    /// the message is written above the prompt and the input line is redrawn.
     /// </summary>
-    /// <param name="message">
-    /// The message to write. If <c>empty</c>, only a newline is written.
-    /// </param>
-    /// /// <param name="color">Specify the message text color.<br/>
-    /// The color may not be applied depending on the implementation.</param>
+    /// <param name="message">The message to write. If empty, only a newline is written.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(ReadOnlySpan<char> message, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, true, color);
 
     /// <summary>
     /// Writes the specified message to the console without a newline.<br/>
-    /// Note that when ReadLine() is waiting for input, a newline is inserted after the message is displayed.
+    /// Note that while <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> is waiting for input,<br/>
+    /// a newline is appended so that the message does not overlap the input line.
     /// </summary>
-    /// <param name="message">The message to write. If null, nothing is written.</param>
-    /// <param name="color">Specify the message text color.<br/>
-    /// The color may not be applied depending on the implementation.</param>
+    /// <param name="message">The message to write. If <see langword="null"/> or empty, nothing is written.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(string? message, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, false, color);
 
     /// <summary>
     /// Writes the specified message to the console followed by a newline.<br/>
     /// If a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress,<br/>
-    /// the message is written with proper cursor management and the active input instance is redrawn.
+    /// the message is written above the prompt and the input line is redrawn.
     /// </summary>
-    /// <param name="message">
-    /// The message to write. If <c>null</c>, only a newline is written.
-    /// </param>
-    /// /// <param name="color">Specify the message text color.<br/>
-    /// The color may not be applied depending on the implementation.</param>
+    /// <param name="message">The message to write. If <see langword="null"/> or empty, only a newline is written.</param>
+    /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, true, color);
 
+    /// <summary>
+    /// Tries to get the options of the <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation which is currently accepting input.
+    /// </summary>
+    /// <param name="readLineOptions">When this method returns <see langword="true"/>, contains the options of the active operation.<br/>
+    /// Note that this is a copy of the options passed to <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/>, not the same instance.</param>
+    /// <returns><see langword="true"/> if a ReadLine operation is in progress; otherwise, <see langword="false"/>.</returns>
     public bool TryGetCurrentReadLineOptions([MaybeNullWhen(false)] out ReadLineOptions readLineOptions)
     {
         using (this.syncObject.EnterScope())
@@ -503,15 +581,6 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
             }
         }
     }
-
-    /*public void WriteLineAndForget(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
-    {
-        var job = this.worker.Rent();
-        job.Kind = JobKind.WriteLine;
-        job.Message = message;
-        job.Color = color;
-        this.worker.Add(job);
-    }*/
 
     #endregion
 
@@ -542,30 +611,6 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         }
     }
 
-    /*[Conditional("DEBUG")]
-    internal void CheckCursor()
-    {
-        try
-        {
-            if (this.RawConsole.UseStdin)
-            {// With Interop.Sys.Write(), changes are not applied immediately, so the cursor position cannot be retrieved.
-                return;
-            }
-
-            var cursor = SimpleConsole.GetCursorPosition();
-            if (cursor.Left != this.CursorLeft ||
-                cursor.Top != this.CursorTop)
-            {// Inconsistent cursor position
-                var st = $"({this.CursorLeft}, {this.CursorTop})->({cursor.Left},{cursor.Top})";
-                this.UnderlyingTextWriter.WriteLine(st);
-                this.SyncCursor();
-            }
-        }
-        catch
-        {
-        }
-    }*/
-
     internal void Abort()
     {
         using (this.syncObject.EnterScope())
@@ -592,8 +637,8 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         InputResult inputResult;
 
         // Detect window resize.
-        var current = DateTime.UtcNow;
-        if ((current - this.adjustWindowTime) > AdjustWindowInterval)
+        var current = Environment.TickCount64;
+        if ((current - this.adjustWindowTime) >= AdjustWindowIntervalInMilliseconds)
         {
             this.adjustWindowTime = current;
             this.AdjustWindow();
@@ -602,34 +647,13 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         // Read key -> InputKeyQueue
         while (this.RawConsole.TryRead(out keyInfo))
         {
-            // Hook
-            if (this.KeyInputHook is { } keyInputHook &&
-                keyInputHook(ref keyInfo) != KeyInputHookResult.NotHandled)
-            {// Handled
-                continue;
-            }
-
-            if (this.BufferKeyInputWhenUnfocused ||
-                this.instanceList.Count > 0)
-            {
-                if (this.inputKeyQueue.Count < WindowBufferSize)
-                {
-                    this.inputKeyQueue.Enqueue(keyInfo);
-                }
-            }
+            this.EnqueueKeyInput(ref keyInfo);
         }
 
-        // KeyInfo queue -> InputKeyQueue
+        // KeyInfo queue (EnqueueKey) -> InputKeyQueue
         while (this.concurrentKeyQueue.TryDequeue(out keyInfo))
         {
-            if (this.BufferKeyInputWhenUnfocused ||
-                this.instanceList.Count > 0)
-            {
-                if (this.inputKeyQueue.Count < WindowBufferSize)
-                {
-                    this.inputKeyQueue.Enqueue(keyInfo);
-                }
-            }
+            this.EnqueueKeyInput(ref keyInfo);
         }
 
         // Get the current instance
@@ -743,31 +767,35 @@ ProcessKeyInfo:
             }
 
             bool processInput = true;
+            bool hasPendingKey = false;
             ConsoleKeyInfo pendingKeyInfo = default;
             if (IsControl(keyInfo))
             {// Control
             }
             else
-            {// Not control
+            {// Not control: accumulate the character and consume the following keys as well.
                 currentInstance.CharBuffer[currentInstance.CharPosition++] = keyInfo.KeyChar;
-                if (this.inputKeyQueue.TryDequeue(out keyInfo))
+                if (this.inputKeyQueue.TryDequeue(out var nextKeyInfo))
                 {
                     processInput = false;
                     if (currentInstance.CharPosition >= (ReadLineInstance.CharBufferSize - 2))
                     {
                         if (currentInstance.CharPosition >= ReadLineInstance.CharBufferSize ||
-                            char.IsLowSurrogate(keyInfo.KeyChar))
-                        {
+                            char.IsLowSurrogate(nextKeyInfo.KeyChar))
+                        {// The buffer is full.
                             processInput = true;
                         }
                     }
 
                     if (processInput)
-                    {
-                        pendingKeyInfo = keyInfo;
+                    {// Flush the accumulated characters first, then process the next key.
+                        hasPendingKey = true;
+                        pendingKeyInfo = nextKeyInfo;
+                        keyInfo = default;
                     }
                     else
                     {
+                        keyInfo = nextKeyInfo;
                         goto ProcessKeyInfo;
                     }
                 }
@@ -779,6 +807,7 @@ ProcessKeyInfo:
                 using (this.syncObject.EnterScope())
                 {
                     result = currentInstance.ProcessInput(keyInfo, currentInstance.CharBuffer.AsSpan(0, currentInstance.CharPosition));
+                    currentInstance.CharPosition = 0; // The characters have been consumed.
                     if (result is not null)
                     {
                         result = ProcessTextInputHook(result);
@@ -786,17 +815,13 @@ ProcessKeyInfo:
                         {// Rejected
                             continue;
                         }
-                    }
 
-                    currentInstance.CharPosition = 0;
-                    if (result is not null)
-                    {
                         inputResult = new(result);
                         goto CompleteInstance;
                     }
                 }
 
-                if (pendingKeyInfo.Key != ConsoleKey.None)
+                if (hasPendingKey)
                 {// Process pending key input.
                     keyInfo = pendingKeyInfo;
                     goto ProcessKeyInfo;
@@ -874,9 +899,9 @@ CompleteInstance:
             int width;
             var c = text[i];
             if (char.IsHighSurrogate(c) && (i + 1) < text.Length && char.IsLowSurrogate(text[i + 1]))
-            {
-                var codePoint = char.ConvertToUtf32(c, text[i + 1]);
-                width = SimplePromptHelper.GetCharWidth(codePoint);
+            {// A surrogate pair occupies the width of a single character.
+                width = SimplePromptHelper.GetCharWidth(char.ConvertToUtf32(c, text[i + 1]));
+                i++;
             }
             else
             {
@@ -964,46 +989,19 @@ Exit:
 
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var buffer = windowBuffer.AsSpan();
-        var written = 0;
-        ReadOnlySpan<char> span;
 
-        span = ConsoleHelper.SetCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;
-
-        var x = cursorTop + 1;
-        var y = cursorLeft + 1;
-        x.TryFormat(buffer, out var w, default, CultureInfo.InvariantCulture);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = ';';
-        buffer = buffer.Slice(1);
-        written += 1;
-        y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = 'H';
-        buffer = buffer.Slice(1);
-        written += 1;
+        SimplePromptHelper.TryCopySetCursor(ref buffer, cursorLeft, cursorTop);
 
         if (cursorOperation == CursorOperation.Show)
         {
-            span = ConsoleHelper.ShowCursorSpan;
-            span.CopyTo(buffer);
-            buffer = buffer.Slice(span.Length);
-            written += span.Length;
+            SimplePromptHelper.TryCopy(ConsoleHelper.ShowCursorSpan, ref buffer);
         }
         else if (cursorOperation == CursorOperation.Hide)
         {
-            span = ConsoleHelper.HideCursorSpan;
-            span.CopyTo(buffer);
-            buffer = buffer.Slice(span.Length);
-            written += span.Length;
+            SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref buffer);
         }
 
-        // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, written));
-        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - buffer.Length));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
 
         this._cursorLeft = cursorLeft;
@@ -1026,12 +1024,10 @@ Exit:
     {
         using (this.syncObject.EnterScope())
         {
-            // this.CheckCursor();
             if (!this.TryGetActiveInstance(out var activeInstance))
             {
                 this.WriteInternal(message, newLine, color);
 
-                // this.CheckCursor();
                 return;
             }
 
@@ -1047,8 +1043,6 @@ Exit:
 
             activeInstance.Redraw();
             activeInstance.CurrentLocation.Restore(CursorOperation.Show);
-
-            // this.CheckCursor();
         }
     }
 
@@ -1059,58 +1053,25 @@ Exit:
             return;
         }
 
-        ReadOnlySpan<char> span;
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var buffer = windowBuffer.AsSpan();
-        var written = 0;
 
         var moveCursor = this._cursorTop != top || this._cursorLeft != 0;
         if (moveCursor)
         {
-            // Save cursor
-            span = ConsoleHelper.SaveCursorSpan;
-            span.CopyTo(buffer);
-            written += span.Length;
-            buffer = buffer.Slice(span.Length);
-
-            // Move cursor
-            span = ConsoleHelper.SetCursorSpan;
-            span.CopyTo(buffer);
-            buffer = buffer.Slice(span.Length);
-            written += span.Length;
-
-            var x = top + 1;
-            var y = 0 + 1;
-            int w;
-            x.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
-            buffer = buffer.Slice(w);
-            written += w;
-            buffer[0] = ';';
-            buffer = buffer.Slice(1);
-            written += 1;
-            y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
-            buffer = buffer.Slice(w);
-            written += w;
-            buffer[0] = 'H';
-            buffer = buffer.Slice(1);
-            written += 1;
+            SimplePromptHelper.TryCopy(ConsoleHelper.SaveCursorSpan, ref buffer);
+            SimplePromptHelper.TryCopySetCursor(ref buffer, 0, top);
         }
 
         // Erase entire line
-        span = ConsoleHelper.EraseEntireLineSpan;
-        span.CopyTo(buffer);
-        written += span.Length;
-        buffer = buffer.Slice(span.Length);
+        SimplePromptHelper.TryCopy(ConsoleHelper.EraseEntireLineSpan, ref buffer);
 
         if (moveCursor)
         {// Restore cursor
-            span = ConsoleHelper.RestoreCursorSpan;
-            span.CopyTo(buffer);
-            written += span.Length;
-            buffer = buffer.Slice(span.Length);
+            SimplePromptHelper.TryCopy(ConsoleHelper.RestoreCursorSpan, ref buffer);
         }
 
-        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - buffer.Length));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
     }
 
@@ -1179,21 +1140,20 @@ Exit:
     {
         if (message.Length == 0)
         {
-            this.AdvanceCursor([], true);
-            this.RawConsole.WriteInternal(ConsoleHelper.EraseEntireLineAndNewLineSpan);
+            if (newLine)
+            {
+                this.AdvanceCursor(default, true);
+                this.RawConsole.WriteInternal(ConsoleHelper.EraseEntireLineAndNewLineSpan);
+            }
+
+            return;
         }
 
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
 
-        if (color >= 0)
-        {
-            var temp = ConsoleHelper.GetForegroundColorEscapeCode(color);
-            temp.CopyTo(span);
-            span = span.Slice(temp.Length);
-        }
-
-        // SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref span);
+        var colorSpan = this.GetColorEscapeCode(color);
+        Append(colorSpan, ref span);
 
         while (message.Length > 0)
         {
@@ -1220,39 +1180,48 @@ Exit:
             }
 
             // Text
-            if (!SimplePromptHelper.TryCopy(text, ref span))
-            {
-                break;
-            }
-
-            if (appendNewLine)
-            {
-                if (!SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span))
-                {
-                    break;
-                }
-            }
-            else
-            {
-                if (!SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span))
-                {
-                    break;
-                }
-            }
+            Append(text, ref span);
+            Append(appendNewLine ? ConsoleHelper.EraseToEndOfLineAndNewLineSpan : ConsoleHelper.EraseToEndOfLineSpan, ref span);
 
             this.AdvanceCursor(text, appendNewLine);
         }
 
-        if (color >= 0)
+        if (colorSpan.Length > 0)
         {
-            SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span);
+            Append(ConsoleHelper.ResetSpan, ref span);
         }
 
-        // SimplePromptHelper.TryCopy(ConsoleHelper.ShowCursorSpan, ref span);
-
-        // this.UnderlyingTextWriter.Write(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length)); // Alternative
         this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
+
+        void Append(ReadOnlySpan<char> source, ref Span<char> destination)
+        {
+            if (SimplePromptHelper.TryCopy(source, ref destination))
+            {
+                return;
+            }
+
+            // The source does not fit in the remaining buffer, so write it in chunks.
+            while (source.Length > 0)
+            {
+                var length = Math.Min(source.Length, destination.Length);
+                if (length > 0 && length < source.Length && char.IsHighSurrogate(source[length - 1]))
+                {// Do not split a surrogate pair.
+                    length--;
+                }
+
+                if (length == 0)
+                {// Flush the buffer.
+                    this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - destination.Length));
+                    destination = windowBuffer.AsSpan();
+                    continue;
+                }
+
+                source.Slice(0, length).CopyTo(destination);
+                destination = destination.Slice(length);
+                source = source.Slice(length);
+            }
+        }
     }
 
     private void Initialize()
@@ -1270,28 +1239,35 @@ Exit:
         this.PrepareWindow();
     }
 
+    private void EnqueueKeyInput(ref ConsoleKeyInfo keyInfo)
+    {// Applies KeyInputHook and queues the key. Called only by Process(), since inputKeyQueue is not thread-safe.
+        if (this.KeyInputHook is { } keyInputHook &&
+            keyInputHook(ref keyInfo) != KeyInputHookResult.NotHandled)
+        {// Handled
+            return;
+        }
+
+        if (this.BufferKeyInputWhenUnfocused ||
+            this.instanceList.Count > 0)
+        {
+            if (this.inputKeyQueue.Count < WindowBufferSize)
+            {
+                this.inputKeyQueue.Enqueue(keyInfo);
+            }
+        }
+    }
+
     private static bool IsControl(ConsoleKeyInfo keyInfo)
     {
         if (keyInfo.KeyChar == 0)
         {
             return true;
         }
-        else if (keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control) ||
-            keyInfo.Modifiers.HasFlag(ConsoleModifiers.Alt))
-        {
-            return true;
-        }
-        else if (keyInfo.Key == ConsoleKey.Enter ||
-            keyInfo.Key == ConsoleKey.Backspace ||
-            keyInfo.Key == ConsoleKey.Escape)
-        {
-            return true;
-        }
-        else if (keyInfo.Key == ConsoleKey.Tab)
+        else if ((keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) != 0)
         {
             return true;
         }
 
-        return false;
+        return keyInfo.Key is ConsoleKey.Enter or ConsoleKey.Backspace or ConsoleKey.Escape or ConsoleKey.Tab;
     }
 }

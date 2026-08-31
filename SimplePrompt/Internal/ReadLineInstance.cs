@@ -1,6 +1,5 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
-using System.Globalization;
 using Arc;
 using Arc.Collections;
 using Arc.Unit;
@@ -8,6 +7,9 @@ using CrossChannel;
 
 namespace SimplePrompt.Internal;
 
+/// <summary>
+/// Represents a single ReadLine operation: the prompt, the input lines and the task to be completed.
+/// </summary>
 internal sealed class ReadLineInstance
 {
     public const int CharBufferSize = 1024;
@@ -36,6 +38,12 @@ internal sealed class ReadLineInstance
 
     public ReadLineOptions Options => this.options;
 
+    /// <summary>
+    /// Gets the <see cref="ReadLineOptions"/> instance passed by the caller.<br/>
+    /// <see cref="Options"/> is a copy, so this reference is kept in order to identify duplicate ReadLine calls.
+    /// </summary>
+    public ReadLineOptions? OptionsSource { get; private set; }
+
     public RawConsole RawConsole => this.simpleConsole.RawConsole;
 
     public TaskCompletionSource<InputResult> TaskCompletionSource { get; private set; }
@@ -54,23 +62,8 @@ internal sealed class ReadLineInstance
 
     public int FirstInputIndex { get; private set; }
 
-    public int TotalHeight
-    {
-        get
-        {
-            var height = 0;
-            foreach (var x in this.LineList)
-            {
-                height += x.Height;
-            }
-
-            return height;
-        }
-    }
-
     private SimpleConsole simpleConsole;
     private ReadLineOptions options = new();
-    // private DateTime correctedCursorTime;
 
     #endregion
 
@@ -84,15 +77,18 @@ internal sealed class ReadLineInstance
     {
         this.simpleConsole = simpleConsole;
         this.LineList.Clear();
+        this.CharPosition = 0; // The instance is pooled, so the pending character buffer must be reset.
         this.TaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
         this.CancellationToken = cancellationToken;
         this.CurrentLocation.Initialize(simpleConsole, this);
+        this.OptionsSource = options;
         GhostCopy.Copy(ref options, ref this.options);
     }
 
     public void Uninitialize()
     {
         this.simpleConsole = default!;
+        this.OptionsSource = default;
         this.CurrentLocation.Uninitialize();
     }
 
@@ -259,22 +255,13 @@ internal sealed class ReadLineInstance
 
     public void HeightChanged(SimpleTextRow row, int diff)
     {
-        var index = -1;
-        for (var i = 0; i < this.LineList.Count; i++)
-        {
-            if (this.LineList[i] == row.Line)
-            {
-                index = i;
-                break;
-            }
-        }
-
-        if (index < 0)
+        var line = row.Line;
+        var index = line.Index;
+        if (index < 0 || index >= this.LineList.Count || this.LineList[index] != line)
         {
             return;
         }
 
-        var line = this.LineList[index];
         if (diff > 0)
         {
             this.simpleConsole.ClearRow(line.Top + line.Height - 1);
@@ -350,13 +337,18 @@ internal sealed class ReadLineInstance
         this.CurrentLocation.Reset(this.LineList[index], CursorOperation.None, backspace);
     }
 
-    public bool IsLengthWithinLimit(int dif)
+    /// <summary>
+    /// Gets the total number of input characters, including the newline between input lines.
+    /// </summary>
+    /// <returns>The length.</returns>
+    public int GetTotalInputLength()
     {
         var length = 0;
         var isFirst = true;
         for (var i = 0; i < this.LineList.Count; i++)
         {
-            if (!this.LineList[i].IsInput)
+            var line = this.LineList[i];
+            if (!line.IsInput)
             {
                 continue;
             }
@@ -370,24 +362,21 @@ internal sealed class ReadLineInstance
                 length += 1; // New line
             }
 
-            length += this.LineList[i].InputLength;
+            length += line.InputLength;
         }
 
-        return length + dif <= this.Options.MaxInputLength;
+        return length;
     }
 
-    public int SetCursorAtFirst(CursorOperation cursorOperation)
-    {
-        if (this.LineList.Count == 0)
-        {
-            return 0;
-        }
+    public bool IsLengthWithinLimit(int dif)
+        => (this.GetTotalInputLength() + dif) <= this.Options.MaxInputLength;
 
-        var buffer = this.LineList[0];
-        var top = Math.Max(0, buffer.Top);
-        this.simpleConsole.SetCursorPosition(0, top, cursorOperation);
-        return top;
-    }
+    /// <summary>
+    /// Gets the number of characters that can still be added before <see cref="ReadLineOptions.MaxInputLength"/> is reached.
+    /// </summary>
+    /// <returns>The remaining length.</returns>
+    public int GetRemainingLength()
+        => this.Options.MaxInputLength - this.GetTotalInputLength();
 
     public void ResetCursor(CursorOperation cursorOperation)
     {
@@ -440,40 +429,23 @@ internal sealed class ReadLineInstance
 
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var span = windowBuffer.AsSpan();
+        var colorSpan = this.simpleConsole.GetColorEscapeCode(this.Options.InputColor);
 
-        // var scroll = y + this.TotalHeight - this.simpleConsole.WindowHeight;
         var y = this.simpleConsole._cursorTop;
-        var isFirst = true;
         for (var i = 0; i < this.LineList.Count; i++)
         {
             var line = this.LineList[i];
-            // if (line.Top >= 0 && line.Height <= remainingHeight)
-
-            if (isFirst)
-            {
-                isFirst = false;
-            }
-            else
+            if (i > 0)
             {
                 SimplePromptHelper.TryCopy(ConsoleHelper.NewLineSpan, ref span);
             }
 
             if (line.PromptLength > 0)
             {
-                /*if (this.Options.PromptColor != ConsoleHelper.DefaultColor)
-                {
-                    SimplePromptHelper.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.PromptColor).AsSpan(), ref span); // Prompt color
-                }*/
-
                 SimplePromptHelper.TryCopy(line.PromptSpan, ref span);
-
-                /*if (this.Options.PromptColor != ConsoleHelper.DefaultColor)
-                {
-                    SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
-                }*/
             }
 
-            SimplePromptHelper.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.InputColor).AsSpan(), ref span); // Input color
+            SimplePromptHelper.TryCopy(colorSpan, ref span); // Input color
 
             var maskingCharacter = this.Options.MaskingCharacter;
             if (maskingCharacter == default)
@@ -489,17 +461,17 @@ internal sealed class ReadLineInstance
                 }
             }
 
-            SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
+            if (colorSpan.Length > 0)
+            {
+                SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
+            }
+
             if (line.EndsWithEmptyRow)
             {
-                // SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
                 SimplePromptHelper.TryCopy(SimplePromptHelper.ForceNewLineCursor, ref span);
-                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
             }
-            else
-            {
-                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
-            }
+
+            SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref span);
 
             line.Top = y;
             y += line.Height;
@@ -554,17 +526,7 @@ internal sealed class ReadLineInstance
                 SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref span);
             }
 
-            /*if (this.Options.PromptColor != ConsoleHelper.DefaultColor)
-            {
-                SimplePromptHelper.TryCopy(ConsoleHelper.GetForegroundColorEscapeCode(this.Options.PromptColor).AsSpan(), ref span); // Prompt color
-            }*/
-
             SimplePromptHelper.TryCopy(currentPrompt, ref span);
-
-            /*if (this.Options.PromptColor != ConsoleHelper.DefaultColor)
-            {
-                SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
-            }*/
 
             if (isInput)
             {
@@ -616,13 +578,7 @@ internal sealed class ReadLineInstance
 
     private void ReleaseLines()
     {
-        TemporaryList<SimpleTextLine> list = default;
         foreach (var x in this.LineList)
-        {
-            list.Add(x);
-        }
-
-        foreach (var x in list)
         {
             SimpleTextLine.Return(x);
         }
@@ -649,73 +605,11 @@ internal sealed class ReadLineInstance
     {
         var windowBuffer = SimpleConsole.RentWindowBuffer();
         var buffer = windowBuffer.AsSpan();
-        var written = 0;
-        ReadOnlySpan<char> span;
 
-        /*span = ConsoleHelper.SaveCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;*/
+        SimplePromptHelper.TryCopySetCursor(ref buffer, 0, top);
+        SimplePromptHelper.TryCopy(ConsoleHelper.EraseEntireLineSpan, ref buffer);
 
-        span = ConsoleHelper.SetCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;
-
-        var x = top + 1;
-        var y = 0 + 1;
-        x.TryFormat(buffer, out var w, default, CultureInfo.InvariantCulture);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = ';';
-        buffer = buffer.Slice(1);
-        written += 1;
-        y.TryFormat(buffer, out w, default, CultureInfo.InvariantCulture);
-        buffer = buffer.Slice(w);
-        written += w;
-        buffer[0] = 'H';
-        buffer = buffer.Slice(1);
-        written += 1;
-
-        span = ConsoleHelper.EraseEntireLineSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;
-
-        /*span = ConsoleHelper.RestoreCursorSpan;
-        span.CopyTo(buffer);
-        buffer = buffer.Slice(span.Length);
-        written += span.Length;*/
-
-        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, written));
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - buffer.Length));
         SimpleConsole.ReturnWindowBuffer(windowBuffer);
     }
-
-    /*internal bool CorrectCursorTop()
-    {
-        try
-        {
-            var (_, newCursorTop) = SimpleConsole.GetCursorPosition(); // I have just got a new theory of eternity in this method.
-            if (newCursorTop == this.simpleConsole.CursorTop)
-            {
-                return false;
-            }
-
-            // this.RawConsole.WriteInternal($"<Cursor top {this.simpleConsole.CursorTop} -> {newCursorTop}>");
-
-            // var topDiff = newCursorTop - this.simpleConsole.CursorTop;
-            // foreach (var x in this.LineList)
-            // {
-            //    x.Top += topDiff;
-            // }
-
-            // this.simpleConsole.CursorTop = newCursorTop;
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-
-    }*/
 }

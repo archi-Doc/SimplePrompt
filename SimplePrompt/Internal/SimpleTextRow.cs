@@ -5,6 +5,9 @@ using Arc.Collections;
 
 namespace SimplePrompt.Internal;
 
+/// <summary>
+/// Represents a single displayed row of a <see cref="SimpleTextLine"/> (the part which fits in the window width).
+/// </summary>
 internal sealed partial class SimpleTextRow
 {
     #region ObjectPool
