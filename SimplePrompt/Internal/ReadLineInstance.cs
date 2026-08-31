@@ -334,13 +334,18 @@ internal sealed class ReadLineInstance
         this.CurrentLocation.Reset(this.LineList[index], CursorOperation.None, backspace);
     }
 
-    public bool IsLengthWithinLimit(int dif)
+    /// <summary>
+    /// Gets the total number of input characters, including the newline between input lines.
+    /// </summary>
+    /// <returns>The length.</returns>
+    public int GetTotalInputLength()
     {
         var length = 0;
         var isFirst = true;
         for (var i = 0; i < this.LineList.Count; i++)
         {
-            if (!this.LineList[i].IsInput)
+            var line = this.LineList[i];
+            if (!line.IsInput)
             {
                 continue;
             }
@@ -354,11 +359,21 @@ internal sealed class ReadLineInstance
                 length += 1; // New line
             }
 
-            length += this.LineList[i].InputLength;
+            length += line.InputLength;
         }
 
-        return length + dif <= this.Options.MaxInputLength;
+        return length;
     }
+
+    public bool IsLengthWithinLimit(int dif)
+        => (this.GetTotalInputLength() + dif) <= this.Options.MaxInputLength;
+
+    /// <summary>
+    /// Gets the number of characters that can still be added before <see cref="ReadLineOptions.MaxInputLength"/> is reached.
+    /// </summary>
+    /// <returns>The remaining length.</returns>
+    public int GetRemainingLength()
+        => this.Options.MaxInputLength - this.GetTotalInputLength();
 
     public void ResetCursor(CursorOperation cursorOperation)
     {

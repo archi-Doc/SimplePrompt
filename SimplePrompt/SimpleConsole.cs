@@ -67,7 +67,9 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     public ExecutionGroup? ExecutionGroup { get; set; }
 
     /// <summary>
-    /// Gets or sets an optional callback that can intercept and process key input events before the default input handling logic is applied.
+    /// Gets or sets an optional callback that can intercept and process key input events before the default input handling logic is applied.<br/>
+    /// It is applied to every key, whether it comes from the terminal or from <see cref="EnqueueKey(ConsoleKeyInfo)"/>.<br/>
+    /// If the callback returns anything other than <see cref="KeyInputHookResult.NotHandled"/>, the key is discarded.
     /// </summary>
     public KeyInputHook? KeyInputHook { get; set; }
 
@@ -288,8 +290,9 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     }
 
     /// <summary>
-    /// Enqueues a key event to be processed by the console key input queue.
-    /// This enables programmatic key injection equivalent to user key presses.
+    /// Enqueues a key event to be processed by the console key input queue.<br/>
+    /// This enables programmatic key injection equivalent to user key presses,<br/>
+    /// including the processing by <see cref="KeyInputHook"/>.
     /// </summary>
     /// <param name="keyInfo">
     /// The key information to enqueue, including key code, character, and modifier state.
@@ -542,34 +545,13 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         // Read key -> InputKeyQueue
         while (this.RawConsole.TryRead(out keyInfo))
         {
-            // Hook
-            if (this.KeyInputHook is { } keyInputHook &&
-                keyInputHook(ref keyInfo) != KeyInputHookResult.NotHandled)
-            {// Handled
-                continue;
-            }
-
-            if (this.BufferKeyInputWhenUnfocused ||
-                this.instanceList.Count > 0)
-            {
-                if (this.inputKeyQueue.Count < WindowBufferSize)
-                {
-                    this.inputKeyQueue.Enqueue(keyInfo);
-                }
-            }
+            this.EnqueueKeyInput(ref keyInfo);
         }
 
-        // KeyInfo queue -> InputKeyQueue
+        // KeyInfo queue (EnqueueKey) -> InputKeyQueue
         while (this.concurrentKeyQueue.TryDequeue(out keyInfo))
         {
-            if (this.BufferKeyInputWhenUnfocused ||
-                this.instanceList.Count > 0)
-            {
-                if (this.inputKeyQueue.Count < WindowBufferSize)
-                {
-                    this.inputKeyQueue.Enqueue(keyInfo);
-                }
-            }
+            this.EnqueueKeyInput(ref keyInfo);
         }
 
         // Get the current instance
@@ -683,31 +665,35 @@ ProcessKeyInfo:
             }
 
             bool processInput = true;
+            bool hasPendingKey = false;
             ConsoleKeyInfo pendingKeyInfo = default;
             if (IsControl(keyInfo))
             {// Control
             }
             else
-            {// Not control
+            {// Not control: accumulate the character and consume the following keys as well.
                 currentInstance.CharBuffer[currentInstance.CharPosition++] = keyInfo.KeyChar;
-                if (this.inputKeyQueue.TryDequeue(out keyInfo))
+                if (this.inputKeyQueue.TryDequeue(out var nextKeyInfo))
                 {
                     processInput = false;
                     if (currentInstance.CharPosition >= (ReadLineInstance.CharBufferSize - 2))
                     {
                         if (currentInstance.CharPosition >= ReadLineInstance.CharBufferSize ||
-                            char.IsLowSurrogate(keyInfo.KeyChar))
-                        {
+                            char.IsLowSurrogate(nextKeyInfo.KeyChar))
+                        {// The buffer is full.
                             processInput = true;
                         }
                     }
 
                     if (processInput)
-                    {
-                        pendingKeyInfo = keyInfo;
+                    {// Flush the accumulated characters first, then process the next key.
+                        hasPendingKey = true;
+                        pendingKeyInfo = nextKeyInfo;
+                        keyInfo = default;
                     }
                     else
                     {
+                        keyInfo = nextKeyInfo;
                         goto ProcessKeyInfo;
                     }
                 }
@@ -719,6 +705,7 @@ ProcessKeyInfo:
                 using (this.syncObject.EnterScope())
                 {
                     result = currentInstance.ProcessInput(keyInfo, currentInstance.CharBuffer.AsSpan(0, currentInstance.CharPosition));
+                    currentInstance.CharPosition = 0; // The characters have been consumed.
                     if (result is not null)
                     {
                         result = ProcessTextInputHook(result);
@@ -726,17 +713,13 @@ ProcessKeyInfo:
                         {// Rejected
                             continue;
                         }
-                    }
 
-                    currentInstance.CharPosition = 0;
-                    if (result is not null)
-                    {
                         inputResult = new(result);
                         goto CompleteInstance;
                     }
                 }
 
-                if (pendingKeyInfo.Key != ConsoleKey.None)
+                if (hasPendingKey)
                 {// Process pending key input.
                     keyInfo = pendingKeyInfo;
                     goto ProcessKeyInfo;
@@ -814,9 +797,9 @@ CompleteInstance:
             int width;
             var c = text[i];
             if (char.IsHighSurrogate(c) && (i + 1) < text.Length && char.IsLowSurrogate(text[i + 1]))
-            {
-                var codePoint = char.ConvertToUtf32(c, text[i + 1]);
-                width = SimplePromptHelper.GetCharWidth(codePoint);
+            {// A surrogate pair occupies the width of a single character.
+                width = SimplePromptHelper.GetCharWidth(char.ConvertToUtf32(c, text[i + 1]));
+                i++;
             }
             else
             {
@@ -1152,6 +1135,24 @@ Exit:
         }
 
         this.PrepareWindow();
+    }
+
+    private void EnqueueKeyInput(ref ConsoleKeyInfo keyInfo)
+    {// Applies KeyInputHook and queues the key. Called only by Process(), since inputKeyQueue is not thread-safe.
+        if (this.KeyInputHook is { } keyInputHook &&
+            keyInputHook(ref keyInfo) != KeyInputHookResult.NotHandled)
+        {// Handled
+            return;
+        }
+
+        if (this.BufferKeyInputWhenUnfocused ||
+            this.instanceList.Count > 0)
+        {
+            if (this.inputKeyQueue.Count < WindowBufferSize)
+            {
+                this.inputKeyQueue.Enqueue(keyInfo);
+            }
+        }
     }
 
     private static bool IsControl(ConsoleKeyInfo keyInfo)

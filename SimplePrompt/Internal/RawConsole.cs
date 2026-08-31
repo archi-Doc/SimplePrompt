@@ -171,6 +171,30 @@ internal sealed class RawConsole
         }
     }
 
+    /// <summary>
+    /// Decodes the specified characters into key inputs using the same logic as the stdin path.<br/>
+    /// This is a seam which allows the terminal sequence decoding to be exercised without an actual terminal.
+    /// </summary>
+    /// <param name="input">The characters to decode. The length must not exceed the internal buffer capacity.</param>
+    /// <returns>The decoded keys.</returns>
+    internal List<ConsoleKeyInfo> DecodeKeys(ReadOnlySpan<char> input)
+    {
+        var list = new List<ConsoleKeyInfo>();
+        using (this.bufferLock.EnterScope())
+        {
+            input.Slice(0, Math.Min(input.Length, this.chars.Length)).CopyTo(this.chars);
+            this.charsStartIndex = 0;
+            this.charsEndIndex = Math.Min(input.Length, this.chars.Length);
+
+            while (this.TryConsumeBufferInternal(out var keyInfo))
+            {
+                list.Add(keyInfo);
+            }
+        }
+
+        return list;
+    }
+
     private static ConsoleKeyInfo ParseFromSingleChar(char single, bool isAlt)
     {
         bool isShift = false, isCtrl = false;

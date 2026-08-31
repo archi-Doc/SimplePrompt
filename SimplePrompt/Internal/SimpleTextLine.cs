@@ -515,9 +515,20 @@ internal sealed class SimpleTextLine
 
     private void ProcessCharBuffer(Span<char> charBuffer)
     {
-        if (!this.ReadLineInstance.IsLengthWithinLimit(charBuffer.Length))
-        {
-            return;
+        var remaining = this.ReadLineInstance.GetRemainingLength();
+        if (charBuffer.Length > remaining)
+        {// Accept only the characters which fit within MaxInputLength.
+            if (remaining > 0 && char.IsHighSurrogate(charBuffer[remaining - 1]))
+            {// Do not split a surrogate pair.
+                remaining--;
+            }
+
+            if (remaining <= 0)
+            {
+                return;
+            }
+
+            charBuffer = charBuffer.Slice(0, remaining);
         }
 
         this.EnsureBuffer(this.TotalLength + charBuffer.Length);
@@ -580,7 +591,16 @@ internal sealed class SimpleTextLine
         prompt.CopyTo(this.charArray);
         for (var i = 0; i < prompt.Length; i++)
         {
-            this.widthArray[i] = SimplePromptHelper.GetCharWidth(this.charArray[i]);
+            var c = this.charArray[i];
+            if (char.IsHighSurrogate(c) && (i + 1) < prompt.Length && char.IsLowSurrogate(this.charArray[i + 1]))
+            {// A surrogate pair: the width is assigned to the low surrogate (the same layout as the input buffer).
+                this.widthArray[i++] = 0;
+                this.widthArray[i] = SimplePromptHelper.GetCharWidth(char.ConvertToUtf32(c, this.charArray[i]));
+            }
+            else
+            {
+                this.widthArray[i] = SimplePromptHelper.GetCharWidth(c);
+            }
         }
 
         this._promptLength = prompt.Length;
