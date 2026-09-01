@@ -90,7 +90,7 @@ internal sealed class Program
             });
 
         var unit = builder.Build();
-        root = unit.Context.Root;
+        root = unit.Context.ExecutionRoot;
         var logger = unit.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
         logger.GetWriter()?.Write("Start");
         Console.OutputEncoding = System.Text.Encoding.UTF8;
