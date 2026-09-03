@@ -15,6 +15,7 @@ A simple console interface with advanced input handling capabilities including m
 
 - [Requirements](#requirements)
 - [NativeAOT](#nativeaot)
+- [Testing and coverage](docs/code-review.md#coverage)
 - [Quick Start](#quick-start)
 - [ReadLineOptions](#readlineoptions)
 - [Key Bindings](#key-bindings)

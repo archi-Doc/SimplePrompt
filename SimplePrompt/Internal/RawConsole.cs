@@ -290,7 +290,7 @@ internal sealed class RawConsole
             return true;
         }
 
-        if (span.Length == 2 && span[0] == Escape && span[1] != Escape)
+        if (span.Length >= 2 && span[0] == Escape && span[1] is not (Escape or '[' or 'O'))
         {// Escape + character: Alt + key
             keyInfo = ParseFromSingleChar(span[1], isAlt: true);
             this.charsStartIndex += 2;

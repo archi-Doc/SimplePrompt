@@ -80,6 +80,17 @@ public class RawConsoleTest(SimpleConsoleFixture fixture)
         Assert.Equal(ConsoleModifiers.Alt, keys[0].Modifiers);
     }
 
+    [Fact]
+    public void AltKeyFollowedByOtherKeys()
+    {
+        var keys = this.Decode("\eabc");
+        Assert.Equal(3, keys.Count);
+        Assert.Equal(ConsoleModifiers.Alt, keys[0].Modifiers);
+        Assert.Equal('a', keys[0].KeyChar);
+        Assert.Equal('b', keys[1].KeyChar);
+        Assert.Equal('c', keys[2].KeyChar);
+    }
+
     [Theory]
     [InlineData("\e[A", ConsoleKey.UpArrow)]
     [InlineData("\e[B", ConsoleKey.DownArrow)]

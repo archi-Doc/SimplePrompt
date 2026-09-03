@@ -20,6 +20,7 @@ internal sealed class SimpleTextReader : TextReader
         this.ReadLineOptions = ReadLineOptions.SingleLine with
         {
             Prompt = string.Empty,
+            AllowEmptyInput = true,
         };
     }
 

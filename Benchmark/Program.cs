@@ -19,11 +19,11 @@ namespace Benchmark;
 
 public class Program
 {
-    public static Stopwatch Stopwatch { get; } = new();
-
     public static void Main(string[] args)
     {
+#if DEBUG
         DebugRun<ConsoleBenchmark>();
+#endif
 
         var switcher = new BenchmarkSwitcher(
         [

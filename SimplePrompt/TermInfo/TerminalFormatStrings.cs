@@ -104,7 +104,8 @@ internal sealed class TerminalFormatStrings
             this.AddKey(db, extendedNamePrefix + "4", key, shift: true, alt: true, control: false);
             this.AddKey(db, extendedNamePrefix + "5", key, shift: false, alt: false, control: true);
             this.AddKey(db, extendedNamePrefix + "6", key, shift: true, alt: false, control: true);
-            this.AddKey(db, extendedNamePrefix + "7", key, shift: false, alt: false, control: true);
+            this.AddKey(db, extendedNamePrefix + "7", key, shift: false, alt: true, control: true);
+            this.AddKey(db, extendedNamePrefix + "8", key, shift: true, alt: true, control: true);
         }
     }
 

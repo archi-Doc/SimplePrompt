@@ -22,7 +22,15 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
     - name: Test
-      run: dotnet test --no-restore --verbosity normal
+      run: dotnet test -c Release --no-restore --no-build --verbosity normal
+    - name: Restore coverage tool
+      run: dotnet tool restore
+    - name: Collect library coverage
+      run: dotnet coverage collect -s xUnitTest/coverage.config.xml -f cobertura -o artifacts/coverage.cobertura.xml "dotnet xUnitTest/bin/Release/net10.0/xUnitTest.dll"
+    - uses: actions/upload-artifact@v4
+      with:
+        name: code-coverage
+        path: artifacts/coverage.cobertura.xml
 
   native-aot:
     strategy:

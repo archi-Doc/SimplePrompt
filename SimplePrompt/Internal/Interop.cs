@@ -1,7 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
 
 namespace SimplePrompt.Internal;
 
@@ -12,20 +11,6 @@ namespace SimplePrompt.Internal;
 
 internal static partial class Interop
 {
-    [Flags]
-    internal enum OpenFlags
-    {
-        O_RDONLY = 0x0000,
-        O_WRONLY = 0x0001,
-        O_RDWR = 0x0002,
-        O_CLOEXEC = 0x0010,
-        O_CREAT = 0x0020,
-        O_EXCL = 0x0040,
-        O_TRUNC = 0x0080,
-        O_SYNC = 0x0100,
-        O_NOFOLLOW = 0x0200,
-    }
-
     internal enum ControlCharacterNames : int
     {
         VINTR = 0,
@@ -50,9 +35,6 @@ internal static partial class Interop
     internal static partial class Sys
     {
         private const string SystemNative = "libSystem.Native";
-
-        [LibraryImport(SystemNative, EntryPoint = "SystemNative_Open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
-        internal static partial SafeFileHandle Open(string filename, OpenFlags flags, int mode);
 
         [LibraryImport(SystemNative, EntryPoint = "SystemNative_ReadStdin", SetLastError = true)]
         internal static unsafe partial int ReadStdin(byte* buffer, int bufferSize);

@@ -53,8 +53,8 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     internal ReadOnlySpan<char> GetColorEscapeCode(ConsoleColor color)
         => (this.EnableColor && color != ConsoleHelper.DefaultColor) ? ConsoleHelper.GetForegroundColorEscapeCode(color) : default;
 
-    internal static char[] RentWindowBuffer()
-        => ArrayPool<char>.Shared.Rent(WindowBufferSize);
+    internal static char[] RentWindowBuffer(int minimumLength = WindowBufferSize)
+        => ArrayPool<char>.Shared.Rent(Math.Max(WindowBufferSize, minimumLength));
 
     internal static void ReturnWindowBuffer(char[] buffer)
         => ArrayPool<char>.Shared.Return(buffer);
@@ -105,7 +105,16 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <summary>
     /// Gets a value indicating whether at least one <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress.
     /// </summary>
-    public bool IsReadLineInProgress => this.instanceList.Count > 0;
+    public bool IsReadLineInProgress
+    {
+        get
+        {
+            using (this.syncObject.EnterScope())
+            {
+                return this.instanceList.Count > 0;
+            }
+        }
+    }
 
     internal RawConsole RawConsole { get; }
 
@@ -205,12 +214,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// </returns>
     public Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
-        // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
-        this.PrepareWindow();
-
         options ??= this.DefaultOptions;
         using (this.syncObject.EnterScope())
         {
+            // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
+            this.PrepareWindow();
             if (this.ExecutionGroup?.IsTerminated == true)
             {
                 return Task.FromResult(new InputResult(InputResultKind.Terminated));
@@ -259,27 +267,27 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// </param>
     public void Clear(bool clearBuffer)
     {
-        if (clearBuffer)
-        {
-            this._cursorTop = 0;
-            this._cursorLeft = 0;
-
-            try
-            {
-                Console.Clear();
-            }
-            catch
-            {
-            }
-        }
-        else
-        {
-            this.RawConsole.WriteInternal("\e[2J"); // Erase the entire screen.
-            this.SetCursorPosition(0, 0, CursorOperation.None);
-        }
-
         using (this.syncObject.EnterScope())
         {
+            if (clearBuffer)
+            {
+                this._cursorTop = 0;
+                this._cursorLeft = 0;
+
+                try
+                {
+                    Console.Clear();
+                }
+                catch
+                {
+                }
+            }
+            else
+            {
+                this.RawConsole.WriteInternal("\e[2J"); // Erase the entire screen.
+                this.SetCursorPosition(0, 0, CursorOperation.None);
+            }
+
             if (this.TryGetActiveInstance(out var currentInstance))
             {
                 currentInstance.Redraw();
@@ -358,9 +366,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(decimal value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[64];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false, color);
+        this.WriteFormatted(value, false, color);
     }
 
     /// <summary>
@@ -370,9 +376,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(decimal value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[64];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true, color);
+        this.WriteFormatted(value, true, color);
     }
 
     /// <summary>
@@ -382,9 +386,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(double value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[32];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false, color);
+        this.WriteFormatted(value, false, color);
     }
 
     /// <summary>
@@ -394,9 +396,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(double value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[32];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true, color);
+        this.WriteFormatted(value, true, color);
     }
 
     /// <summary>
@@ -406,9 +406,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(float value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[32];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false, color);
+        this.WriteFormatted(value, false, color);
     }
 
     /// <summary>
@@ -418,9 +416,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(float value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[32];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true, color);
+        this.WriteFormatted(value, true, color);
     }
 
     /// <summary>
@@ -430,9 +426,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(int value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[32];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false, color);
+        this.WriteFormatted(value, false, color);
     }
 
     /// <summary>
@@ -442,9 +436,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(int value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[32];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true, color);
+        this.WriteFormatted(value, true, color);
     }
 
     /// <summary>
@@ -454,9 +446,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(uint value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[32];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false, color);
+        this.WriteFormatted(value, false, color);
     }
 
     /// <summary>
@@ -466,9 +456,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(uint value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[32];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true, color);
+        this.WriteFormatted(value, true, color);
     }
 
     /// <summary>
@@ -478,9 +466,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(long value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[32];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false, color);
+        this.WriteFormatted(value, false, color);
     }
 
     /// <summary>
@@ -490,9 +476,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(long value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[32];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true, color);
+        this.WriteFormatted(value, true, color);
     }
 
     /// <summary>
@@ -502,9 +486,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void Write(ulong value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[32];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), false, color);
+        this.WriteFormatted(value, false, color);
     }
 
     /// <summary>
@@ -514,9 +496,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <param name="color">The text color. If not specified, the current console color is used.</param>
     public void WriteLine(ulong value, ConsoleColor color = ConsoleHelper.DefaultColor)
     {
-        Span<char> buffer = stackalloc char[32];
-        value.TryFormat(buffer, out var written, default, this.UnderlyingTextWriter.FormatProvider);
-        this.WriteSpan(buffer.Slice(0, written), true, color);
+        this.WriteFormatted(value, true, color);
     }
 
     /// <summary>
@@ -626,6 +606,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
             foreach (var x in this.instanceList)
             {
                 x.TaskCompletionSource.SetResult(new(InputResultKind.Terminated));
+                ReadLineInstance.Return(x);
             }
 
             this.instanceList.Clear();
@@ -634,236 +615,264 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
 
     internal void Process()
     {// Called by the worker thread at each IntervalTimeSpan.
-        ConsoleKeyInfo keyInfo = default;
-        InputResult inputResult;
-
-        // Detect window resize.
-        var current = Environment.TickCount64;
-        if ((current - this.adjustWindowTime) >= AdjustWindowIntervalInMilliseconds)
+        ReadLineInstance? currentInstance = null;
+        try
         {
-            this.adjustWindowTime = current;
-            this.AdjustWindow();
-        }
+            ConsoleKeyInfo keyInfo = default;
+            InputResult inputResult;
 
-        // Read key -> InputKeyQueue
-        while (this.RawConsole.TryRead(out keyInfo))
-        {
-            this.EnqueueKeyInput(ref keyInfo);
-        }
+            // Detect window resize.
+            var current = Environment.TickCount64;
+            if ((current - this.adjustWindowTime) >= AdjustWindowIntervalInMilliseconds)
+            {
+                this.adjustWindowTime = current;
+                this.AdjustWindow();
+            }
 
-        // KeyInfo queue (EnqueueKey) -> InputKeyQueue
-        while (this.concurrentKeyQueue.TryDequeue(out keyInfo))
-        {
-            this.EnqueueKeyInput(ref keyInfo);
-        }
+            // Read key -> InputKeyQueue
+            while (this.RawConsole.TryRead(out keyInfo))
+            {
+                this.EnqueueKeyInput(ref keyInfo);
+            }
 
-        // Get the current instance
-        ReadLineInstance? currentInstance;
-        using (this.syncObject.EnterScope())
-        {
-            for (var i = 0; i < this.instanceList.Count - 1; i++)
-            {// If there are any canceled instances among the pending ReadLineInstances, notify and remove them.
-                var instance = this.instanceList[i];
-                if (instance.CancellationToken.IsCancellationRequested)
+            // KeyInfo queue (EnqueueKey) -> InputKeyQueue
+            while (this.concurrentKeyQueue.TryDequeue(out keyInfo))
+            {
+                this.EnqueueKeyInput(ref keyInfo);
+            }
+
+            // Get the current instance
+
+            using (this.syncObject.EnterScope())
+            {
+                for (var i = 0; i < this.instanceList.Count - 1; i++)
+                {// If there are any canceled instances among the pending ReadLineInstances, notify and remove them.
+                    var instance = this.instanceList[i];
+                    if (instance.CancellationToken.IsCancellationRequested)
+                    {
+                        this.instanceList.RemoveAt(i--);
+                        instance.TaskCompletionSource.SetResult(new(InputResultKind.Canceled));
+                        ReadLineInstance.Return(instance);
+                    }
+                }
+
+                if (!this.TryGetActiveInstance(out currentInstance))
+                {// No active instance
+                    return;
+                }
+
+                if (currentInstance.CancellationToken.IsCancellationRequested)
+                {// Canceled
+                    inputResult = new(InputResultKind.Canceled);
+                    goto CompleteInstance;
+                }
+                else if (this.ExecutionGroup?.IsTerminated == true/* ||
+                    this.worker.IsTerminated*/)
+                {// Terminated
+                    inputResult = new(InputResultKind.Terminated);
+                    goto CompleteInstance;
+                }
+
+                if (!this.concurrentTextQueue.IsEmpty &&
+                    currentInstance.IsEmptyInput() &&
+                    this.concurrentTextQueue.TryDequeue(out var queuedMessage))
                 {
-                    this.instanceList.RemoveAt(i--);
-                    instance.TaskCompletionSource.SetResult(new(InputResultKind.Canceled));
-                    ReadLineInstance.Return(instance);
+                    var queuedSpan = queuedMessage.AsSpan();
+                    do
+                    {
+                        var length = Math.Min(queuedSpan.Length, currentInstance.CharBuffer.Length);
+                        if (length < queuedSpan.Length && char.IsHighSurrogate(queuedSpan[length - 1]) && char.IsLowSurrogate(queuedSpan[length]))
+                        {
+                            length--;
+                        }
+
+                        var charSpan = currentInstance.CharBuffer.AsSpan(0, length);
+                        queuedSpan.Slice(0, length).CopyTo(charSpan);
+                        queuedSpan = queuedSpan.Slice(length);
+
+                        if (queuedSpan.Length == 0)
+                        {
+                            var result = currentInstance.ProcessInput(SimplePromptHelper.EnterKeyInfo, charSpan);
+                            if (result is not null)
+                            {
+                                result = ProcessTextInputHook(result);
+                                if (result is null)
+                                {// Rejected
+                                    break;
+                                }
+                            }
+
+                            if (result is not null)
+                            {
+                                inputResult = new(result);
+                                goto CompleteInstance;
+                            }
+                        }
+                        else
+                        {
+                            currentInstance.ProcessInput(default, charSpan);
+                        }
+                    }
+                    while (queuedSpan.Length > 0);
                 }
             }
 
-            if (!this.TryGetActiveInstance(out currentInstance))
-            {// No active instance
-                return;
-            }
-
-            this.simpleArrange.Set(currentInstance);
-
-            if (currentInstance.CancellationToken.IsCancellationRequested)
-            {// Canceled
-                inputResult = new(InputResultKind.Canceled);
-                goto CompleteInstance;
-            }
-            else if (this.ExecutionGroup?.IsTerminated == true/* ||
-                this.worker.IsTerminated*/)
-            {// Terminated
-                inputResult = new(InputResultKind.Terminated);
-                goto CompleteInstance;
-            }
-
-            if (!this.concurrentTextQueue.IsEmpty &&
-                currentInstance.IsEmptyInput() &&
-                this.concurrentTextQueue.TryDequeue(out var queuedMessage))
-            {
-                var queuedSpan = queuedMessage.AsSpan();
-                do
+            while (this.inputKeyQueue.TryDequeue(out keyInfo))
+            {// Dequeue key input and process it.
+    ProcessKeyInfo:
+                if (keyInfo.KeyChar == '\n' ||
+                keyInfo.Key == ConsoleKey.Enter)
                 {
-                    var length = Math.Min(queuedSpan.Length, currentInstance.CharBuffer.Length);
-                    var charSpan = currentInstance.CharBuffer.AsSpan(0, length);
-                    queuedSpan.Slice(0, length).CopyTo(charSpan);
-                    queuedSpan = queuedSpan.Slice(length);
+                    keyInfo = SimplePromptHelper.EnterKeyInfo;
+                }
+                else if (keyInfo.KeyChar == '\t' ||
+                    keyInfo.Key == ConsoleKey.Tab)
+                {// Tab; in the future, input completion.
+                }
+                else if (keyInfo.KeyChar == '\r')
+                {// CrLf -> Lf
+                    continue;
+                }
+                else if (currentInstance.Options.CancelOnEscape &&
+                    keyInfo.Key == ConsoleKey.Escape)
+                {
+                    inputResult = new(InputResultKind.Canceled);
+                    goto CompleteInstance;
+                }
 
-                    if (queuedSpan.Length == 0)
+                if (currentInstance.Options.KeyInputHook is not null)
+                {
+                    var hookResult = currentInstance.Options.KeyInputHook(ref keyInfo);
+                    if (hookResult == KeyInputHookResult.Handled)
                     {
-                        var result = currentInstance.ProcessInput(SimplePromptHelper.EnterKeyInfo, charSpan);
+                        continue;
+                    }
+                    else if (hookResult == KeyInputHookResult.Cancel)
+                    {
+                        inputResult = new(InputResultKind.Canceled);
+                        goto CompleteInstance;
+                    }
+                }
+
+                bool processInput = true;
+                bool hasPendingKey = false;
+                ConsoleKeyInfo pendingKeyInfo = default;
+                if (IsControl(keyInfo))
+                {// Control
+                }
+                else
+                {// Not control: accumulate the character and consume the following keys as well.
+                    currentInstance.CharBuffer[currentInstance.CharPosition++] = keyInfo.KeyChar;
+                    if (this.inputKeyQueue.TryDequeue(out var nextKeyInfo))
+                    {
+                        processInput = false;
+                        if (currentInstance.CharPosition >= (ReadLineInstance.CharBufferSize - 1))
+                        {
+                            if (!char.IsHighSurrogate(currentInstance.CharBuffer[currentInstance.CharPosition - 1]) ||
+                                !char.IsLowSurrogate(nextKeyInfo.KeyChar))
+                            {// The buffer is full.
+                                processInput = true;
+                            }
+                        }
+
+                        if (processInput)
+                        {// Flush the accumulated characters first, then process the next key.
+                            hasPendingKey = true;
+                            pendingKeyInfo = nextKeyInfo;
+                            keyInfo = default;
+                        }
+                        else
+                        {
+                            keyInfo = nextKeyInfo;
+                            goto ProcessKeyInfo;
+                        }
+                    }
+                    else if (char.IsHighSurrogate(keyInfo.KeyChar))
+                    {
+                        // Keep a trailing high surrogate until its next key arrives.
+                        processInput = false;
+                    }
+                }
+
+                if (processInput)
+                {// Process input
+                    string? result;
+                    using (this.syncObject.EnterScope())
+                    {
+                        result = currentInstance.ProcessInput(keyInfo, currentInstance.CharBuffer.AsSpan(0, currentInstance.CharPosition));
+                        currentInstance.CharPosition = 0; // The characters have been consumed.
                         if (result is not null)
                         {
                             result = ProcessTextInputHook(result);
                             if (result is null)
                             {// Rejected
-                                break;
+                                continue;
                             }
-                        }
 
-                        if (result is not null)
-                        {
                             inputResult = new(result);
                             goto CompleteInstance;
                         }
                     }
-                    else
-                    {
-                        currentInstance.ProcessInput(keyInfo, charSpan);
-                    }
-                }
-                while (queuedSpan.Length > 0);
-            }
-        }
 
-        while (this.inputKeyQueue.TryDequeue(out keyInfo))
-        {// Dequeue key input and process it.
-ProcessKeyInfo:
-            if (keyInfo.KeyChar == '\n' ||
-            keyInfo.Key == ConsoleKey.Enter)
-            {
-                keyInfo = SimplePromptHelper.EnterKeyInfo;
-            }
-            else if (keyInfo.KeyChar == '\t' ||
-                keyInfo.Key == ConsoleKey.Tab)
-            {// Tab; in the future, input completion.
-            }
-            else if (keyInfo.KeyChar == '\r')
-            {// CrLf -> Lf
-                continue;
-            }
-            else if (currentInstance.Options.CancelOnEscape &&
-                keyInfo.Key == ConsoleKey.Escape)
-            {
-                inputResult = new(InputResultKind.Canceled);
-                goto CompleteInstance;
-            }
-
-            if (currentInstance.Options.KeyInputHook is not null)
-            {
-                var hookResult = currentInstance.Options.KeyInputHook(ref keyInfo);
-                if (hookResult == KeyInputHookResult.Handled)
-                {
-                    continue;
-                }
-                else if (hookResult == KeyInputHookResult.Cancel)
-                {
-                    inputResult = new(InputResultKind.Canceled);
-                    goto CompleteInstance;
-                }
-            }
-
-            bool processInput = true;
-            bool hasPendingKey = false;
-            ConsoleKeyInfo pendingKeyInfo = default;
-            if (IsControl(keyInfo))
-            {// Control
-            }
-            else
-            {// Not control: accumulate the character and consume the following keys as well.
-                currentInstance.CharBuffer[currentInstance.CharPosition++] = keyInfo.KeyChar;
-                if (this.inputKeyQueue.TryDequeue(out var nextKeyInfo))
-                {
-                    processInput = false;
-                    if (currentInstance.CharPosition >= (ReadLineInstance.CharBufferSize - 2))
-                    {
-                        if (currentInstance.CharPosition >= ReadLineInstance.CharBufferSize ||
-                            char.IsLowSurrogate(nextKeyInfo.KeyChar))
-                        {// The buffer is full.
-                            processInput = true;
-                        }
-                    }
-
-                    if (processInput)
-                    {// Flush the accumulated characters first, then process the next key.
-                        hasPendingKey = true;
-                        pendingKeyInfo = nextKeyInfo;
-                        keyInfo = default;
-                    }
-                    else
-                    {
-                        keyInfo = nextKeyInfo;
+                    if (hasPendingKey)
+                    {// Process pending key input.
+                        keyInfo = pendingKeyInfo;
                         goto ProcessKeyInfo;
                     }
                 }
             }
 
-            if (processInput)
-            {// Process input
-                string? result;
-                using (this.syncObject.EnterScope())
+            return;
+
+    CompleteInstance:
+            using (this.syncObject.EnterScope())
+            {
+                currentInstance.CurrentLocation.MoveToEnd();
+                this.UnderlyingTextWriter.WriteLine();
+                this.NewLineCursor();
+
+                this.RemoveInstance(currentInstance);
+            }
+
+            currentInstance.TaskCompletionSource.SetResult(inputResult);
+            ReadLineInstance.Return(currentInstance);
+
+            string? ProcessTextInputHook(string result)
+            {
+                if (currentInstance.Options.TextInputHook is { } textInputHook)
                 {
-                    result = currentInstance.ProcessInput(keyInfo, currentInstance.CharBuffer.AsSpan(0, currentInstance.CharPosition));
-                    currentInstance.CharPosition = 0; // The characters have been consumed.
-                    if (result is not null)
-                    {
-                        result = ProcessTextInputHook(result);
-                        if (result is null)
-                        {// Rejected
-                            continue;
-                        }
-
-                        inputResult = new(result);
-                        goto CompleteInstance;
+                    var newResult = currentInstance.Options.TextInputHook(result);
+                    if (newResult is null)
+                    {// Rejected by the hook delegate.
+                        this.UnderlyingTextWriter.WriteLine();
+                        this.NewLineCursor();
+                        currentInstance.Reset();
+                        currentInstance.Redraw();
+                        currentInstance.CurrentLocation.Reset();
                     }
-                }
 
-                if (hasPendingKey)
-                {// Process pending key input.
-                    keyInfo = pendingKeyInfo;
-                    goto ProcessKeyInfo;
+                    return newResult;
+                }
+                else
+                {
+                    return result;
                 }
             }
         }
-
-        return;
-
-CompleteInstance:
-        using (this.syncObject.EnterScope())
+        catch (Exception exception)
         {
-            currentInstance.CurrentLocation.MoveToEnd();
-            this.UnderlyingTextWriter.WriteLine();
-            this.NewLineCursor();
-
-            this.RemoveInstance(currentInstance);
-        }
-
-        currentInstance.TaskCompletionSource.SetResult(inputResult);
-        ReadLineInstance.Return(currentInstance);
-
-        string? ProcessTextInputHook(string result)
-        {
-            if (currentInstance.Options.TextInputHook is { } textInputHook)
+            using (this.syncObject.EnterScope())
             {
-                var newResult = currentInstance.Options.TextInputHook(result);
-                if (newResult is null)
-                {// Rejected by the hook delegate.
-                    this.UnderlyingTextWriter.WriteLine();
-                    this.NewLineCursor();
-                    currentInstance.Reset();
-                    currentInstance.Redraw();
-                    currentInstance.CurrentLocation.Reset();
+                currentInstance ??= this.instanceList.LastOrDefault();
+                if (currentInstance is null || !this.instanceList.Contains(currentInstance))
+                {
+                    return;
                 }
 
-                return newResult;
-            }
-            else
-            {
-                return result;
+                var completion = currentInstance.TaskCompletionSource;
+                this.RemoveInstance(currentInstance);
+                ReadLineInstance.Return(currentInstance);
+                completion.TrySetException(exception);
             }
         }
     }
@@ -1088,7 +1097,10 @@ Exit:
                 var newCursor = Console.GetCursorPosition();
                 using (this.syncObject.EnterScope())
                 {
-                    this.simpleArrange.Arrange(newCursor, false);
+                    if (this.TryGetActiveInstance(out var activeInstance))
+                    {
+                        this.simpleArrange.Arrange(activeInstance, newCursor, false);
+                    }
                 }
             }
             catch
@@ -1134,6 +1146,22 @@ Exit:
         {
             activeInstance.Redraw();
             activeInstance.CurrentLocation.Restore(CursorOperation.None);
+        }
+    }
+
+    private void WriteFormatted<T>(T value, bool newLine, ConsoleColor color)
+        where T : ISpanFormattable
+    {
+        Span<char> buffer = stackalloc char[64];
+        var provider = this.UnderlyingTextWriter.FormatProvider;
+        if (value.TryFormat(buffer, out var written, default, provider))
+        {
+            this.WriteSpan(buffer.Slice(0, written), newLine, color);
+        }
+        else
+        {
+            // Custom cultures can contain signs, separators or NaN symbols of arbitrary length.
+            this.WriteSpan(value.ToString(null, provider), newLine, color);
         }
     }
 
@@ -1249,7 +1277,7 @@ Exit:
         }
 
         if (this.BufferKeyInputWhileIdle ||
-            this.instanceList.Count > 0)
+            this.IsReadLineInProgress)
         {
             if (this.inputKeyQueue.Count < WindowBufferSize)
             {

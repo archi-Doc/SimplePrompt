@@ -80,6 +80,119 @@ public class TermInfoTest
         Assert.False(formatStrings.KeyFormatToConsoleKey.TryGetValue("\e[Z", out _)); // Not defined.
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(11)]
+    public void TruncatedHeader(int length)
+        => Assert.Throws<InvalidOperationException>(() => new TermInfo.Database("test", new byte[length]));
+
+    [Fact]
+    public void TruncatedSections()
+    {
+        var data = BuildTerminfo([(TermInfo.WellKnownStrings.KeyUp, "\e[A")]);
+        Assert.Throws<InvalidOperationException>(() => new TermInfo.Database("test", data[..^1]));
+    }
+
+    [Fact]
+    public void UnterminatedStringDoesNotReadBeyondItsTable()
+    {
+        var data = BuildTerminfo([(TermInfo.WellKnownStrings.KeyUp, "\e[A")]);
+        data[^1] = (byte)'X';
+        var db = new TermInfo.Database("test", data);
+        Assert.Null(db.GetString(TermInfo.WellKnownStrings.KeyUp));
+    }
+
+    [Fact]
+    public void InvalidStringOffsetIsIgnored()
+    {
+        var data = BuildTerminfo([(TermInfo.WellKnownStrings.KeyUp, "\e[A")]);
+        var offsetsStart = (12 + data[2] + (data[3] << 8) + 1) & ~1;
+        var offset = offsetsStart + ((int)TermInfo.WellKnownStrings.KeyUp * 2);
+        data[offset] = 0xFF;
+        data[offset + 1] = 0x7F;
+        var db = new TermInfo.Database("test", data);
+        Assert.Null(db.GetString(TermInfo.WellKnownStrings.KeyUp));
+    }
+
+    [Fact]
+    public void ExtendedNamesRespectOffsets()
+    {
+        var data = BuildTerminfo([(TermInfo.WellKnownStrings.KeyUp, "\e[A")], [("kUP5", "\e[1;5A"), ("kUP3", "\e[1;3A")]);
+        var standardLength = BuildTerminfo([(TermInfo.WellKnownStrings.KeyUp, "\e[A")]).Length;
+        var extendedStart = (standardLength + 1) & ~1;
+        var namesOffset = extendedStart + 10 + 4;
+        (data[namesOffset], data[namesOffset + 2]) = (data[namesOffset + 2], data[namesOffset]);
+        var db = new TermInfo.Database("test", data);
+        Assert.Equal("\e[1;5A", db.GetExtendedString("kUP3"));
+        Assert.Equal("\e[1;3A", db.GetExtendedString("kUP5"));
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(-2)]
+    public void MissingExtendedStringDoesNotHideOtherKeys(short sentinel)
+    {
+        var data = BuildTerminfo([(TermInfo.WellKnownStrings.KeyUp, "\e[A")], [("kUP5", "\e[1;5A"), ("kUP3", "\e[1;3A")]);
+        var standardLength = BuildTerminfo([(TermInfo.WellKnownStrings.KeyUp, "\e[A")]).Length;
+        var extendedStart = (standardLength + 1) & ~1;
+        data[extendedStart + 10] = unchecked((byte)sentinel);
+        data[extendedStart + 11] = 0xFF;
+        var db = new TermInfo.Database("test", data);
+        Assert.Null(db.GetExtendedString("kUP5"));
+        Assert.Equal("\e[1;3A", db.GetExtendedString("kUP3"));
+    }
+
+    [Fact]
+    public void ThirtyTwoBitNumbersDoNotShiftStringOffsets()
+    {
+        var data = BuildTerminfo([(TermInfo.WellKnownStrings.KeyUp, "\e[A")]).ToList();
+        data[0] = 0x1E;
+        data[1] = 0x02;
+        data[6] = 1;
+        var numberStart = (12 + data[2] + (data[3] << 8) + 1) & ~1;
+        data.InsertRange(numberStart, new byte[] { 0x00, 0x00, 0x01, 0x00 });
+        Assert.Equal("\e[A", new TermInfo.Database("test", data.ToArray()).GetString(TermInfo.WellKnownStrings.KeyUp));
+    }
+
+    [Theory]
+    [InlineData("7", false)]
+    [InlineData("8", true)]
+    public void ExtendedControlAltModifiers(string modifier, bool shift)
+    {
+        var sequence = "\e[1;" + modifier + "A";
+        var db = new TermInfo.Database("test", BuildTerminfo([], [("kUP" + modifier, sequence)]));
+        AssertKey(new TerminalFormatStrings(db), sequence, ConsoleKey.UpArrow, shift: shift, alt: true, control: true);
+    }
+
+    [Theory]
+    [InlineData("t")]
+    [InlineData("74")]
+    public void DatabaseFactoryReadsBothDirectoryLayouts(string subdirectory)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "SimplePrompt-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(directory, subdirectory));
+        try
+        {
+            File.WriteAllBytes(Path.Combine(directory, subdirectory, "test"), BuildTerminfo([(TermInfo.WellKnownStrings.KeyUp, "\e[A")]));
+            var db = TermInfo.DatabaseFactory.ReadDatabase("test", directory);
+            Assert.NotNull(db);
+            Assert.Equal("\e[A", db.GetString(TermInfo.WellKnownStrings.KeyUp));
+            Assert.Null(TermInfo.DatabaseFactory.ReadDatabase("missing", directory));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(null, "directory")]
+    [InlineData("test", null)]
+    [InlineData("", "directory")]
+    public void DatabaseFactoryMissingArguments(string? term, string? directory)
+        => Assert.Null(TermInfo.DatabaseFactory.ReadDatabase(term, directory));
+
     [Fact]
     public void RxvtTerm()
     {
@@ -185,9 +298,10 @@ public class TermInfoTest
                 extendedTable.Add(0);
             }
 
+            var namesStart = extendedTable.Count;
             for (var i = 0; i < extended.Length; i++)
             {
-                nameOffsets[i] = (short)extendedTable.Count;
+                nameOffsets[i] = (short)(extendedTable.Count - namesStart);
                 extendedTable.AddRange(Encoding.ASCII.GetBytes(extended[i].Name));
                 extendedTable.Add(0);
             }

@@ -3,7 +3,6 @@
 using Arc;
 using Arc.Collections;
 using Arc.Unit;
-using CrossChannel;
 
 namespace SimplePrompt.Internal;
 
@@ -76,17 +75,23 @@ internal sealed class ReadLineInstance
     public void Initialize(SimpleConsole simpleConsole, ReadLineOptions options, CancellationToken cancellationToken)
     {
         this.simpleConsole = simpleConsole;
-        this.LineList.Clear();
+        this.ReleaseLines();
         this.CharPosition = 0; // The instance is pooled, so the pending character buffer must be reset.
         this.TaskCompletionSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
         this.CancellationToken = cancellationToken;
         this.CurrentLocation.Initialize(simpleConsole, this);
         this.OptionsSource = options;
-        GhostCopy.Copy(ref options, ref this.options);
+        this.options = options with { };
     }
 
     public void Uninitialize()
     {
+        this.Clear();
+        this.CharBuffer.AsSpan(0, this.CharPosition).Clear();
+        this.CharPosition = 0;
+        this.CancellationToken = default;
+        this.TaskCompletionSource = default!;
+        this.options = ReadLineOptions.SingleLine;
         this.simpleConsole = default!;
         this.OptionsSource = default;
         this.CurrentLocation.Uninitialize();
@@ -162,11 +167,7 @@ internal sealed class ReadLineInstance
             {
                 if (line.Index == (this.LineList.Count - 1))
                 {// New InputBuffer
-                    if (line.InputLength == 0)
-                    {// Empty input
-                        return null;
-                    }
-                    else if (!this.IsLengthWithinLimit(1))
+                    if (!this.IsLengthWithinLimit(1))
                     {// Exceeding max length
                         return null;
                     }
@@ -194,10 +195,15 @@ internal sealed class ReadLineInstance
             string result;
             if (lineContinuation)
             {// A\ B\ -> AB
-                var length = 1;
+                var length = 0;
                 for (var i = this.FirstInputIndex; i < this.LineList.Count; i++)
                 {
-                    length += this.LineList[i].InputLength - 1;
+                    var input = this.LineList[i].InputSpan;
+                    length += input.Length;
+                    if (i != this.LineList.Count - 1 && !input.IsEmpty && input[^1] == this.Options.LineContinuationCharacter)
+                    {
+                        length--;
+                    }
                 }
 
                 result = string.Create(length, this.LineList, (span, lines) =>
@@ -205,7 +211,7 @@ internal sealed class ReadLineInstance
                     for (var i = this.FirstInputIndex; i < lines.Count; i++)
                     {
                         var inputSpan = lines[i].InputSpan;
-                        if (i != (lines.Count - 1) && inputSpan.Length > 0)
+                        if (i != (lines.Count - 1) && inputSpan.Length > 0 && inputSpan[^1] == this.Options.LineContinuationCharacter)
                         {
                             inputSpan = inputSpan.Slice(0, inputSpan.Length - 1);
                         }
@@ -253,9 +259,8 @@ internal sealed class ReadLineInstance
         }
     }
 
-    public void HeightChanged(SimpleTextRow row, int diff)
+    public void HeightChanged(SimpleTextLine line, int diff)
     {
-        var line = row.Line;
         var index = line.Index;
         if (index < 0 || index >= this.LineList.Count || this.LineList[index] != line)
         {
@@ -286,7 +291,7 @@ internal sealed class ReadLineInstance
             }
         }
 
-        this.CurrentLocation.LocationToCursor();
+        this.CurrentLocation.Restore(CursorOperation.None);
     }
 
     public void TryDeleteLine(int index, bool backspace)
@@ -427,7 +432,13 @@ internal sealed class ReadLineInstance
             return;
         }
 
-        var windowBuffer = SimpleConsole.RentWindowBuffer();
+        var capacity = 0;
+        foreach (var line in this.LineList)
+        {
+            capacity = checked(capacity + line.PromptLength + (this.Options.MaskingCharacter == default ? line.InputLength : line.InputWidth) + 64);
+        }
+
+        var windowBuffer = SimpleConsole.RentWindowBuffer(capacity);
         var span = windowBuffer.AsSpan();
         var colorSpan = this.simpleConsole.GetColorEscapeCode(this.Options.InputColor);
 
@@ -493,7 +504,7 @@ internal sealed class ReadLineInstance
         var prompt = this.Options.Prompt.AsSpan();
         var lineIndex = 0;
         char[]? windowBuffer = null;
-        while (prompt.Length >= 0)
+        while (true)
         {
             // For a multi-line prompt, multiple SimpleTextLine instances are created and each line is assigned accordingly.
             var index = BaseHelper.IndexOfLfOrCrLf(prompt, out var newLineLength);
@@ -518,7 +529,16 @@ internal sealed class ReadLineInstance
             line.Top = top;
             top += line.Height;
 
-            windowBuffer ??= SimpleConsole.RentWindowBuffer();
+            if (windowBuffer is null || windowBuffer.Length < currentPrompt.Length + 64)
+            {
+                if (windowBuffer is not null)
+                {
+                    SimpleConsole.ReturnWindowBuffer(windowBuffer);
+                }
+
+                windowBuffer = SimpleConsole.RentWindowBuffer(checked(currentPrompt.Length + 64));
+            }
+
             var span = windowBuffer.AsSpan();
 
             if (lineIndex == 1)

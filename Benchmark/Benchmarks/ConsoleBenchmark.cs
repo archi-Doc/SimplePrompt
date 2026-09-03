@@ -9,10 +9,6 @@ namespace Benchmark;
 [Config(typeof(BenchmarkConfig))]
 public class ConsoleBenchmark
 {
-    public ConsoleBenchmark()
-    {
-    }
-
     [Benchmark]
     public int CursorTop()
     {
@@ -20,7 +16,7 @@ public class ConsoleBenchmark
     }
 
     [Benchmark]
-    public async Task<int> CursorTopAlt()
+    public int CursorTopAlt()
     {
         return SimpleConsole.CursorTop;
     }
