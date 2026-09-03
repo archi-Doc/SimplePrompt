@@ -12,7 +12,7 @@ import termios
 import time
 
 
-def run(executable, mode):
+def run(executable, mode, timeout=30):
     master, slave = pty.openpty()
     fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 30, 120, 0, 0))
     arguments = [executable, "--terminal"]
@@ -33,7 +33,7 @@ def run(executable, mode):
     output = {stream: bytearray() for stream in streams}
     query_buffer = b""
     sent_input = False
-    deadline = time.monotonic() + 30
+    deadline = time.monotonic() + timeout
     try:
         while streams and time.monotonic() < deadline:
             readable, _, _ = select.select(streams, [], [], 0.1)
@@ -61,9 +61,16 @@ def run(executable, mode):
             if process.poll() is not None and not readable:
                 break
 
-        if process.poll() is None:
-            raise TimeoutError(f"{mode}: terminal test timed out")
         combined = b"".join(output.values()).decode(errors="replace")
+        try:
+            # EOF can arrive before the child's exit status becomes available.
+            # Wait for shutdown using the remaining time, including after EOF.
+            process.wait(timeout=max(0, deadline - time.monotonic()))
+        except subprocess.TimeoutExpired as error:
+            raise TimeoutError(
+                f"{mode}: terminal test timed out after {timeout}s "
+                f"(input sent: {sent_input})\n{combined}"
+            ) from error
         if process.returncode != 0 or "NativeAOT smoke test passed." not in combined:
             raise AssertionError(f"{mode}: exit {process.returncode}\n{combined}")
         if mode == "redirect":

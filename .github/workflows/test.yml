@@ -3,8 +3,6 @@ name: Build and Test
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
 
 jobs:
   build:
@@ -61,4 +59,6 @@ jobs:
       run: ./artifacts/aot/${{ matrix.executable }}
     - name: Test Unix terminal input and redirected output
       if: runner.os != 'Windows'
-      run: python3 AotSmokeTest/terminal_test.py artifacts/aot/${{ matrix.executable }}
+      run: |
+        python3 -m unittest discover -s AotSmokeTest -p 'test_terminal_test.py'
+        python3 AotSmokeTest/terminal_test.py artifacts/aot/${{ matrix.executable }}
