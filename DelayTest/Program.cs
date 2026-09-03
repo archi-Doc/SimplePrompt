@@ -33,11 +33,4 @@ internal sealed class Program
             Console.Write("e");
         }
     }
-
-    private static async Task ReadLine()
-    {
-        Console.Write("> ");
-        var st = Console.ReadLine();
-        Console.Write(st);
-    }
 }

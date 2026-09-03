@@ -5,13 +5,13 @@
 namespace SimplePrompt;
 
 /// <summary>
-/// Represents configuration options for reading input from the console.<br/>
-/// This is an immutable record; use a <c>with</c> expression to create a modified copy.
+/// Configures console input, prompts, and validation.
 /// </summary>
+/// <remarks>Use a <c>with</c> expression to create a modified copy.</remarks>
 public record class ReadLineOptions
 {
     /// <summary>
-    /// Options for a single line of input: multiline input is disabled and an empty input is not accepted.
+    /// Provides single-line input with a 1024-code-unit limit and no empty submissions.
     /// </summary>
     public static readonly ReadLineOptions SingleLine = new()
     {
@@ -22,16 +22,16 @@ public record class ReadLineOptions
     };
 
     /// <summary>
-    /// Options with the default settings, where multiline input is enabled by the <c>"""</c> delimiter.
+    /// Provides the default options, including the <c>"""</c> multiline delimiter.
     /// </summary>
     public static readonly ReadLineOptions Multiline = new()
     {
     };
 
     /// <summary>
-    /// Options for a yes/no question.<br/>
-    /// Only "y", "yes", "n" and "no" (case-insensitive) are accepted; any other input is rejected and asked again.
+    /// Provides single-line input accepting only y, yes, n, or no, ignoring case and surrounding whitespace.
     /// </summary>
+    /// <remarks>Limits input to three UTF-16 code units and returns accepted text unchanged.</remarks>
     public static readonly ReadLineOptions YesNo = new()
     {
         MaxInputLength = 3,
@@ -50,81 +50,77 @@ public record class ReadLineOptions
     };
 
     /// <summary>
-    /// Gets the color used for user input in the console.<br/>
-    /// Default is <see cref="ConsoleColor.Yellow"/>.
+    /// Gets the input text color. Defaults to <see cref="ConsoleColor.Yellow"/>.
     /// </summary>
     public ConsoleColor InputColor { get; init; } = ConsoleColor.Yellow;
 
     /// <summary>
-    /// Gets the maximum number of characters allowed for user input.<br/>
-    /// The newline between input lines is counted as one character, and the characters which exceed the limit are discarded.<br/>
-    /// Default is 65536 (64K) characters.
+    /// Gets the input limit in UTF-16 code units. Defaults to 65536.
     /// </summary>
+    /// <remarks>
+    /// Counts each separator between input lines as one code unit, including in continuation mode.
+    /// Excess input is discarded. Prompts and text produced by <see cref="TextInputHook"/> are not counted.
+    /// </remarks>
     public int MaxInputLength { get; init; } = 1024 * 64;
 
     /// <summary>
-    /// Gets the string displayed as the prompt.<br/>
-    /// It may contain newlines; in that case the last line becomes the input line.<br/>
-    /// Default is "&gt; ".
+    /// Gets the input prompt. Defaults to <c>&gt; </c>.
     /// </summary>
+    /// <remarks>May contain newlines; input starts on the last prompt line.</remarks>
     public string Prompt { get; init; } = "> ";
 
     /// <summary>
-    /// Gets the string displayed as the prompt for the second and subsequent lines in multiline input.<br/>
-    /// Default is "# ".
+    /// Gets the prompt for subsequent input lines. Defaults to <c># </c>.
     /// </summary>
     public string MultilinePrompt { get; init; } = "# ";
 
     /// <summary>
-    /// Gets the string which switches multiline input on and off.<br/>
-    /// When a line contains an odd number of delimiters, multiline input starts (or ends, if it has already started).<br/>
-    /// The lines are joined with a newline, and the delimiters remain in the result.<br/>
-    /// Default is three double quotes (""").<br/>
-    /// Set this to <see langword="null"/> to disable multiline input.
+    /// Gets the multiline delimiter. Defaults to three double quotes (<c>"""</c>).
     /// </summary>
+    /// <remarks>
+    /// On Enter, an odd delimiter count on the first input line starts delimiter mode;
+    /// an odd count on a later line ends it. Lines are joined with <c>\n</c>, retaining delimiters.
+    /// A null or empty delimiter disables this mode; <see cref="LineContinuationCharacter"/> is independent.
+    /// </remarks>
     public string? MultilineDelimiter { get; init; } = "\"\"\"";
 
     /// <summary>
-    /// Gets the character which indicates that the current line continues onto the next line (e.g. '\').<br/>
-    /// The continuation characters are removed and the lines are joined without a newline.<br/>
-    /// Default is <c><see langword="default"/></c> (no line continuation).
+    /// Gets the trailing character that continues input onto the next line. Defaults to <c>\0</c> (disabled).
     /// </summary>
+    /// <remarks>Continuation lines are joined without newlines, removing their trailing continuation markers.</remarks>
     public char LineContinuationCharacter { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether to cancel the ReadLine operation when the Escape key is pressed.<br/>
-    /// Default is <see langword="false"/>.
+    /// Gets a value indicating whether Escape cancels the read operation. Defaults to <see langword="false"/>.
     /// </summary>
     public bool CancelOnEscape { get; init; }
 
     /// <summary>
-    /// Gets a value indicating whether an empty input (pressing Enter without entering any character) completes the operation.<br/>
-    /// When <see langword="false"/>, Enter is ignored until at least one character is entered.<br/>
-    /// Default is <see langword="false"/>.
+    /// Gets a value indicating whether Enter can submit empty input. Defaults to <see langword="false"/>.
     /// </summary>
+    /// <remarks>Checked before <see cref="TextInputHook"/>; blank lines within nonempty multiline input are allowed.</remarks>
     public bool AllowEmptyInput { get; init; }
 
     /// <summary>
-    /// Gets the character used to mask user input in the console (e.g., for password entry).<br/>
-    /// The input is echoed with this character, while the result still contains the actual text.<br/>
-    /// Default is 0 (no masking).
+    /// Gets the character displayed instead of input. Defaults to <c>\0</c> (no masking).
     /// </summary>
+    /// <remarks>Use a printable, single-column character. Masking preserves display width and does not change the returned text.</remarks>
     public char MaskingCharacter { get; init; }
 
     /// <summary>
-    /// Gets the hook for intercepting key input during this ReadLine operation.<br/>
-    /// The key can be rewritten through the <see langword="ref"/> parameter, discarded by returning
-    /// <see cref="KeyInputHookResult.Handled"/>, or the operation can be canceled by returning <see cref="KeyInputHookResult.Cancel"/>.<br/>
-    /// It is called after <see cref="SimpleConsole.KeyInputHook"/>.<br/>
-    /// Default is <see langword="null"/> (no custom key input handling).
+    /// Gets the key hook for this read operation. Defaults to <see langword="null"/>.
     /// </summary>
+    /// <remarks>
+    /// Runs after <see cref="SimpleConsole.KeyInputHook"/>, key normalization, and the <see cref="CancelOnEscape"/> check.
+    /// May rewrite the key, return <see cref="KeyInputHookResult.Handled"/> to discard it,
+    /// or return <see cref="KeyInputHookResult.Cancel"/> to cancel the read.
+    /// Text from <see cref="SimpleConsole.EnqueueInput"/> bypasses key hooks.
+    /// </remarks>
     public KeyInputHook? KeyInputHook { get; init; }
 
     /// <summary>
-    /// Gets the hook for validating or transforming the text when the user submits the input.<br/>
-    /// If a string is returned, it becomes the result of the ReadLine operation.<br/>
-    /// If <see langword="null"/> is returned, the input is discarded and the user is prompted to enter it again.<br/>
-    /// Default is <see langword="null"/> (no custom text input handling).
+    /// Gets the submission validation or transformation hook. Defaults to <see langword="null"/>.
     /// </summary>
+    /// <remarks>Returns the final text, or null to clear the input and prompt again. Exceptions fault the read task.</remarks>
     public TextInputHook? TextInputHook { get; init; }
 }

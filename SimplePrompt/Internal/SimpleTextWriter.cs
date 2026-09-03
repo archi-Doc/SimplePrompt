@@ -22,6 +22,8 @@ internal sealed class SimpleTextWriter : TextWriter
 
     public override Encoding Encoding => System.Text.Encoding.UTF8;
 
+    public override IFormatProvider FormatProvider => this.UnderlyingTextWriter.FormatProvider;
+
     public override void Write([StringSyntax(StringSyntaxAttribute.CompositeFormat)] string format, object? arg0)
         => this.SimpleConsole.WriteSpan(string.Format(this.FormatProvider, format, arg0), false);
 
@@ -168,10 +170,7 @@ internal sealed class SimpleTextWriter : TextWriter
 
     public override void WriteLine(StringBuilder? value)
     {
-        if (value is not null)
-        {
-            this.SimpleConsole.WriteLine(value.ToString());
-        }
+        this.SimpleConsole.WriteLine(value?.ToString());
     }
 
     public override void WriteLine()

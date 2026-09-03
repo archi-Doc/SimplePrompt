@@ -70,15 +70,18 @@ internal sealed partial class SimpleTextRow
 
     public (bool RowChanged, int WidthDiff) AddInput(int lengthDiff, int widthDiff)
     {
+        var line = this.Line;
         this._length += lengthDiff;
         this._width += widthDiff;
         this.Line._inputLength += lengthDiff;
         this.Line._inputWidth += widthDiff;
 
+        var previousHeight = line.Height;
         bool rowChanged = false;
         bool emptyRow = false;
-        this.Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
-        return (rowChanged, widthDiff);
+        var firstRow = this.Line.Rows[Math.Max(0, this.Index - 1)];
+        firstRow.Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
+        return (previousHeight != line.Height, widthDiff);
     }
 
     public void TrimCursorPosition(ref int cursorPosition, out int arrayPosition)
@@ -107,86 +110,56 @@ internal sealed partial class SimpleTextRow
 
     internal void Arrange(ref bool rowChanged, ref int widthDiff, ref bool emptyRow)
     {
-        // This is the core functionality of SimpleTextRow.
-        // If a row is too short, it pulls data from the next row; if it is too long, it pushes excess data to the next row, maintaining the correct line/ row structure.
-
-        var nextIndex = this.Index + 1;
-        var nextRow = nextIndex >= this.Line.Rows.Count ? null : this.Line.Rows[nextIndex];
-        if (this.Width < this.Line.WindowWidth)
-        {// The width is within WindowWidth. If necessary, the array is moved starting from the next row.
-            if (nextRow is null)
-            {// There is no next row, so nothing to move.
-                if (this.Length == 0)
+        // Reflow from this row in one pass. Subsequent offsets must also change when
+        // a row remains exactly full; surrogate pairs must stay on the same row.
+        var rows = this.Line.Rows;
+        var oldCount = rows.Count;
+        var oldLastWidth = rows[^1].Width;
+        var position = this.Start;
+        var rowIndex = this.Index;
+        while (true)
+        {
+            var start = position;
+            var width = 0;
+            while (position < this.Line.TotalLength)
+            {
+                var length = char.IsHighSurrogate(this.Line.CharArray[position]) &&
+                    position + 1 < this.Line.TotalLength && char.IsLowSurrogate(this.Line.CharArray[position + 1]) ? 2 : 1;
+                var characterWidth = this.Line.WidthArray[position];
+                if (length == 2)
                 {
-                    emptyRow = true;
-                }
-            }
-            else if (nextRow.Length == 0)
-            {// Empty row
-                SimpleTextRow.Return(nextRow);
-                rowChanged = true;
-                emptyRow = true;
-            }
-            else
-            {// Move from the next row if there is extra space.
-                var width = this.Line.WindowWidth - this.Width;
-                var index = this.End;
-                var end = this.Line.TotalLength;
-                while (index < end &&
-                    width >= this.Line.WidthArray[index])
-                {
-                    width -= this.Line.WidthArray[index];
-                    index++;
+                    characterWidth += this.Line.WidthArray[position + 1];
                 }
 
-                var lengthDiff = this.End - index;
-                widthDiff = this.Width + width - this.Line.WindowWidth;
-                this._length -= lengthDiff;
-                this._width -= widthDiff;
+                if (width + characterWidth > this.Line.WindowWidth)
+                {
+                    break;
+                }
 
-                nextRow.ChangeStartPosition(this.End, lengthDiff, widthDiff);
-                nextRow.Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
-            }
-        }
-        else if (this.Width > this.Line.WindowWidth)
-        {// The width exceeds WindowWidth.
-            var index = this.Start + this.Length - 1;
-            var width = this.Width;
-            while (width > this.Line.WindowWidth)
-            {
-                width -= this.Line.WidthArray[index];
-                index--;
+                width += characterWidth;
+                position += length;
             }
 
-            var lengthDiff = this.Start + this.Length - 1 - index;
-            widthDiff = this.Width - width;
-            this._length = index + 1 - this.Start;
-            this._width = width;
+            var row = rowIndex < rows.Count ? rows[rowIndex] : Rent(this.Line);
+            var inputStart = this.Line.IsInput && position >= this.Line.PromptLength ? Math.Max(start, this.Line.PromptLength) : -1;
+            rowChanged |= row.Start != start || row.Length != position - start || row.Width != width;
+            row.Prepare(start, inputStart, position - start, width);
+            rowIndex++;
+            if (position == this.Line.TotalLength && width < this.Line.WindowWidth)
+            {
+                break;
+            }
+        }
 
-            if (nextRow is null)
-            {
-                nextRow = SimpleTextRow.Rent(this.Line);
-                nextRow.Prepare(this.End, this.End, lengthDiff, widthDiff);
-                nextRow.Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
-                rowChanged = true;
-            }
-            else
-            {
-                nextRow.ChangeStartPosition(this.End, lengthDiff, widthDiff);
-                nextRow.Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
-            }
+        for (var i = rows.Count - 1; i >= rowIndex; i--)
+        {
+            Return(rows[i]);
         }
-        else
-        {// The width is exactly equal to WindowWidth.
-            if (nextRow is null)
-            {
-                nextRow = SimpleTextRow.Rent(this.Line);
-                nextRow.Prepare(this.End, this.End, 0, 0);
-                nextRow.Arrange(ref rowChanged, ref widthDiff, ref emptyRow);
-                rowChanged = true;
-                emptyRow = true;
-            }
-        }
+
+        rowChanged |= oldCount != rows.Count;
+        widthDiff = rows[^1].Width - oldLastWidth;
+        emptyRow = rows[^1].Length == 0;
+        this.Line.UpdateInitialLocation();
     }
 
     internal int ArrayPositionToCursorPosition(int arrayPosition)
@@ -211,14 +184,6 @@ internal sealed partial class SimpleTextRow
                 cursorPosition += widthArray[arrayPosition - 1];
             }
         }*/
-    }
-
-    private void ChangeStartPosition(int newStart, int lengthDiff, int widthDiff)
-    {
-        this.Start = newStart;
-        this.InputStart = newStart;
-        this._length += lengthDiff;
-        this._width += widthDiff;
     }
 
     private void Initialize(SimpleTextLine simpleTextLine)

@@ -3,6 +3,7 @@
     <File Path=".editorconfig" />
   </Folder>
   <Project Path="Benchmark/Benchmark.csproj" />
+  <Project Path="AotSmokeTest/AotSmokeTest.csproj" />
   <Project Path="DelayTest/DelayTest.csproj" />
   <Project Path="Playground/Playground.csproj" />
   <Project Path="QuickStart/QuickStart.csproj" />

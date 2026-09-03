@@ -85,7 +85,7 @@ internal sealed class SimpleTextLocation
                 this.RowIndex = line.InitialRowIndex;
                 this.ArrayPosition = line.PromptLength;
                 this.CursorPosition = line.InitialCursorPosition;
-                this.LocationToCursor(line.Rows[0], cursorOperation);
+                this.LocationToCursor(line.Rows[this.RowIndex], cursorOperation);
             }
 
             return true;
@@ -156,34 +156,24 @@ internal sealed class SimpleTextLocation
             return false;
         }
 
-        int length, width;
+        int length;
         if (char.IsLowSurrogate(line.CharArray[this.ArrayPosition - 1]) &&
             this.ArrayPosition > 1 &&
             char.IsHighSurrogate(line.CharArray[this.ArrayPosition - 2]))
         {
             length = 2;
-            width = line.WidthArray[this.ArrayPosition - 1] + line.WidthArray[this.ArrayPosition - 2];
         }
         else
         {
             length = 1;
-            width = line.WidthArray[this.ArrayPosition - 1];
         }
 
-        if (this.CursorPosition == 0)
+        this.ArrayPosition -= length;
+        if (line.TryGetRowFromArrayPosition(this.ArrayPosition, out var targetRow))
         {
-            if (this.RowIndex > 0)
-            {
-                this.RowIndex--;
-                row = line.Rows[this.RowIndex];
-                this.ArrayPosition -= length;
-                this.CursorPosition = line.Rows[this.RowIndex].Width - width;
-            }
-        }
-        else
-        {
-            this.ArrayPosition -= length;
-            this.CursorPosition -= width;
+            row = targetRow;
+            this.RowIndex = row.Index;
+            this.CursorPosition = row.ArrayPositionToCursorPosition(this.ArrayPosition);
         }
 
         if (moveCursor)
@@ -234,6 +224,7 @@ internal sealed class SimpleTextLocation
             {
                 this.RowIndex = nextRowIndex;
                 this.CursorPosition -= row.Width;
+                row = line.Rows[nextRowIndex];
             }
             else
             {

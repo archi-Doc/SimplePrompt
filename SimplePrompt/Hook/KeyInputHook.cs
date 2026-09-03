@@ -3,31 +3,31 @@
 namespace SimplePrompt;
 
 /// <summary>
-/// Represents the result of a key input hook.
+/// Specifies how to handle a key after a hook runs.
 /// </summary>
 public enum KeyInputHookResult
 {
     /// <summary>
-    /// The key input was not handled by the hook and should be processed normally.
+    /// Continues normal processing of the key, including any changes made by the hook.
     /// </summary>
     NotHandled = 0,
 
     /// <summary>
-    /// The key input was handled by the hook and should not be processed further.
+    /// Discards the key without canceling the read operation.
     /// </summary>
     Handled = 1,
 
     /// <summary>
-    /// The key input was handled by the hook and the current input operation should be canceled.<br/>
-    /// When returned from <see cref="SimpleConsole.KeyInputHook"/>, the key is discarded but the operation is not canceled.
+    /// Cancels the read when returned by <see cref="ReadLineOptions.KeyInputHook"/>.
     /// </summary>
+    /// <remarks>The global <see cref="SimpleConsole.KeyInputHook"/> only discards the key for this result.</remarks>
     Cancel = 2,
 }
 
 /// <summary>
-/// Represents a method that handles key input events during console read operations.<br/>
-/// The key can be modified through <paramref name="keyInfo"/>; the modified key is processed instead of the original one.
+/// Intercepts a terminal or injected key before normal input processing.
 /// </summary>
-/// <param name="keyInfo">The <see cref="ConsoleKeyInfo"/> containing information about the pressed key.</param>
-/// <returns>The hook result.</returns>
+/// <param name="keyInfo">The key to inspect or replace.</param>
+/// <returns>The action to take for this key.</returns>
+/// <remarks>Runs synchronously on the input worker. Exceptions fault the active read task, if any.</remarks>
 public delegate KeyInputHookResult KeyInputHook(ref ConsoleKeyInfo keyInfo);

@@ -18,7 +18,6 @@ internal static partial class TermInfo
         private readonly int _numberSectionNumInts;
         private readonly int _stringSectionNumOffsets;
         private readonly int _stringTableNumBytes;
-        private readonly bool _readAs32Bit;
         private readonly int _sizeOfInt;
         private readonly Dictionary<string, string>? _extendedStrings;
 
@@ -27,14 +26,19 @@ internal static partial class TermInfo
             const int MagicLegacyNumber = 0x11A;
             const int Magic32BitNumber = 0x21E;
 
+            if (data.Length < NamesOffset)
+            {
+                throw new InvalidOperationException("The terminfo header is truncated.");
+            }
+
             this._term = term;
             this._data = data;
             short magic = ReadInt16(data, 0);
-            this._readAs32Bit =
+            var readAs32Bit =
                 magic == MagicLegacyNumber ? false :
                 magic == Magic32BitNumber ? true :
                 throw new InvalidOperationException();
-            this._sizeOfInt = this._readAs32Bit ? 4 : 2;
+            this._sizeOfInt = readAs32Bit ? 4 : 2;
 
             this._nameSectionNumBytes = ReadInt16(data, 2);
             this._boolSectionNumBytes = ReadInt16(data, 4);
@@ -50,8 +54,14 @@ internal static partial class TermInfo
                 throw new InvalidOperationException();
             }
 
-            int extendedBeginning = RoundUpToEven(this.StringsTableOffset + this._stringTableNumBytes);
-            this._extendedStrings = ParseExtendedStrings(data, extendedBeginning, this._readAs32Bit);
+            var stringsEnd = this.StringsTableOffset + this._stringTableNumBytes;
+            if (stringsEnd > data.Length)
+            {
+                throw new InvalidOperationException("The terminfo sections are truncated.");
+            }
+
+            int extendedBeginning = RoundUpToEven(stringsEnd);
+            this._extendedStrings = ParseExtendedStrings(data, extendedBeginning, readAs32Bit);
         }
 
         public string Term => this._term;
@@ -73,18 +83,19 @@ internal static partial class TermInfo
             int index = (int)stringTableIndex;
             Debug.Assert(index >= 0);
 
-            if (index >= this._stringSectionNumOffsets)
+            if ((uint)index >= (uint)this._stringSectionNumOffsets)
             {
                 return null;
             }
 
             int tableIndex = ReadInt16(this._data, this.StringOffsetsOffset + (index * 2));
-            if (tableIndex == -1)
+            if (tableIndex < 0 || tableIndex >= this._stringTableNumBytes)
             {
+                // Both absent (-1) and canceled (-2) capabilities have no string.
                 return null;
             }
 
-            return ReadString(this._data, this.StringsTableOffset + tableIndex);
+            return ReadString(this._data, this.StringsTableOffset + tableIndex, this.StringsTableOffset + this._stringTableNumBytes);
         }
 
         public string? GetExtendedString(string name)
@@ -128,36 +139,43 @@ internal static partial class TermInfo
                 return null;
             }
 
-            var values = new List<string>(extendedStringCount);
-            int lastEnd = 0;
+            var values = new string?[extendedStringCount];
+            var namesStart = extendedStringTableStart;
             for (int i = 0; i < extendedStringCount; i++)
             {
-                int offset = extendedStringTableStart + ReadInt16(data, extendedOffsetsStart + (i * 2));
-                if (offset < 0 || offset >= data.Length)
+                var relativeOffset = ReadInt16(data, extendedOffsetsStart + (i * 2));
+                if (relativeOffset < 0)
+                {
+                    continue;
+                }
+
+                int offset = extendedStringTableStart + relativeOffset;
+                var value = ReadString(data, offset, extendedStringTableEnd);
+                if (value is null)
                 {
                     return null;
                 }
 
-                int end = FindNullTerminator(data, offset);
-                values.Add(Encoding.ASCII.GetString(data, offset, end - offset));
-
-                lastEnd = Math.Max(end, lastEnd);
-            }
-
-            var names = new List<string>(extendedBoolCount + extendedNumberCount + extendedStringCount);
-            for (int pos = lastEnd + 1; pos < extendedStringTableEnd; pos++)
-            {
-                int end = FindNullTerminator(data, pos);
-                names.Add(Encoding.ASCII.GetString(data, pos, end - pos));
-                pos = end;
+                values[i] = value;
+                namesStart = Math.Max(namesStart, offset + value.Length + 1);
             }
 
             var extendedStrings = new Dictionary<string, string>(extendedStringCount);
-            for (int iName = extendedBoolCount + extendedNumberCount, iValue = 0;
-                 iName < names.Count && iValue < values.Count;
-                 iName++, iValue++)
+            var stringNamesOffset = extendedOffsetsStart + ((extendedStringCount + extendedBoolCount + extendedNumberCount) * 2);
+            for (var i = 0; i < values.Length; i++)
             {
-                extendedStrings.Add(names[iName], values[iValue]);
+                if (values[i] is not { } value)
+                {
+                    continue;
+                }
+
+                var nameOffset = ReadInt16(data, stringNamesOffset + (i * 2));
+                if (nameOffset < 0 || ReadString(data, namesStart + nameOffset, extendedStringTableEnd) is not { Length: > 0 } name)
+                {
+                    return null;
+                }
+
+                extendedStrings.TryAdd(name, value);
             }
 
             return extendedStrings;
@@ -173,16 +191,15 @@ internal static partial class TermInfo
             return unchecked((short)((((int)buffer[pos + 1]) << 8) | ((int)buffer[pos] & 0xff)));
         }
 
-        private static string ReadString(byte[] buffer, int pos)
+        private static string? ReadString(byte[] buffer, int pos, int end)
         {
-            int end = FindNullTerminator(buffer, pos);
-            return Encoding.ASCII.GetString(buffer, pos, end - pos);
-        }
+            if (pos < 0 || pos >= end || end > buffer.Length)
+            {
+                return null;
+            }
 
-        private static int FindNullTerminator(byte[] buffer, int pos)
-        {
-            int i = buffer.AsSpan(pos).IndexOf((byte)'\0');
-            return i >= 0 ? pos + i : buffer.Length;
+            int length = buffer.AsSpan(pos, end - pos).IndexOf((byte)'\0');
+            return length < 0 ? null : Encoding.ASCII.GetString(buffer, pos, length);
         }
     }
 }

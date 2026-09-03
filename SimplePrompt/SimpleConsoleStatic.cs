@@ -7,29 +7,27 @@ namespace SimplePrompt;
 public partial class SimpleConsole
 {
     /// <summary>
-    /// Gets the column position of the cursor (zero-based).
+    /// Gets the tracked zero-based cursor column.
     /// </summary>
     public static int CursorLeft => SimpleConsole.Instance._cursorLeft;
 
     /// <summary>
-    /// Gets the row position of the cursor within the window (zero-based).
+    /// Gets the tracked zero-based cursor row within the window.
     /// </summary>
     public static int CursorTop => SimpleConsole.Instance._cursorTop;
 
     /// <summary>
-    /// Gets the width of the console window, in columns.<br/>
-    /// It is refreshed periodically, and falls back to a default value when the window size cannot be obtained.
+    /// Gets the periodically refreshed window width in columns, with a minimum of 30.
     /// </summary>
     public static int WindowWidth => SimpleConsole.Instance._windowWidth;
 
     /// <summary>
-    /// Gets the height of the console window, in rows.<br/>
-    /// It is refreshed periodically, and falls back to a default value when the window size cannot be obtained.
+    /// Gets the periodically refreshed window height in rows, with a minimum of 10.
     /// </summary>
     public static int WindowHeight => SimpleConsole.Instance._windowHeight;
 
     /// <summary>
-    /// Gets the position of the cursor.
+    /// Gets the tracked cursor position without querying the terminal.
     /// </summary>
     /// <returns>The zero-based column and row of the cursor.</returns>
     public static (int Left, int Top) GetCursorPosition()

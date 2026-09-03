@@ -1,11 +1,7 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System;
-using System.Buffers;
 using System.Diagnostics;
-using System.Globalization;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Text;
 using Arc;
 
@@ -40,7 +36,6 @@ internal sealed class RawConsole
     private int charsStartIndex;
     private int charsEndIndex;
 
-    private SafeHandle? handle;
     private byte posixDisableValue;
     private byte veraseCharacter;
 
@@ -125,7 +120,7 @@ internal sealed class RawConsole
             }
             else
             {// Console
-                if (!Console.KeyAvailable)
+                if (Console.IsInputRedirected || !Console.KeyAvailable)
                 {// No key available
                     keyInfo = default;
                     return false;
@@ -142,39 +137,13 @@ internal sealed class RawConsole
         }
     }
 
-    public unsafe void WriteInternal(ReadOnlySpan<char> data)
+    public void WriteInternal(ReadOnlySpan<char> data)
     {
         try
         {
-            if (this.handle is not null)
-            {
-                var length = Encoding.UTF8.GetMaxByteCount(data.Length);
-
-                byte[]? pooledName = null;
-                Span<byte> buffer = length <= BaseHelper.StackallocThreshold ?
-                    stackalloc byte[length] :
-                    (pooledName = ArrayPool<byte>.Shared.Rent(length));
-
-                try
-                {
-                    length = Encoding.UTF8.GetBytes(data, buffer);
-                    fixed (byte* p = buffer)
-                    {
-                        _ = Interop.Sys.Write(this.handle, p, length);
-                    }
-                }
-                finally
-                {
-                    if (pooledName is not null)
-                    {
-                        ArrayPool<byte>.Shared.Return(pooledName);
-                    }
-                }
-            }
-            else
-            {
-                this.simpleConsole.UnderlyingTextWriter.Write(data);
-            }
+            // Preserve stdout redirection and Console.SetOut() on every platform.
+            // The writer also handles encoding and partial native writes.
+            this.simpleConsole.UnderlyingTextWriter.Write(data);
         }
         catch
         {
@@ -182,10 +151,9 @@ internal sealed class RawConsole
     }
 
     /// <summary>
-    /// Decodes the specified characters into key inputs using the same logic as the stdin path.<br/>
-    /// This is a seam which allows the terminal sequence decoding to be exercised without an actual terminal.
+    /// Decodes keys using the stdin parser without requiring a terminal.
     /// </summary>
-    /// <param name="input">The characters to decode. The length must not exceed the internal buffer capacity.</param>
+    /// <param name="input">The characters to decode. Input beyond the internal buffer capacity is ignored.</param>
     /// <returns>The decoded keys.</returns>
     internal List<ConsoleKeyInfo> DecodeKeys(ReadOnlySpan<char> input)
     {
@@ -321,7 +289,7 @@ internal sealed class RawConsole
             return true;
         }
 
-        if (span.Length == 2 && span[0] == Escape && span[1] != Escape)
+        if (span.Length >= 2 && span[0] == Escape && span[1] is not (Escape or '[' or 'O'))
         {// Escape + character: Alt + key
             keyInfo = ParseFromSingleChar(span[1], isAlt: true);
             this.charsStartIndex += 2;
@@ -397,12 +365,18 @@ internal sealed class RawConsole
         // If sequence does not start with a letter, it must start with one or two digits that represent the Sequence Number
         int digitCount = !char.IsBetween(input[SequencePrefixLength], '1', '9') // not using IsAsciiDigit as 0 is invalid
             ? 0
-            : char.IsDigit(input[SequencePrefixLength + 1]) ? 2 : 1;
+            : char.IsAsciiDigit(input[SequencePrefixLength + 1]) ? 2 : 1;
 
         if (digitCount == 0 || SequencePrefixLength + digitCount >= input.Length)
         {
             parsed = default;
             return false;
+        }
+
+        var sequenceNumber = input[SequencePrefixLength] - '0';
+        if (digitCount == 2)
+        {
+            sequenceNumber = (sequenceNumber * 10) + input[SequencePrefixLength + 1] - '0';
         }
 
         if (IsSequenceEndTag(input[SequencePrefixLength + digitCount]))
@@ -411,7 +385,7 @@ internal sealed class RawConsole
             int sequenceLength = SequencePrefixLength + digitCount + 1;
             if (!terminfoDb.TryGetValue(this.chars.AsSpan(this.charsStartIndex, sequenceLength), out parsed))
             {
-                key = MapEscapeSequenceNumber(byte.Parse(input.Slice(SequencePrefixLength, digitCount), default, CultureInfo.InvariantCulture));
+                key = MapEscapeSequenceNumber(sequenceNumber);
                 if (key == default)
                 {
                     return false; // it was not a known sequence
@@ -442,7 +416,7 @@ internal sealed class RawConsole
         modifiers = MapXtermModifiers(input[SequencePrefixLength + digitCount + 1]);
 
         key = input[SequencePrefixLength + digitCount + 2] is VtSequenceEndTag
-            ? MapEscapeSequenceNumber(byte.Parse(input.Slice(SequencePrefixLength, digitCount), default, CultureInfo.InvariantCulture))
+            ? MapEscapeSequenceNumber(sequenceNumber)
             : MapKeyIdOXterm(input[SequencePrefixLength + digitCount + 2], this.terminalFormatStrings.IsRxvtTerm).Key;
 
         if (key == default)
@@ -525,7 +499,7 @@ internal sealed class RawConsole
             };
 
         // based on https://en.wikipedia.org/wiki/ANSI_escape_code#Fe_Escape_sequences
-        static ConsoleKey MapEscapeSequenceNumber(byte number)
+        static ConsoleKey MapEscapeSequenceNumber(int number)
             => number switch
             {
                 1 or 7 => ConsoleKey.Home,
@@ -592,14 +566,11 @@ internal sealed class RawConsole
 
     private void InitializeStdin()
     {
-        if (Console.IsInputRedirected)
-        {// Stdin is not a terminal (redirected from a file/pipe, or running without a console).
-         // Reading keys from it would consume unrelated data and could block the polling loop,
-         // and writing escape sequences to it would corrupt the redirected stream.
+        if (OperatingSystem.IsWindows() || Console.IsInputRedirected)
+        {// Windows uses Console.ReadKey. Redirected stdin belongs to the caller;
+         // reading keys from it would consume unrelated data and could block the polling loop.
             return;
         }
-
-        this.handle = Interop.Sys.Dup(Interop.FileDescriptors.STDIN_FILENO);
 
         Span<Interop.ControlCharacterNames> controlCharacterNames =
         [

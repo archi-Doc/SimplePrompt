@@ -114,13 +114,13 @@ internal sealed class Program
         {
             if (keyInfo.Key == ConsoleKey.Q && keyInfo.Modifiers == ConsoleModifiers.Control)
             {// Ctrl+Q
-                // keyInfo = new('z', ConsoleKey.Z, shift: false, alt: false, control: false);
-                // return KeyInputHookResult.NotHandled;
-
-                if (ctsStack.TryPeek(out var cts))
+                lock (ctsStack)
                 {
-                    cts.Cancel();
-                    return KeyInputHookResult.Handled;
+                    if (ctsStack.TryPeek(out var cts))
+                    {
+                        cts.Cancel();
+                        return KeyInputHookResult.Handled;
+                    }
                 }
             }
 
@@ -151,101 +151,113 @@ internal sealed class Program
                 }
             };
 
-            var currentCts = new CancellationTokenSource();
-            ctsStack.Push(currentCts);
+            using var currentCts = new CancellationTokenSource();
+            lock (ctsStack)
+            {
+                ctsStack.Push(currentCts);
+            }
 
-            var secondary = simpleConsole.DefaultOptions with
+            try
             {
-                Prompt = "Secondary> ",
-            };
-
-            // _ = simpleConsole.ReadLine(secondary);
-            var result = await simpleConsole.ReadLine(options, currentCts.Token);
-
-            if (result.Kind == InputResultKind.Terminated)
-            {
-                break;
-            }
-            else if (result.Kind == InputResultKind.Canceled)
-            {
-                simpleConsole.WriteLine("Canceled", ConsoleColor.Red);
-                continue;
-            }
-            else if (string.Equals(result.Text, "exit", StringComparison.OrdinalIgnoreCase))
-            {// exit
-                root.RequestTermination(); // Send a termination signal to the root.
-                break;
-            }
-            else if (string.Equals(result.Text, "clear", StringComparison.OrdinalIgnoreCase))
-            {// clear
-                simpleConsole.Clear(false);
-                continue;
-            }
-            else if (string.IsNullOrEmpty(result.Text))
-            {// continue
-                continue;
-            }
-            else if (string.Equals(result.Text, "a", StringComparison.OrdinalIgnoreCase))
-            {
-                _ = Task.Run(async () =>
+                var secondary = simpleConsole.DefaultOptions with
                 {
-                    await Task.Delay(1000);
-                    simpleConsole.WriteLine("AAAAA", ConsoleColor.Green);
-                });
-            }
-            else if (string.Equals(result.Text, "b", StringComparison.OrdinalIgnoreCase))
-            {
-                _ = Task.Run(async () =>
-                {
-                    await Task.Delay(1000);
-                    Console.WriteLine("ABC123ABC123\r\nABC123ABC123\nABC123ABC123");
-                });
-            }
-            else if (string.Equals(result.Text, "c", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    simpleConsole.WriteLine("Freeze ->");
-                    for (var i = 0; i < 30; i++)
-                    {
-                        Thread.Sleep(100);
-                        if (ctsStack.Peek().IsCancellationRequested)
-                        {
-                            simpleConsole.WriteLine("Canceled");
-                            break;
-                        }
-                    }
-
-                    // await Task.Delay(3_000, ctsStack.Peek().Token);
-                    simpleConsole.WriteLine("<-");
-                    simpleConsole.EnqueueInput("a");
-                }
-                catch
-                {
-                    simpleConsole.WriteLine("Canceled2", ConsoleColor.Red);
-                }
-            }
-            else if (string.Equals(result.Text, "d", StringComparison.OrdinalIgnoreCase))
-            {
-                var options2 = ReadLineOptions.SingleLine with
-                {
-                    Prompt = "Nested>> ",
+                    Prompt = "Secondary> ",
                 };
 
-                _ = Task.Run(async () =>
-                {
-                    await Task.Delay(100); // Wait briefly to allow ReadLine() to be nested.
-                    var result = await simpleConsole.ReadLine(options2);
-                    Console.WriteLine($"Nested: {result.Text}");
-                });
-            }
-            else
-            {
-                var text = BaseHelper.RemoveCrLf(result.Text);
-                simpleConsole.WriteLine($"Command: {text}");
-            }
+                // _ = simpleConsole.ReadLine(secondary);
+                var result = await simpleConsole.ReadLine(null, currentCts.Token);
 
-            ctsStack.Pop();
+                if (result.Kind == InputResultKind.Terminated)
+                {
+                    break;
+                }
+                else if (result.Kind == InputResultKind.Canceled)
+                {
+                    simpleConsole.WriteLine("Canceled", ConsoleColor.Red);
+                    continue;
+                }
+                else if (string.Equals(result.Text, "exit", StringComparison.OrdinalIgnoreCase))
+                {// exit
+                    root.RequestTermination(); // Send a termination signal to the root.
+                    break;
+                }
+                else if (string.Equals(result.Text, "clear", StringComparison.OrdinalIgnoreCase))
+                {// clear
+                    simpleConsole.Clear(false);
+                    continue;
+                }
+                else if (string.IsNullOrEmpty(result.Text))
+                {// continue
+                    continue;
+                }
+                else if (string.Equals(result.Text, "a", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(1000);
+                        simpleConsole.WriteLine("AAAAA", ConsoleColor.Green);
+                    });
+                }
+                else if (string.Equals(result.Text, "b", StringComparison.OrdinalIgnoreCase))
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(1000);
+                        Console.WriteLine("ABC123ABC123\r\nABC123ABC123\nABC123ABC123");
+                    });
+                }
+                else if (string.Equals(result.Text, "c", StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        simpleConsole.WriteLine("Freeze ->");
+                        for (var i = 0; i < 30; i++)
+                        {
+                            Thread.Sleep(100);
+                            if (currentCts.IsCancellationRequested)
+                            {
+                                simpleConsole.WriteLine("Canceled");
+                                break;
+                            }
+                        }
+
+                        // await Task.Delay(3_000, ctsStack.Peek().Token);
+                        simpleConsole.WriteLine("<-");
+                        simpleConsole.EnqueueInput("a");
+                    }
+                    catch
+                    {
+                        simpleConsole.WriteLine("Canceled2", ConsoleColor.Red);
+                    }
+                }
+                else if (string.Equals(result.Text, "d", StringComparison.OrdinalIgnoreCase))
+                {
+                    var options2 = ReadLineOptions.SingleLine with
+                    {
+                        Prompt = "Nested>> ",
+                    };
+
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(100); // Wait briefly to allow ReadLine() to be nested.
+                        var result = await simpleConsole.ReadLine(options2);
+                        Console.WriteLine($"Nested: {result.Text}");
+                    });
+                }
+                else
+                {
+                    var text = BaseHelper.RemoveCrLf(result.Text);
+                    simpleConsole.WriteLine($"Command: {text}");
+                }
+
+            }
+            finally
+            {
+                lock (ctsStack)
+                {
+                    ctsStack.Pop();
+                }
+            }
         }
 
         await root.WaitForTermination(); // Wait for the termination infinitely.

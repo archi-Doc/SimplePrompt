@@ -12,7 +12,6 @@ internal sealed class SimpleArrange
     #region FieldAndProperty
 
     private readonly SimpleConsole simpleConsole;
-    private ReadLineInstance? readLineInstance;
 
     #endregion
 
@@ -21,20 +20,10 @@ internal sealed class SimpleArrange
         this.simpleConsole = simpleConsole;
     }
 
-    public void Set(ReadLineInstance readLineInstance)
+    public void Arrange(ReadLineInstance readLineInstance, (int Left, int Top) newCursor, bool redraw)
     {
-        this.readLineInstance = readLineInstance;
-    }
-
-    public void Arrange((int Left, int Top) newCursor, bool redraw)
-    {
-        if (this.readLineInstance is null)
-        {
-            return;
-        }
-
-        var lineList = this.readLineInstance.LineList;
-        var location = this.readLineInstance.CurrentLocation;
+        var lineList = readLineInstance.LineList;
+        var location = readLineInstance.CurrentLocation;
         if (location.LineIndex >= lineList.Count)
         {// Invalid line index
             location.Reset();
@@ -84,12 +73,12 @@ internal sealed class SimpleArrange
 
         if (!redraw)
         {
-            this.readLineInstance.CurrentLocation.Restore(CursorOperation.None);
+            readLineInstance.CurrentLocation.Restore(CursorOperation.None);
             return;
         }
 
-        this.readLineInstance.ResetCursor(CursorOperation.None);
-        this.readLineInstance.Redraw();
-        this.readLineInstance.CurrentLocation.Restore(CursorOperation.None);
+        readLineInstance.ResetCursor(CursorOperation.None);
+        readLineInstance.Redraw();
+        readLineInstance.CurrentLocation.Restore(CursorOperation.None);
     }
 }
