@@ -343,7 +343,7 @@ internal sealed class ReadLineInstance
     }
 
     /// <summary>
-    /// Gets the total number of input characters, including the newline between input lines.
+    /// Gets the input length in UTF-16 code units, counting each separator between input lines as one.
     /// </summary>
     /// <returns>The length.</returns>
     public int GetTotalInputLength()
@@ -377,7 +377,7 @@ internal sealed class ReadLineInstance
         => (this.GetTotalInputLength() + dif) <= this.Options.MaxInputLength;
 
     /// <summary>
-    /// Gets the number of characters that can still be added before <see cref="ReadLineOptions.MaxInputLength"/> is reached.
+    /// Gets the remaining UTF-16 code units before <see cref="ReadLineOptions.MaxInputLength"/> is reached.
     /// </summary>
     /// <returns>The remaining length.</returns>
     public int GetRemainingLength()

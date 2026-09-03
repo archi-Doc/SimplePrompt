@@ -115,10 +115,10 @@ internal static partial class TermInfo
             return null;
         }
 
-        /// <summary>Attempt to open as readonly the specified file path.</summary>
+        /// <summary>Attempts to open a file for reading.</summary>
         /// <param name="filePath">The path to the file to open.</param>
-        /// <param name="fd">If successful, the opened file descriptor; otherwise, -1.</param>
-        /// <returns>true if the file was successfully opened; otherwise, false.</returns>
+        /// <param name="fd">The opened file handle, or null on failure.</param>
+        /// <returns>True if the file was opened; otherwise, false.</returns>
         private static bool TryOpen(string filePath, [NotNullWhen(true)] out SafeFileHandle? fd)
         {
             try

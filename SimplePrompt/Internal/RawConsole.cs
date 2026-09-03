@@ -151,10 +151,9 @@ internal sealed class RawConsole
     }
 
     /// <summary>
-    /// Decodes the specified characters into key inputs using the same logic as the stdin path.<br/>
-    /// This is a seam which allows the terminal sequence decoding to be exercised without an actual terminal.
+    /// Decodes keys using the stdin parser without requiring a terminal.
     /// </summary>
-    /// <param name="input">The characters to decode. The length must not exceed the internal buffer capacity.</param>
+    /// <param name="input">The characters to decode. Input beyond the internal buffer capacity is ignored.</param>
     /// <returns>The decoded keys.</returns>
     internal List<ConsoleKeyInfo> DecodeKeys(ReadOnlySpan<char> input)
     {

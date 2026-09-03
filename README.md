@@ -1,359 +1,353 @@
-## SimplePrompt
+# SimplePrompt
 
-![Nuget](https://img.shields.io/nuget/v/SimplePrompt) ![Build and Test](https://github.com/archi-Doc/SimplePrompt/workflows/Build%20and%20Test/badge.svg)
+![NuGet](https://img.shields.io/nuget/v/SimplePrompt) ![Build and Test](https://github.com/archi-Doc/SimplePrompt/actions/workflows/test.yml/badge.svg)
 
-A simple console interface with advanced input handling capabilities including multiline support and custom prompts.
+A .NET console library for editable prompts, multiline input, and output above an active prompt.
 
-- Line editing with cursor movement, multiline input, and masked input.
-- Output from background tasks is displayed above the prompt without breaking the input.
-- `Console.Out` and `Console.In` are redirected, so existing console code keeps working.
-- Full-width characters (CJK) and surrogate pairs are measured and edited correctly.
+- Line editing with custom prompts, input limits, and masking.
+- Background output that preserves the prompt and text being edited.
+- Input validation, key hooks, nested reads, and programmatic input.
+- CJK display widths, surrogate-pair editing, and NativeAOT support.
 
-
-
-## Table of Contents
+## Contents
 
 - [Requirements](#requirements)
-- [NativeAOT](#nativeaot)
-- [Testing and coverage](docs/code-review.md#coverage)
 - [Quick Start](#quick-start)
+- [Console Integration](#console-integration)
 - [ReadLineOptions](#readlineoptions)
 - [Key Bindings](#key-bindings)
 - [Features](#features)
   - [Output While Reading](#output-while-reading)
-  - [Multi-line Input](#multi-line-input)
+  - [Multiline Input](#multiline-input)
   - [Masked Input](#masked-input)
   - [Input Hooks](#input-hooks)
-  - [Nested ReadLine()](#nested-readline)
+  - [Nested Reads](#nested-reads)
   - [Queued Input](#queued-input)
-  - [Cancellation](#cancellation)
+  - [Cancellation and Shutdown](#cancellation-and-shutdown)
+  - [Screen and Cursor](#screen-and-cursor)
 - [SimpleConsole Members](#simpleconsole-members)
-
-
+- [NativeAOT](#nativeaot)
+- [Testing and Coverage](#testing-and-coverage)
 
 ## Requirements
 
-**.NET 10** or later.
+SimplePrompt targets **.NET 10**. Use .NET SDK 10.0.400 or later to build this repository with its current dependency analyzers.
 
-Colors and cursor control are performed with ANSI escape sequences, so a VT-capable terminal is required (Windows Terminal, Linux and macOS terminals). On Unix, stdin is read directly so that key sequences can be decoded without blocking.
-
-
-
-## NativeAOT
-
-SimplePrompt enables `IsAotCompatible` and the .NET trimming and AOT analyzers. To publish an application using it, set `<PublishAot>true</PublishAot>` in the application's project file and publish for its target runtime:
-
-```sh
-dotnet publish QuickStart/QuickStart.csproj -c Release -r win-x64 -p:PublishAot=true
-```
-
-Publish on the target operating system, using `linux-x64` or `osx-arm64` as appropriate. The .NET SDK and the platform's [NativeAOT build prerequisites](https://learn.microsoft.com/dotnet/core/deploying/native-aot/#prerequisites) are required. Use SDK 10.0.400 or later for compatibility with the analyzers included in the current dependencies.
-
-The dedicated `AotSmokeTest` project roots the whole SimplePrompt assembly for analysis, treats trimming and AOT compiler warnings as errors, and exercises queued input, Unicode editing, multiline input, hooks, cancellation, and output redirection in the native executable:
-
-```sh
-dotnet publish AotSmokeTest/AotSmokeTest.csproj -c Release -r win-x64 -o artifacts/aot
-./artifacts/aot/AotSmokeTest.exe
-```
-
-On Unix, also run `python3 AotSmokeTest/terminal_test.py artifacts/aot/AotSmokeTest` to verify actual terminal input, native interop, terminfo loading, and output redirection through a pseudo-terminal. CI includes Windows, Linux, and macOS NativeAOT jobs. Unix input uses .NET's `System.Native` console functions, so this check also detects changes in that runtime dependency.
-
-
+Interactive input requires a terminal that supports ANSI/VT cursor control, such as Windows Terminal or a Linux/macOS terminal. On Unix, SimplePrompt reads terminal input directly and decodes key sequences.
 
 ## Quick Start
 
-Install **SimplePrompt** using Package Manager Console.
+Add the package to a console application:
 
+```sh
+dotnet add package SimplePrompt
 ```
-Install-Package SimplePrompt
-```
 
-This is a small sample code to use **SimplePrompt**.
-
-```c#
-using Arc;
+```csharp
 using Arc.Unit;
 using SimplePrompt;
 
-var simpleConsole = SimpleConsole.Instance; // Get the singleton SimplePrompt instance. Note that all Console calls (such as Console.Out) will go through SimpleConsole.
-simpleConsole.DefaultOptions = new ReadLineOptions()
-{// Set the default ReadLine options.
-    InputColor = ConsoleColor.Yellow,
-    Prompt = "> ",
-    MultilinePrompt = "# ",
-    MultilineDelimiter = "|",
+var simpleConsole = SimpleConsole.Instance;
+simpleConsole.DefaultOptions = ReadLineOptions.SingleLine with
+{
+    Prompt = "Command> ",
     CancelOnEscape = true,
-    AllowEmptyInput = true,
 };
 
-Console.Out.Write("SimplePrompt example\r\n");
-simpleConsole.WriteLine("Esc:Cancel input, Ctrl+U:Clear input, Home:Move to start, End:Move to end");
-simpleConsole.WriteLine("Test:Delayed output, '|':Multi-line mode switch, Exit: Exit app");
-
+simpleConsole.WriteLine("Enter a command, press Escape to cancel, or type exit.");
 while (true)
 {
     var result = await simpleConsole.ReadLine();
-
-    if (result.Kind == InputResultKind.Canceled)
-    {// Esc pressed
-        simpleConsole.WriteLine("Canceled");
-        continue;
-    }
-    else if (string.Equals(result.Text, "Clear", StringComparison.OrdinalIgnoreCase))
-    {// Clear
-        simpleConsole.Clear(false);
-        continue;
-    }
-    else if (string.Equals(result.Text, "Exit", StringComparison.OrdinalIgnoreCase))
-    {// Exit
+    if (result.Kind == InputResultKind.Terminated)
+    {
         break;
     }
-    else if (string.IsNullOrEmpty(result.Text))
-    {// Enter pressed without input
+
+    if (result.Kind == InputResultKind.Canceled)
+    {
+        simpleConsole.WriteLine("Canceled.");
         continue;
     }
-    else if (string.Equals(result.Text, "Test", StringComparison.OrdinalIgnoreCase))
-    {// Test command: Delayed output
-        _ = Task.Run(async () =>
-        {
-            simpleConsole.WriteLine("Test string");
-            await Task.Delay(1000);
-            simpleConsole.WriteLine("abcdefgabcdefgabcdefg", ConsoleColor.Green); // Displayed above the prompt
-            await Task.Delay(1000);
-            Console.Out.WriteLine("abcdefg0123456789abcdefg0123456789abcdefg0123456789"); // Output via Console.Out is also supported.
-        });
+
+    if (string.Equals(result.Text, "exit", StringComparison.OrdinalIgnoreCase))
+    {
+        break;
     }
-    else
-    {// Echo the input
-        var text = BaseHelper.RemoveCrLf(result.Text);
-        simpleConsole.WriteLine($"Command: {text}");
-    }
+
+    simpleConsole.WriteLine($"Command: {result.Text}");
 }
 ```
 
-`ReadLine()` returns an `InputResult` (`Arc.Unit`).
+`ReadLine()` returns `Task<InputResult>`. `InputResult` is provided by `Arc.Unit`:
 
-| Member | Description |
+| Member | Meaning |
 | --- | --- |
-| `Text` | The input text. It is empty when the operation did not succeed. |
-| `Kind` | `Success`, `Canceled` (Esc or a canceled token) or `Terminated` (the execution group was terminated). |
+| `Text` | Submitted text on success; empty for cancellation or termination. |
+| `Kind` | `Success`, `Canceled`, or `Terminated`. |
 | `IsSuccess` / `IsCanceled` / `IsTerminated` | Shortcuts for testing `Kind`. |
 
+The following examples assume `simpleConsole = SimpleConsole.Instance` and `using SimplePrompt;`.
 
+## Console Integration
+
+Accessing `SimpleConsole.Instance` initializes the singleton once, attempts to select UTF-8 output, and replaces `Console.Out` and `Console.In`.
+
+- `Console.Write()`, `Console.WriteLine()`, and writes through `Console.Out` use SimplePrompt's output handling.
+- Synchronous `Console.ReadLine()` and `Console.In.ReadLine()` use single-line input with no prompt, a 1024-code-unit limit, and empty input allowed. They use their own options, independently of `DefaultOptions`.
+- The installed reader only overrides synchronous `ReadLine`; it does not forward general character or block reads to the original reader.
+- `Console.Error`, `Console.ReadKey()`, and `Console.KeyAvailable` keep their original behavior. Direct key reads do not consume queued input and may compete with SimplePrompt's input worker.
+
+`SimpleConsole` implements `Arc.Unit.IConsoleService`. Its interface `ReadLine` uses `DefaultOptions`; interface `ReadKey` and `KeyAvailable` call the corresponding `Console` APIs directly.
+
+Rendered output goes to the writer captured at initialization, including redirected standard output. Cursor escape sequences can still appear in redirected output. Reading a file or pipe through redirected stdin is not supported by `SimpleConsole.ReadLine()`; preserve the original `Console.In` before initialization if your application needs to read it.
 
 ## ReadLineOptions
 
-**SimplePrompt** features are enabled by configuring `ReadLineOptions`. It is an immutable record, so a variation is created with a `with` expression. Pass it to `ReadLine(options)`, or assign it to `SimpleConsole.DefaultOptions` to change the default.
+`ReadLineOptions` is an immutable record. Use `with` to customize a preset, then pass it to `ReadLine(options)` or assign it to `DefaultOptions`.
 
 ```csharp
 var options = ReadLineOptions.SingleLine with
 {
-    Prompt = "Name>> ",
+    Prompt = "Name> ",
     MaxInputLength = 32,
 };
-
 var result = await simpleConsole.ReadLine(options);
 ```
 
-| Property | Type | Default | Description |
-| --- | --- | --- | --- |
-| `Prompt` | `string` | `"> "` | The prompt string. It may contain newlines; the last line becomes the input line. |
-| `InputColor` | `ConsoleColor` | `Yellow` | The color of the user input. |
-| `MaxInputLength` | `int` | `65536` | The maximum number of input characters. The newline between input lines is counted as one character, and characters exceeding the limit are discarded. |
-| `AllowEmptyInput` | `bool` | `false` | Whether pressing Enter with no input completes the operation. When `false`, Enter is ignored until at least one character is entered. |
-| `CancelOnEscape` | `bool` | `false` | Whether the Escape key cancels the operation. |
-| `MaskingCharacter` | `char` | `'\0'` | The character echoed instead of the input (e.g. for a password). The result still contains the actual text. |
-| `MultilineDelimiter` | `string?` | `"""` | The string which switches multiline input on and off. `null` disables multiline input. |
-| `MultilinePrompt` | `string` | `"# "` | The prompt for the second and subsequent lines of multiline input. |
-| `LineContinuationCharacter` | `char` | `'\0'` | The character which continues the line onto the next line (e.g. `'\\'`). `'\0'` disables it. |
-| `KeyInputHook` | `KeyInputHook?` | `null` | Called for every key before it is processed. See [Input Hooks](#input-hooks). |
-| `TextInputHook` | `TextInputHook?` | `null` | Called when the input is submitted, to validate or transform it. See [Input Hooks](#input-hooks). |
+These defaults apply to `new ReadLineOptions()`:
 
-Presets are provided for common cases.
+| Property | Default | Meaning |
+| --- | --- | --- |
+| `Prompt` | `"> "` | Input prompt. May contain newlines; input starts on its last line. |
+| `InputColor` | `ConsoleColor.Yellow` | Input text color. |
+| `MaxInputLength` | `65536` | Input limit in UTF-16 code units; excess input is discarded. |
+| `AllowEmptyInput` | `false` | Allows Enter to submit input with no characters. Blank lines within nonempty multiline input are allowed regardless. |
+| `CancelOnEscape` | `false` | Cancels the read when Escape is processed. |
+| `MaskingCharacter` | `'\0'` | Display mask; zero disables masking. Does not change the result text. |
+| `MultilineDelimiter` | `"""` (three double quotes) | Delimiter for multiline mode. Null or empty disables delimiter mode only. |
+| `MultilinePrompt` | `"# "` | Prompt for subsequent input lines. |
+| `LineContinuationCharacter` | `'\0'` | Trailing character that continues input onto the next line; zero disables continuation. |
+| `KeyInputHook` | `null` | Per-read key interception. See [Input Hooks](#input-hooks). |
+| `TextInputHook` | `null` | Submission validation or transformation. See [Input Hooks](#input-hooks). |
 
-| Preset | Description |
+`MaxInputLength` excludes prompts, counts a surrogate pair as two code units, and counts each separator between input lines as one. This also applies to continuation lines whose separators are removed from the final result. Text returned by `TextInputHook` is not subject to this limit.
+
+| Preset | Settings |
 | --- | --- |
-| `ReadLineOptions.SingleLine` | Single line input (multiline disabled, max 1024 characters, empty input not accepted). |
-| `ReadLineOptions.Multiline` | The default settings, where multiline input is enabled by the `"""` delimiter. |
-| `ReadLineOptions.YesNo` | Accepts only "y", "yes", "n" or "no" (case-insensitive); any other input is asked again. |
-
-
+| `SingleLine` | Multiline modes disabled, limit 1024, empty input rejected. |
+| `Multiline` | Default options, including the `"""` delimiter. |
+| `YesNo` | Single-line input, limit 3, accepting y/yes/n/no after trimming and ignoring case. Returns accepted text unchanged; invalid input prompts again. |
 
 ## Key Bindings
 
 | Key | Action |
 | --- | --- |
-| Enter | Completes the input, or adds a new line during multiline input. |
-| Esc | Cancels the input (only when `CancelOnEscape` is `true`). |
-| Backspace | Deletes the character before the cursor. On an empty continuation line, deletes the line. |
-| Delete | Deletes the character at the cursor. |
-| Home / End | Moves to the beginning / end of the current line. |
-| ← / → | Moves the cursor by one character (a surrogate pair moves as a single character). |
-| ↑ / ↓ | Moves between lines during multiline input. |
-| Ctrl+U | Clears the current line. |
+| Enter | Submits input or continues multiline input. |
+| Escape | Cancels the read when `CancelOnEscape` is enabled. |
+| Backspace | Deletes the preceding character; removes an empty input line when it is not the first. |
+| Delete | Deletes the character at the cursor; removes an empty input line when it is neither the first nor the last. |
+| Home / End | Moves to the start / end of the current logical input line. |
+| Left / Right | Moves by one character, keeping surrogate pairs together. |
+| Up / Down | Moves between displayed rows and input lines in multiline mode. |
+| Ctrl+U | Clears the current input line. |
 
-Tab and Insert are reserved for future use (input completion and overtype mode) and are currently ignored.
-
-
+Tab, Insert, and command history are not implemented. Editing preserves surrogate pairs but does not treat every Unicode grapheme cluster as a single unit; rendered widths also depend on the terminal.
 
 ## Features
 
 ### Output While Reading
 
-While `ReadLine()` is waiting for input, output from any thread is displayed above the prompt, and the prompt and the text being edited are redrawn below it.
+While a read is pending, output from any thread is placed above the prompt, then the prompt, input, and caret are restored.
 
 ```csharp
-simpleConsole.WriteLine("Displayed above the prompt", ConsoleColor.Green);
-Console.Out.WriteLine("Console.Out is redirected, so this works as well.");
+simpleConsole.WriteLine("Background task completed.", ConsoleColor.Green);
+Console.Out.WriteLine("Output through Console.Out works too.");
 ```
 
-`SimpleConsole.Instance` replaces `Console.Out` and `Console.In`, so `Console.Write()`, `Console.WriteLine()` and `Console.In.ReadLine()` all go through **SimplePrompt**. Set `EnableColor` to `false` to suppress every color sequence, and use `UnderlyingTextWriter` to write directly to the original `Console.Out`.
+During a pending read, a nonempty `Write()` also ends the output line before redrawing the prompt. Without a pending read, `Write()` does not append a newline. Numeric overloads use the underlying writer's format provider.
 
+Omit the color argument to leave the output color unchanged. `EnableColor = false` suppresses SimplePrompt-generated color sequences, but does not strip caller-supplied ANSI sequences or disable cursor control. Direct writes to `UnderlyingTextWriter` bypass prompt redrawing and cursor tracking.
 
+### Multiline Input
 
-### Multi-line Input
+On Enter, an odd number of `MultilineDelimiter` occurrences on the first input line starts delimiter mode. An odd count on a later line ends it. Lines are joined with `\n`, preserving delimiters and blank lines.
 
-When a line contains an odd number of `MultilineDelimiter`, multiline input starts; the next odd occurrence ends it. The lines are joined with a newline and the delimiters remain in the result.
-
-```
+```text
 > """
-# line1
-# line2"""      ->  """\nline1\nline2"""
+# first line
+# second line"""
 ```
 
-Alternatively, `LineContinuationCharacter` continues the input while a line ends with the specified character. The continuation characters are removed and the lines are joined without a newline.
+The result is `"""\nfirst line\nsecond line"""`.
+
+Alternatively, configure a continuation character:
 
 ```csharp
-var options = ReadLineOptions.SingleLine with { LineContinuationCharacter = '\\' };
+var options = ReadLineOptions.SingleLine with
+{
+    LineContinuationCharacter = '\\',
+};
+var result = await simpleConsole.ReadLine(options);
 ```
 
-```
+```text
 > abc\
-# def           ->  abcdef
+# def
 ```
 
-
+The result is `abcdef`: continuation lines are joined without newlines, removing trailing continuation markers from nonfinal lines. A line without the marker completes the input. Starting from `SingleLine` keeps delimiter mode disabled.
 
 ### Masked Input
 
-Set `MaskingCharacter` to hide the input, for example when reading a password.
+Use a printable, single-column masking character:
 
 ```csharp
-var options = ReadLineOptions.SingleLine with { MaskingCharacter = '*' };
-var result = await simpleConsole.ReadLine(options); // The console shows '*', result.Text holds the actual input.
+var options = ReadLineOptions.SingleLine with
+{
+    Prompt = "Password> ",
+    MaskingCharacter = '*',
+};
+var result = await simpleConsole.ReadLine(options);
 ```
 
-
+Masking preserves input display width, so a wide character can produce multiple mask characters. `result.Text` contains the actual input.
 
 ### Input Hooks
 
-`KeyInputHook` is called for every key before it is processed. The key can be rewritten through the `ref` parameter, discarded, or used to cancel the operation.
+`SimpleConsole.KeyInputHook` processes terminal keys and `EnqueueKey()` events before the per-read hook, including while idle. It may rewrite the key through its `ref` parameter. Both `Handled` and `Cancel` discard the key at this global level without canceling a read.
+
+`ReadLineOptions.KeyInputHook` runs after the global hook, key normalization, and the `CancelOnEscape` check. It can return `NotHandled` to continue, `Handled` to discard the key, or `Cancel` to cancel the read:
 
 ```csharp
 var options = ReadLineOptions.SingleLine with
 {
     KeyInputHook = (ref ConsoleKeyInfo keyInfo) =>
-    {
-        if (keyInfo.Key == ConsoleKey.F1)
-        {
-            return KeyInputHookResult.Cancel; // Cancels ReadLine().
-        }
-
-        return KeyInputHookResult.NotHandled; // Processes the key normally.
-    },
+        keyInfo.Key == ConsoleKey.F1
+            ? KeyInputHookResult.Cancel
+            : KeyInputHookResult.NotHandled,
 };
+var result = await simpleConsole.ReadLine(options);
 ```
 
-`SimpleConsole.KeyInputHook` is the console-wide equivalent, and is called before the hook of `ReadLineOptions`. It is applied to the keys injected by `EnqueueKey()` as well. Note that a key is simply discarded when the hook returns anything other than `NotHandled`.
+With `CancelOnEscape` enabled, Escape cancels before the per-read hook runs; the global hook can still intercept it. Text queued with `EnqueueInput()` bypasses both key hooks.
 
-`TextInputHook` is called when the input is submitted. Return the (possibly transformed) text to accept it, or `null` to discard the input and ask again.
+`TextInputHook` receives submitted text after multiline processing, input limits, and the empty-input check. Return a string to accept or transform it, or null to clear the input and prompt again:
 
 ```csharp
 var options = ReadLineOptions.SingleLine with
 {
-    TextInputHook = text => int.TryParse(text, out _) ? text : null, // Accepts a number only.
+    TextInputHook = text => int.TryParse(text, out _) ? text : null,
 };
+var result = await simpleConsole.ReadLine(options);
 ```
 
+The transformed text is not checked again for length or emptiness. Hooks run synchronously on the input worker; keep them short. A thrown exception faults the active read task and is rethrown when it is awaited.
 
+### Nested Reads
 
-### Nested ReadLine()
-
-While waiting in `ReadLine()`, you can call the next `ReadLine()` and nest it.
- When the second `ReadLine()` finishes, the original `ReadLine()` is restored.
+A new read can start while another is pending. The latest read receives input, and the earlier read resumes when it completes:
 
 ```csharp
-var result = await simpleConsole.ReadLine(options, currentCts.Token);
-if (string.Equals(result.Text, "d", StringComparison.OrdinalIgnoreCase))
-{
-    var options2 = ReadLineOptions.SingleLine with
-    {
-        Prompt = "Nested>> ",
-    };
+var outer = simpleConsole.ReadLine(ReadLineOptions.SingleLine with { Prompt = "Outer> " });
+var inner = simpleConsole.ReadLine(ReadLineOptions.SingleLine with { Prompt = "Inner> " });
 
-    _ = Task.Run(async () =>
-    {
-        await Task.Delay(100); // Wait briefly to allow ReadLine() to be nested.
-        var result = await simpleConsole.ReadLine(options2);
-        Console.WriteLine($"Nested: {result.Text}");
-    });
-}
+var innerResult = await inner;
+var outerResult = await outer;
 ```
 
-Calling `ReadLine()` again with the same `ReadLineOptions` instance does not nest; it returns the task of the operation already in progress.
+After checking termination and cancellation, passing the same options object as an existing read returns that read's task. It retains the original cancellation token. Distinct options objects can create nested reads even when their values are equal. Omitting options uses the current `DefaultOptions` object.
 
-
+Each new read copies its options. `TryGetCurrentReadLineOptions(out var options)` returns that active snapshot, or false with null when no read is pending.
 
 ### Queued Input
 
-By calling `EnqueueInput()`, you can emulate user input as if the user had typed it and pressed Enter. The queued text is consumed while the current input is empty; otherwise it stays queued for the next `ReadLine()`.
+`EnqueueInput()` queues literal text followed by one submission attempt. It is consumed only when the active read's input is empty; otherwise it remains queued. Input limits, multiline rules, and `TextInputHook` still apply.
 
 ```csharp
-simpleConsole.EnqueueInput("a");
+simpleConsole.EnqueueInput("example");
+var result = await simpleConsole.ReadLine(ReadLineOptions.SingleLine);
 ```
 
-`EnqueueKey()` injects a single key, which is processed exactly like a key pressed by the user.
+Null or empty text attempts an empty submission. Embedded newlines are literal text, not separate Enter events. Use `EnqueueKey()` for editing keys or an Enter event; these pass through the key hooks:
 
 ```csharp
 simpleConsole.EnqueueKey(new ConsoleKeyInfo('a', ConsoleKey.A, false, false, false));
+simpleConsole.EnqueueKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false));
 ```
 
+`BufferKeyInputWhileIdle` defaults to true and retains up to 32768 key events received while no read is pending. Excess keys are discarded. Setting it to false discards keys processed while idle. This setting does not affect queued text.
 
+### Cancellation and Shutdown
 
-### Cancellation
-
-An input operation can be canceled in several ways, and the result is `InputResultKind.Canceled`.
+A canceled token, Escape with `CancelOnEscape`, or `Cancel` from the per-read key hook completes the read with `InputResultKind.Canceled`. The returned task is not canceled and does not throw `OperationCanceledException` for these normal cancellation paths.
 
 ```csharp
-using var cts = new CancellationTokenSource();
-var result = await simpleConsole.ReadLine(options, cts.Token); // Canceled by the token,
-                                                              // by the Escape key (CancelOnEscape),
-                                                              // or by KeyInputHookResult.Cancel.
+using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+var result = await simpleConsole.ReadLine(
+    ReadLineOptions.SingleLine with { CancelOnEscape = true }, cts.Token);
 ```
 
-If `SimpleConsole.ExecutionGroup` (`Arc.Threading`) is set, terminating the group stops the input polling loop and completes the pending operations with `InputResultKind.Terminated`.
+Optionally assign an `Arc.Threading.ExecutionGroup` to `ExecutionGroup` to control the worker's lifetime. Terminating that group stops input polling and completes pending reads with `InputResultKind.Terminated`. This is permanent shutdown: assigning another group does not restart the worker. With no group assigned, the worker runs until process exit.
 
-```csharp
-simpleConsole.ExecutionGroup = root;
-```
+### Screen and Cursor
 
+`Clear(false)` erases the visible screen with an ANSI sequence. `Clear(true)` calls `Console.Clear()`. Both redraw active input; clearing terminal scrollback is not guaranteed.
 
+`CursorLeft`, `CursorTop`, and `GetCursorPosition()` return tracked zero-based coordinates. They do not query the terminal when read. `WindowWidth` and `WindowHeight` are refreshed periodically, with minimum values of 30 columns and 10 rows. Accessing these static members also initializes the singleton.
 
 ## SimpleConsole Members
 
-| Member | Description |
+| Member | Purpose |
 | --- | --- |
-| `Instance` | The singleton instance. Creating it redirects `Console.Out` and `Console.In`. |
-| `ReadLine(options, cancellationToken)` | Reads a line of input. |
-| `Write()` / `WriteLine()` | Writes a value with an optional `ConsoleColor`. Overloads for the primitive types, `string` and `ReadOnlySpan<char>` are provided. |
-| `Clear(clearBuffer)` | Clears the console and redraws the prompt. |
-| `EnqueueInput(message)` / `EnqueueKey(keyInfo)` | Injects input programmatically. |
-| `DefaultOptions` | The options used when `ReadLine()` is called without options. |
-| `KeyInputHook` | The console-wide key input hook. |
-| `EnableColor` | Whether color escape sequences are emitted. |
-| `BufferKeyInputWhileIdle` | Whether keys pressed while no input operation is in progress are kept for the next one. |
-| `IsReadLineInProgress` | Whether an input operation is in progress. |
-| `TryGetCurrentReadLineOptions(out options)` | Gets the options of the operation which is currently accepting input. |
-| `UnderlyingTextWriter` | The original `Console.Out`. |
-| `ExecutionGroup` | The execution group which controls the lifetime of the input polling loop. |
-| `CursorLeft` / `CursorTop` / `WindowWidth` / `WindowHeight` / `GetCursorPosition()` | Static shortcuts to the cursor and window state tracked by **SimplePrompt**. |
+| `Instance` | Lazily initialized singleton. |
+| `ReadLine(options, cancellationToken)` | Starts or retrieves a pending read and returns `Task<InputResult>`. |
+| `Write(...)` / `WriteLine(...)` | Writes with optional foreground color; supports bool, char, decimal, double, float, int, uint, long, ulong, string, and `ReadOnlySpan<char>`. |
+| `Clear(clearBuffer)` | Clears the screen and redraws active input. |
+| `EnqueueInput(text)` / `EnqueueKey(keyInfo)` | Queues text or a key event. |
+| `DefaultOptions` | Options for reads without explicit options. Initially a new `ReadLineOptions`. |
+| `KeyInputHook` | Global key interception. |
+| `EnableColor` | Enables library-generated color sequences; initially true. |
+| `BufferKeyInputWhileIdle` | Retains idle key input; initially true. |
+| `IsReadLineInProgress` | Reports whether any read is pending. |
+| `TryGetCurrentReadLineOptions(out options)` | Retrieves the active read's options snapshot. |
+| `UnderlyingTextWriter` | Output writer captured at initialization. |
+| `ExecutionGroup` | Optional worker lifetime control. |
+| `CursorLeft` / `CursorTop` / `GetCursorPosition()` | Static access to tracked cursor coordinates. |
+| `WindowWidth` / `WindowHeight` | Static access to cached window dimensions. |
+
+## NativeAOT
+
+SimplePrompt enables `IsAotCompatible` and the .NET trimming and AOT analyzers. Enable `<PublishAot>true</PublishAot>` in the consuming application's project, or pass the property when publishing:
+
+```sh
+dotnet publish QuickStart/QuickStart.csproj -c Release -r win-x64 -p:PublishAot=true
+```
+
+Publish on the target operating system, using a matching runtime identifier such as `win-x64`, `linux-x64`, or `osx-arm64`. Install the platform's [NativeAOT build prerequisites](https://learn.microsoft.com/dotnet/core/deploying/native-aot/#prerequisites).
+
+`AotSmokeTest` analyzes the entire SimplePrompt assembly, treats trimming and AOT compiler warnings as errors, and exercises input, hooks, Unicode editing, cancellation, and redirected output in the native executable:
+
+```sh
+dotnet publish AotSmokeTest/AotSmokeTest.csproj -c Release -r win-x64 -o artifacts/aot -warnaserror
+./artifacts/aot/AotSmokeTest.exe
+```
+
+On Linux or macOS, publish for that platform and run `./artifacts/aot/AotSmokeTest`. Also verify terminal input and redirected output through a pseudo-terminal:
+
+```sh
+python3 AotSmokeTest/terminal_test.py artifacts/aot/AotSmokeTest
+```
+
+CI defines NativeAOT jobs for Windows, Linux, and macOS. Unix input uses .NET's `System.Native` console functions; the pseudo-terminal checks exercise that integration and terminfo loading.
+
+## Testing and Coverage
+
+Run from the repository root:
+
+```sh
+dotnet test --project xUnitTest/xUnitTest.csproj -c Release
+dotnet tool restore
+dotnet coverage collect -s xUnitTest/coverage.config.xml -f cobertura -o artifacts/coverage.cobertura.xml "dotnet xUnitTest/bin/Release/net10.0/xUnitTest.dll"
+```
+
+The [coverage configuration](xUnitTest/coverage.config.xml) measures the SimplePrompt library. CI uploads the Cobertura report as the `code-coverage` artifact. Use the report's line and branch results to identify untested paths; the NativeAOT and pseudo-terminal checks above cover additional runtime integration.

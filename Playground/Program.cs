@@ -114,9 +114,6 @@ internal sealed class Program
         {
             if (keyInfo.Key == ConsoleKey.Q && keyInfo.Modifiers == ConsoleModifiers.Control)
             {// Ctrl+Q
-                // keyInfo = new('z', ConsoleKey.Z, shift: false, alt: false, control: false);
-                // return KeyInputHookResult.NotHandled;
-
                 lock (ctsStack)
                 {
                     if (ctsStack.TryPeek(out var cts))
@@ -168,7 +165,7 @@ internal sealed class Program
                 };
 
                 // _ = simpleConsole.ReadLine(secondary);
-                var result = await simpleConsole.ReadLine(options, currentCts.Token);
+                var result = await simpleConsole.ReadLine(null, currentCts.Token);
 
                 if (result.Kind == InputResultKind.Terminated)
                 {

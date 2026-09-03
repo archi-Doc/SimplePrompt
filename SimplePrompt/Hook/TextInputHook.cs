@@ -3,11 +3,14 @@
 namespace SimplePrompt;
 
 /// <summary>
-/// Represents a method that validates or transforms the text when the user submits the input.
+/// Validates or transforms submitted input.
 /// </summary>
 /// <param name="text">The input text submitted by the user.</param>
 /// <returns>
-/// The validated or transformed text to be returned as the final result.<br/>
-/// If <see langword="null"/> is returned, the input is discarded and a new prompt is displayed so that the user can enter it again.
+/// The final text, or <see langword="null"/> to clear the input and prompt again.
 /// </returns>
+/// <remarks>
+/// Runs synchronously on the input worker after input length and empty-input checks.
+/// Returned text is not checked again. Exceptions fault the read task.
+/// </remarks>
 public delegate string? TextInputHook(string text);
