@@ -79,8 +79,9 @@ internal static partial class TermInfo
             }
 
             int tableIndex = ReadInt16(this._data, this.StringOffsetsOffset + (index * 2));
-            if (tableIndex == -1)
+            if (tableIndex < 0)
             {
+                // Both absent (-1) and canceled (-2) capabilities have no string.
                 return null;
             }
 

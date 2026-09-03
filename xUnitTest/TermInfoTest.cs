@@ -42,6 +42,20 @@ public class TermInfoTest
     }
 
     [Fact]
+    public void CanceledStringIsNotReadAsAnOffset()
+    {
+        var data = BuildTerminfo([(TermInfo.WellKnownStrings.KeyUp, "\e[A")]);
+        var namesLength = data[2] | (data[3] << 8);
+        var offsetsStart = (12 + namesLength + 1) & ~1;
+        var offset = offsetsStart + ((int)TermInfo.WellKnownStrings.KeyUp * 2);
+        data[offset] = 0xFE; // -2 denotes a canceled capability.
+        data[offset + 1] = 0xFF;
+
+        var db = new TermInfo.Database("test", data);
+        Assert.Null(db.GetString(TermInfo.WellKnownStrings.KeyUp));
+    }
+
+    [Fact]
     public void KeyFormatMapping()
     {
         var db = new TermInfo.Database("xterm-256color", BuildTerminfo(

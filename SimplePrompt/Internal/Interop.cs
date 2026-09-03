@@ -47,30 +47,12 @@ internal static partial class Interop
         VEOL2 = 16,
     }
 
-    internal static class FileDescriptors
-    {
-        internal static readonly SafeFileHandle STDIN_FILENO = CreateFileHandle(0);
-        internal static readonly SafeFileHandle STDOUT_FILENO = CreateFileHandle(1);
-        internal static readonly SafeFileHandle STDERR_FILENO = CreateFileHandle(2);
-
-        private static SafeFileHandle CreateFileHandle(int fileNumber)
-        {
-            return new SafeFileHandle((IntPtr)fileNumber, ownsHandle: false);
-        }
-    }
-
     internal static partial class Sys
     {
         private const string SystemNative = "libSystem.Native";
 
         [LibraryImport(SystemNative, EntryPoint = "SystemNative_Open", StringMarshalling = StringMarshalling.Utf8, SetLastError = true)]
         internal static partial SafeFileHandle Open(string filename, OpenFlags flags, int mode);
-
-        [LibraryImport(SystemNative, EntryPoint = "SystemNative_Dup", SetLastError = true)]
-        internal static partial SafeFileHandle Dup(SafeFileHandle oldfd);
-
-        [LibraryImport(SystemNative, EntryPoint = "SystemNative_Write", SetLastError = true)]
-        internal static unsafe partial int Write(SafeHandle fd, byte* buffer, int bufferSize);
 
         [LibraryImport(SystemNative, EntryPoint = "SystemNative_ReadStdin", SetLastError = true)]
         internal static unsafe partial int ReadStdin(byte* buffer, int bufferSize);

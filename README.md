@@ -14,6 +14,7 @@ A simple console interface with advanced input handling capabilities including m
 ## Table of Contents
 
 - [Requirements](#requirements)
+- [NativeAOT](#nativeaot)
 - [Quick Start](#quick-start)
 - [ReadLineOptions](#readlineoptions)
 - [Key Bindings](#key-bindings)
@@ -34,6 +35,27 @@ A simple console interface with advanced input handling capabilities including m
 **.NET 10** or later.
 
 Colors and cursor control are performed with ANSI escape sequences, so a VT-capable terminal is required (Windows Terminal, Linux and macOS terminals). On Unix, stdin is read directly so that key sequences can be decoded without blocking.
+
+
+
+## NativeAOT
+
+SimplePrompt enables `IsAotCompatible` and the .NET trimming and AOT analyzers. To publish an application using it, set `<PublishAot>true</PublishAot>` in the application's project file and publish for its target runtime:
+
+```sh
+dotnet publish QuickStart/QuickStart.csproj -c Release -r win-x64 -p:PublishAot=true
+```
+
+Publish on the target operating system, using `linux-x64` or `osx-arm64` as appropriate. The .NET SDK and the platform's [NativeAOT build prerequisites](https://learn.microsoft.com/dotnet/core/deploying/native-aot/#prerequisites) are required. Use SDK 10.0.400 or later for compatibility with the analyzers included in the current dependencies.
+
+The dedicated `AotSmokeTest` project roots the whole SimplePrompt assembly for analysis, treats trimming and AOT compiler warnings as errors, and exercises queued input, Unicode editing, multiline input, hooks, cancellation, and output redirection in the native executable:
+
+```sh
+dotnet publish AotSmokeTest/AotSmokeTest.csproj -c Release -r win-x64 -o artifacts/aot
+./artifacts/aot/AotSmokeTest.exe
+```
+
+On Unix, also run `python3 AotSmokeTest/terminal_test.py artifacts/aot/AotSmokeTest` to verify actual terminal input, native interop, terminfo loading, and output redirection through a pseudo-terminal. CI includes Windows, Linux, and macOS NativeAOT jobs. Unix input uses .NET's `System.Native` console functions, so this check also detects changes in that runtime dependency.
 
 
 
