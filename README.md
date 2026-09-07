@@ -28,6 +28,8 @@ A .NET console library for editable prompts, multiline input, and output above a
 - [SimpleConsole Members](#simpleconsole-members)
 - [NativeAOT](#nativeaot)
 - [Testing and Coverage](#testing-and-coverage)
+- [Performance](#performance)
+- [Repository Projects](#repository-projects)
 
 ## Requirements
 
@@ -130,7 +132,7 @@ These defaults apply to `new ReadLineOptions()`:
 | `KeyInputHook` | `null` | Per-read key interception. See [Input Hooks](#input-hooks). |
 | `TextInputHook` | `null` | Submission validation or transformation. See [Input Hooks](#input-hooks). |
 
-`MaxInputLength` excludes prompts, counts a surrogate pair as two code units, and counts each separator between input lines as one. This also applies to continuation lines whose separators are removed from the final result. Text returned by `TextInputHook` is not subject to this limit.
+`MaxInputLength` excludes prompts, counts a surrogate pair as two code units, and counts each separator between input lines as one. Excess input is truncated without splitting a surrogate pair; nonpositive limits accept no characters. This also applies to continuation lines whose separators are removed from the final result. Text returned by `TextInputHook` is not subject to this limit.
 
 | Preset | Settings |
 | --- | --- |
@@ -165,6 +167,8 @@ Console.Out.WriteLine("Output through Console.Out works too.");
 ```
 
 During a pending read, a nonempty `Write()` also ends the output line before redrawing the prompt. Without a pending read, `Write()` does not append a newline. Numeric overloads use the underlying writer's format provider.
+
+`WriteLine()` always appends a newline, including when its argument already ends in `\n`. Calling `Write("text")` followed by `WriteLine()` preserves the text. `Console.Out` also accepts `StringBuilder` and formatted objects.
 
 Omit the color argument to leave the output color unchanged. `EnableColor = false` suppresses SimplePrompt-generated color sequences, but does not strip caller-supplied ANSI sequences or disable cursor control. Direct writes to `UnderlyingTextWriter` bypass prompt redrawing and cursor tracking.
 
@@ -287,7 +291,7 @@ var result = await simpleConsole.ReadLine(
     ReadLineOptions.SingleLine with { CancelOnEscape = true }, cts.Token);
 ```
 
-Optionally assign an `Arc.Threading.ExecutionGroup` to `ExecutionGroup` to control the worker's lifetime. Terminating that group stops input polling and completes pending reads with `InputResultKind.Terminated`. This is permanent shutdown: assigning another group does not restart the worker. With no group assigned, the worker runs until process exit.
+Optionally assign an `Arc.Threading.ExecutionGroup` to `ExecutionGroup` to control the worker's lifetime. Termination is observed on the next input poll, normally within 10 milliseconds. It stops input polling and completes pending reads with `InputResultKind.Terminated`. This is permanent shutdown: subsequent reads also return `Terminated`, even if the group is replaced or cleared. With no group assigned, the worker runs until process exit.
 
 ### Screen and Cursor
 
@@ -351,3 +355,33 @@ dotnet coverage collect -s xUnitTest/coverage.config.xml -f cobertura -o artifac
 ```
 
 The [coverage configuration](xUnitTest/coverage.config.xml) measures the SimplePrompt library. CI uploads the Cobertura report as the `code-coverage` artifact. Use the report's line and branch results to identify untested paths; the NativeAOT and pseudo-terminal checks above cover additional runtime integration.
+
+Console tests share a serialized fixture because the singleton replaces process-wide streams. Regression tests cover wrapped prompts, exact row boundaries, wide-character insertion, surrogate pairs, multiline resets, output formatting, and input validation. Allocation tests check warmed-up validation and submission paths. Windows coverage cannot exercise Unix stdin, signals, or pseudo-terminal I/O; use the platform-specific CI jobs for those paths.
+
+## Performance
+
+The input worker reuses one timer, including when an execution group is assigned. Input lines and rows are pooled. Row lookup uses binary search, short cursor sequences use stack buffers, and completed input is copied directly into its result string. Clearing multiline input removes lines from the end to avoid repeated list shifts.
+
+Queued text is inserted directly from its source span, avoiding staging copies and repeated layout passes. Rendering buffers are pooled and sized for the operation.
+
+Yes/no validation uses spans without temporary strings. Numeric and supported object output use span formatting; `StringBuilder` output uses stack or pooled buffers. Custom formatters that exceed the buffer fall back to their string representation. A read still allocates its options snapshot, completion task, and result; cold pools and large input may allocate additional storage.
+
+Run the allocation and throughput benchmarks with a null output sink:
+
+```sh
+dotnet run --project Benchmark/Benchmark.csproj -c Release -- --filter '*HotPathBenchmark*'
+```
+
+These benchmarks exclude terminal rendering and the input polling delay. They measure yes/no validation, single-line submission, `StringBuilder` output, and an already boxed number. Measure real terminal workloads separately before drawing end-to-end latency conclusions.
+
+## Repository Projects
+
+| Project | Purpose |
+| --- | --- |
+| `SimplePrompt` | Library and XML API documentation. |
+| `QuickStart` | Interactive getting-started example. |
+| `Playground` / `Test` | Manual input, prompt, and integration experiments. |
+| `DelayTest` | Manual console timing experiments. |
+| `xUnitTest` | Automated tests and library coverage configuration. |
+| `AotSmokeTest` | NativeAOT, shutdown, and Unix terminal integration checks. |
+| `Benchmark` | Cursor access, output, and input allocation benchmarks. |

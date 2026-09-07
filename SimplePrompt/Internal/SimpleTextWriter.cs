@@ -1,5 +1,6 @@
 ﻿// Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
+using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
@@ -124,14 +125,7 @@ internal sealed class SimpleTextWriter : TextWriter
     {
         if (value is not null)
         {
-            if (value is IFormattable formattable)
-            {
-                this.SimpleConsole.Write(formattable.ToString(default, this.FormatProvider));
-            }
-            else
-            {
-                this.SimpleConsole.Write(value.ToString());
-            }
+            this.WriteObject(value, false);
         }
     }
 
@@ -143,14 +137,7 @@ internal sealed class SimpleTextWriter : TextWriter
         }
         else
         {
-            if (value is IFormattable formattable)
-            {
-                this.SimpleConsole.WriteLine(formattable.ToString(default, this.FormatProvider));
-            }
-            else
-            {
-                this.SimpleConsole.WriteLine(value.ToString());
-            }
+            this.WriteObject(value, true);
         }
     }
 
@@ -164,13 +151,20 @@ internal sealed class SimpleTextWriter : TextWriter
     {
         if (value is not null)
         {
-            this.SimpleConsole.Write(value.ToString());
+            this.WriteBuilder(value, false);
         }
     }
 
     public override void WriteLine(StringBuilder? value)
     {
-        this.SimpleConsole.WriteLine(value?.ToString());
+        if (value is null)
+        {
+            this.SimpleConsole.WriteLine();
+        }
+        else
+        {
+            this.WriteBuilder(value, true);
+        }
     }
 
     public override void WriteLine()
@@ -178,4 +172,42 @@ internal sealed class SimpleTextWriter : TextWriter
 
     public override void Flush()
         => this.UnderlyingTextWriter.Flush();
+
+    private void WriteObject(object value, bool newLine)
+    {
+        if (value is ISpanFormattable spanFormattable)
+        {
+            Span<char> buffer = stackalloc char[128];
+            if (spanFormattable.TryFormat(buffer, out var written, default, this.FormatProvider))
+            {
+                this.SimpleConsole.WriteSpan(buffer.Slice(0, written), newLine);
+                return;
+            }
+        }
+
+        var text = value is IFormattable formattable
+            ? formattable.ToString(default, this.FormatProvider)
+            : value.ToString();
+        this.SimpleConsole.WriteSpan(text, newLine);
+    }
+
+    private void WriteBuilder(StringBuilder value, bool newLine)
+    {
+        char[]? rented = null;
+        Span<char> buffer = value.Length <= 256
+            ? stackalloc char[256]
+            : rented = ArrayPool<char>.Shared.Rent(value.Length);
+        try
+        {
+            value.CopyTo(0, buffer, value.Length);
+            this.SimpleConsole.WriteSpan(buffer.Slice(0, value.Length), newLine);
+        }
+        finally
+        {
+            if (rented is not null)
+            {
+                ArrayPool<char>.Shared.Return(rented);
+            }
+        }
+    }
 }

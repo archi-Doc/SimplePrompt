@@ -102,7 +102,7 @@ internal sealed class SimpleTextLine
 
     internal ReadOnlySpan<char> InputSpan => this.charArray.AsSpan(this.PromptLength, this.InputLength);
 
-    public bool ProcessInternal(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
+    public bool ProcessInternal(ConsoleKeyInfo keyInfo, ReadOnlySpan<char> charBuffer)
     {
         if (charBuffer.Length > 0)
         {
@@ -205,11 +205,21 @@ internal sealed class SimpleTextLine
             return true;
         }
 
-        for (var i = 0; i < this.Rows.Count - 1; i++)
+        var low = 0;
+        var high = this.Rows.Count - 2;
+        while (low <= high)
         {
+            var i = low + ((high - low) / 2);
             row = this.Rows[i];
-            if (arrayPosition >= row.Start &&
-                arrayPosition < row.End)
+            if (arrayPosition < row.Start)
+            {
+                high = i - 1;
+            }
+            else if (arrayPosition >= row.End)
+            {
+                low = i + 1;
+            }
+            else
             {
                 return true;
             }
@@ -345,15 +355,10 @@ internal sealed class SimpleTextLine
             return (this.InitialCursorPosition, this.Top + this.InitialRowIndex, this.InitialRowIndex);
         }
 
-        for (var i = 0; i < this.Rows.Count; i++)
+        if (this.TryGetRowFromArrayPosition(arrayIndex, out var row))
         {
-            var row = this.Rows[i];
-            if (row.Start <= arrayIndex &&
-                arrayIndex < row.End)
-            {
-                var left = (int)BaseHelper.Sum(this.WidthArray.AsSpan(row.Start, arrayIndex - row.Start));
-                return (left, this.Top + i, i);
-            }
+            var left = row.ArrayPositionToCursorPosition(arrayIndex);
+            return (left, row.Top, row.Index);
         }
 
         return this.GetEndCursor();
@@ -473,16 +478,17 @@ internal sealed class SimpleTextLine
         this._inputLength = inputWidth;
         this.Write(this.PromptLength, this.TotalLength, false, 0);
 
-        if (this.Rows.Count > 1)
+        var previousHeight = this.Height;
+        this.Clear();
+        if (this.Height != previousHeight)
         {
-            this.ReadLineInstance.HeightChanged(this, 1 - this.Rows.Count);
+            this.ReadLineInstance.HeightChanged(this, this.Height - previousHeight);
         }
 
-        this.Clear();
         this.ReadLineInstance.CurrentLocation.Reset(this, CursorOperation.ForceSet);
     }
 
-    private void ProcessCharBuffer(Span<char> charBuffer)
+    private void ProcessCharBuffer(ReadOnlySpan<char> charBuffer)
     {
         var remaining = this.ReadLineInstance.GetRemainingLength();
         if (charBuffer.Length > remaining)
@@ -539,7 +545,7 @@ internal sealed class SimpleTextLine
         }
 
         this.Write(position, this.TotalLength, false, 0);
-        this.ReadLineInstance.CurrentLocation.Advance(charBuffer.Length, width);
+        this.ReadLineInstance.CurrentLocation.Advance(charBuffer.Length);
         this.ReadLineInstance.CurrentLocation.LocationToCursor();
     }
 

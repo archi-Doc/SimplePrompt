@@ -1,6 +1,7 @@
 // Copyright (c) All contributors. All rights reserved. Licensed under the MIT license.
 
 using System.Runtime.CompilerServices;
+using Arc.Threading;
 using Arc.Unit;
 using SimplePrompt;
 using SimplePrompt.Internal;
@@ -83,6 +84,15 @@ else
     Check(text.Contains("AOT-OUTPUT 日本語😀", StringComparison.Ordinal), "Console.Out redirection failed.");
     Check(!text.Contains("\e[33m", StringComparison.Ordinal), "Disabled colors were emitted.");
 }
+
+// Shutdown must stay permanent even after the caller replaces the execution group.
+var shutdownGroup = new ExecutionRoot();
+console.ExecutionGroup = shutdownGroup;
+var pendingShutdown = console.ReadLine();
+shutdownGroup.RequestTermination();
+Check((await Read(pendingShutdown)).IsTerminated, "Shutdown did not complete the pending read.");
+console.ExecutionGroup = null;
+Check((await Read(console.ReadLine())).IsTerminated, "A stopped worker accepted a read that cannot complete.");
 
 originalOutput.WriteLine("NativeAOT smoke test passed.");
 

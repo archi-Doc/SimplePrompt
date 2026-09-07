@@ -37,10 +37,13 @@ public record class ReadLineOptions
         MaxInputLength = 3,
         MultilineDelimiter = default,
         CancelOnEscape = false,
-        TextInputHook = text =>
+        TextInputHook = static text =>
         {
-            var st = text.Trim().ToLowerInvariant();
-            if (st == "y" || st == "yes" || st == "n" || st == "no")
+            var st = text.AsSpan().Trim();
+            if (st.Equals("y", StringComparison.OrdinalIgnoreCase) ||
+                st.Equals("yes", StringComparison.OrdinalIgnoreCase) ||
+                st.Equals("n", StringComparison.OrdinalIgnoreCase) ||
+                st.Equals("no", StringComparison.OrdinalIgnoreCase))
             {
                 return text;
             }
@@ -59,7 +62,8 @@ public record class ReadLineOptions
     /// </summary>
     /// <remarks>
     /// Counts each separator between input lines as one code unit, including in continuation mode.
-    /// Excess input is discarded. Prompts and text produced by <see cref="TextInputHook"/> are not counted.
+    /// Excess input is discarded without splitting a surrogate pair. Nonpositive limits accept no characters.
+    /// Prompts and text produced by <see cref="TextInputHook"/> are not counted.
     /// </remarks>
     public int MaxInputLength { get; init; } = 1024 * 64;
 

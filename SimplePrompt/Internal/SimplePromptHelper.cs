@@ -14,7 +14,7 @@ internal static class SimplePromptHelper
     public static readonly ConsoleKeyInfo EnterKeyInfo = new(default, ConsoleKey.Enter, false, false, false);
 
     /// <summary>
-    /// The maximum number of characters required by the row/column part of a set-cursor sequence ("999999;999999H").
+    /// The maximum formatted length of two signed 32-bit coordinates, a separator, and a terminator.
     /// </summary>
     private const int MaxSetCursorPositionLength = 24;
 

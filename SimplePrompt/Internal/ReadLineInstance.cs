@@ -62,7 +62,7 @@ internal sealed class ReadLineInstance
     public int FirstInputIndex { get; private set; }
 
     private SimpleConsole simpleConsole;
-    private ReadLineOptions options = new();
+    private ReadLineOptions options = ReadLineOptions.SingleLine;
 
     #endregion
 
@@ -101,15 +101,9 @@ internal sealed class ReadLineInstance
     {
         foreach (var x in this.LineList)
         {
-            if (x.IsInput)
+            if (x.IsInput && x.InputLength > 0)
             {
-                foreach (var y in x.Rows)
-                {
-                    if (y.IsInput && y.InputStart < y.End)
-                    {// Not empty
-                        return false;
-                    }
-                }
+                return false;
             }
         }
 
@@ -117,7 +111,7 @@ internal sealed class ReadLineInstance
         return true;
     }
 
-    public string? ProcessInput(ConsoleKeyInfo keyInfo, Span<char> charBuffer)
+    public string? ProcessInput(ConsoleKeyInfo keyInfo, ReadOnlySpan<char> charBuffer)
     {
         if (this.CurrentLocation.LineIndex >= this.LineList.Count)
         {
@@ -206,12 +200,13 @@ internal sealed class ReadLineInstance
                     }
                 }
 
-                result = string.Create(length, this.LineList, (span, lines) =>
+                result = string.Create(length, this, static (span, instance) =>
                 {
-                    for (var i = this.FirstInputIndex; i < lines.Count; i++)
+                    var lines = instance.LineList;
+                    for (var i = instance.FirstInputIndex; i < lines.Count; i++)
                     {
                         var inputSpan = lines[i].InputSpan;
-                        if (i != (lines.Count - 1) && inputSpan.Length > 0 && inputSpan[^1] == this.Options.LineContinuationCharacter)
+                        if (i != (lines.Count - 1) && inputSpan.Length > 0 && inputSpan[^1] == instance.Options.LineContinuationCharacter)
                         {
                             inputSpan = inputSpan.Slice(0, inputSpan.Length - 1);
                         }
@@ -222,17 +217,23 @@ internal sealed class ReadLineInstance
                 });
             }
             else
-            {// """ABC""" -> ABC
+            {// Preserve delimiters and join logical input lines with LF.
+                if (this.LineList.Count == this.FirstInputIndex + 1)
+                {
+                    return this.LineList[this.FirstInputIndex].InputSpan.ToString();
+                }
+
                 var length = this.LineList[this.FirstInputIndex].InputLength;
                 for (var i = this.FirstInputIndex + 1; i < this.LineList.Count; i++)
                 {
                     length += 1 + this.LineList[i].InputLength;
                 }
 
-                result = string.Create(length, this.LineList, (span, lines) =>
+                result = string.Create(length, this, static (span, instance) =>
                 {
+                    var lines = instance.LineList;
                     var isFirst = true;
-                    for (var i = this.FirstInputIndex; i < lines.Count; i++)
+                    for (var i = instance.FirstInputIndex; i < lines.Count; i++)
                     {
                         if (!isFirst)
                         {
@@ -405,12 +406,10 @@ internal sealed class ReadLineInstance
     public void Reset()
     {
         this.Mode = default;
-        var indexToRemove = this.FirstInputIndex + 1;
-        var numberToRemove = this.LineList.Count - indexToRemove;
-        while (numberToRemove-- > 0)
+        for (var i = this.LineList.Count - 1; i > this.FirstInputIndex; i--)
         {
-            var listToRemove = this.LineList[indexToRemove];
-            this.LineList.RemoveAt(indexToRemove);
+            var listToRemove = this.LineList[i];
+            this.LineList.RemoveAt(i);
             SimpleTextLine.Return(listToRemove);
         }
 
@@ -623,13 +622,12 @@ internal sealed class ReadLineInstance
 
     private void ClearLine(int top)
     {
-        var windowBuffer = SimpleConsole.RentWindowBuffer();
-        var buffer = windowBuffer.AsSpan();
+        Span<char> windowBuffer = stackalloc char[64];
+        var buffer = windowBuffer;
 
         SimplePromptHelper.TryCopySetCursor(ref buffer, 0, top);
         SimplePromptHelper.TryCopy(ConsoleHelper.EraseEntireLineSpan, ref buffer);
 
-        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - buffer.Length));
-        SimpleConsole.ReturnWindowBuffer(windowBuffer);
+        this.RawConsole.WriteInternal(windowBuffer.Slice(0, windowBuffer.Length - buffer.Length));
     }
 }

@@ -28,6 +28,7 @@ public class Program
         var switcher = new BenchmarkSwitcher(
         [
             typeof(ConsoleBenchmark),
+            typeof(HotPathBenchmark),
         ]);
 
         switcher.Run(args);

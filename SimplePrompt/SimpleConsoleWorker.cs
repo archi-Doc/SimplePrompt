@@ -8,6 +8,9 @@ namespace SimplePrompt;
 internal sealed class SimpleConsoleWorker
 {
     private static readonly TimeSpan IntervalTimeSpan = TimeSpan.FromMilliseconds(10);
+    private volatile bool isTerminated;
+
+    public bool IsTerminated => this.isTerminated;
 
     public SimpleConsoleWorker(SimpleConsole simpleConsole)
     {
@@ -17,14 +20,9 @@ internal sealed class SimpleConsoleWorker
             using var timer = new PeriodicTimer(IntervalTimeSpan);
             while (true)
             {
-                if (simpleConsole.ExecutionGroup is { } group)
-                {
-                    if (await group.Delay(IntervalTimeSpan).ConfigureAwait(false) != true)
-                    {
-                        break;
-                    }
-                }
-                else if (!await timer.WaitForNextTickAsync().ConfigureAwait(false))
+                var group = simpleConsole.ExecutionGroup;
+                if (!await timer.WaitForNextTickAsync().ConfigureAwait(false) ||
+                    group?.IsTerminated == true || simpleConsole.ExecutionGroup?.IsTerminated == true)
                 {
                     break;
                 }
@@ -38,6 +36,7 @@ internal sealed class SimpleConsoleWorker
                 }
             }
 
+            this.isTerminated = true;
             simpleConsole.Abort();
         });
     }

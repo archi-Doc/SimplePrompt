@@ -191,7 +191,6 @@ internal sealed class RawConsole
             '-' => ConsoleKey.Subtract,
             '+' => ConsoleKey.Add,
             '=' => default,
-            '!' or '@' or '#' or '$' or '%' or '^' or '&' or '&' or '*' or '(' or ')' => default,
             ',' => ConsoleKey.OemComma,
             '.' => ConsoleKey.OemPeriod,
             _ when char.IsAsciiLetterLower(single) => ConsoleKey.A + single - 'a',

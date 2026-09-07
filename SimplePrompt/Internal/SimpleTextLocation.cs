@@ -287,28 +287,14 @@ internal sealed class SimpleTextLocation
         this.LocationToCursor(row);
     }
 
-    public void Advance(int lengthDiff, int widthDiff)
+    public void Advance(int lengthDiff)
     {
         this.ArrayPosition += lengthDiff;
-        this.CursorPosition += widthDiff;
-
-        if (this.CursorPosition >= this.simpleConsole._windowWidth)
+        var line = this.readLineInstance.LineList[this.LineIndex];
+        if (line.TryGetRowFromArrayPosition(this.ArrayPosition, out var row))
         {
-            var line = this.readLineInstance.LineList[this.LineIndex];
-            do
-            {
-                var row = line.Rows[this.RowIndex];
-                if (this.RowIndex >= (line.Rows.Count - 1))
-                {
-                    this.ArrayPosition = row.End;
-                    this.CursorPosition = row.Width;
-                    break;
-                }
-
-                this.CursorPosition -= row.Width;
-                this.RowIndex++;
-            }
-            while (this.CursorPosition > this.simpleConsole._windowWidth);
+            this.RowIndex = row.Index;
+            this.CursorPosition = row.ArrayPositionToCursorPosition(this.ArrayPosition);
         }
     }
 

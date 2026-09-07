@@ -35,6 +35,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="xUnitTest" />
     <InternalsVisibleTo Include="AotSmokeTest" />
+    <InternalsVisibleTo Include="Benchmark" />
   </ItemGroup>
 
 </Project>
