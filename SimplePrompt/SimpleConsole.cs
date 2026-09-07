@@ -21,6 +21,7 @@ namespace SimplePrompt;
 /// <remarks>
 /// While a read is pending, nonempty Write calls also end the output line before redrawing the prompt.
 /// Numeric output uses <see cref="UnderlyingTextWriter"/>'s format provider.
+/// WriteLine appends a newline even when the message already ends with one.
 /// </remarks>
 public partial class SimpleConsole : IConsoleService // , IDisposable
 {
@@ -30,6 +31,9 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     private const int MinimumWindowWidth = 30;
     private const int MinimumWindowHeight = 10;
     private const long AdjustWindowIntervalInMilliseconds = 100;
+
+    private static readonly Task<InputResult> CanceledReadTask = Task.FromResult(new InputResult(InputResultKind.Canceled));
+    private static readonly Task<InputResult> TerminatedReadTask = Task.FromResult(new InputResult(InputResultKind.Terminated));
 
     private static readonly Lazy<SimpleConsole> LazyInstance = new(
         static () =>
@@ -60,7 +64,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         => (this.EnableColor && color != ConsoleHelper.DefaultColor) ? ConsoleHelper.GetForegroundColorEscapeCode(color) : default;
 
     internal static char[] RentWindowBuffer(int minimumLength = WindowBufferSize)
-        => ArrayPool<char>.Shared.Rent(Math.Max(WindowBufferSize, minimumLength));
+        => ArrayPool<char>.Shared.Rent(Math.Max(256, minimumLength));
 
     internal static void ReturnWindowBuffer(char[] buffer)
         => ArrayPool<char>.Shared.Return(buffer);
@@ -72,7 +76,8 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// </summary>
     /// <remarks>
     /// Defaults to null, which leaves the worker running until process exit.
-    /// Group termination stops the worker permanently and completes pending reads with <see cref="InputResultKind.Terminated"/>.
+    /// Group termination stops the worker permanently; pending and subsequent reads return <see cref="InputResultKind.Terminated"/>.
+    /// Termination is observed on the next input poll, normally within 10 milliseconds.
     /// </remarks>
     public ExecutionGroup? ExecutionGroup { get; set; }
 
@@ -224,14 +229,14 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         {
             // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
             this.PrepareWindow();
-            if (this.ExecutionGroup?.IsTerminated == true)
+            if (this.worker.IsTerminated || this.ExecutionGroup?.IsTerminated == true)
             {
-                return Task.FromResult(new InputResult(InputResultKind.Terminated));
+                return TerminatedReadTask;
             }
 
             if (cancellationToken.IsCancellationRequested)
             {
-                return Task.FromResult(new InputResult(InputResultKind.Canceled));
+                return CanceledReadTask;
             }
 
             foreach (var x in this.instanceList)
@@ -678,43 +683,16 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                     currentInstance.IsEmptyInput() &&
                     this.concurrentTextQueue.TryDequeue(out var queuedMessage))
                 {
-                    var queuedSpan = queuedMessage.AsSpan();
-                    do
+                    var result = currentInstance.ProcessInput(SimplePromptHelper.EnterKeyInfo, queuedMessage.AsSpan());
+                    if (result is not null)
                     {
-                        var length = Math.Min(queuedSpan.Length, currentInstance.CharBuffer.Length);
-                        if (length < queuedSpan.Length && char.IsHighSurrogate(queuedSpan[length - 1]) && char.IsLowSurrogate(queuedSpan[length]))
+                        result = ProcessTextInputHook(result);
+                        if (result is not null)
                         {
-                            length--;
-                        }
-
-                        var charSpan = currentInstance.CharBuffer.AsSpan(0, length);
-                        queuedSpan.Slice(0, length).CopyTo(charSpan);
-                        queuedSpan = queuedSpan.Slice(length);
-
-                        if (queuedSpan.Length == 0)
-                        {
-                            var result = currentInstance.ProcessInput(SimplePromptHelper.EnterKeyInfo, charSpan);
-                            if (result is not null)
-                            {
-                                result = ProcessTextInputHook(result);
-                                if (result is null)
-                                {// Rejected
-                                    break;
-                                }
-                            }
-
-                            if (result is not null)
-                            {
-                                inputResult = new(result);
-                                goto CompleteInstance;
-                            }
-                        }
-                        else
-                        {
-                            currentInstance.ProcessInput(default, charSpan);
+                            inputResult = new(result);
+                            goto CompleteInstance;
                         }
                     }
-                    while (queuedSpan.Length > 0);
                 }
             }
 
@@ -842,7 +820,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
             {
                 if (currentInstance.Options.TextInputHook is { } textInputHook)
                 {
-                    var newResult = currentInstance.Options.TextInputHook(result);
+                    var newResult = textInputHook(result);
                     if (newResult is null)
                     {// Rejected by the hook delegate.
                         this.UnderlyingTextWriter.WriteLine();
@@ -998,8 +976,8 @@ Exit:
             cursorLeft = this._windowWidth - 1;
         }
 
-        var windowBuffer = SimpleConsole.RentWindowBuffer();
-        var buffer = windowBuffer.AsSpan();
+        Span<char> windowBuffer = stackalloc char[64];
+        var buffer = windowBuffer;
 
         SimplePromptHelper.TryCopySetCursor(ref buffer, cursorLeft, cursorTop);
 
@@ -1012,8 +990,7 @@ Exit:
             SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref buffer);
         }
 
-        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - buffer.Length));
-        SimpleConsole.ReturnWindowBuffer(windowBuffer);
+        this.RawConsole.WriteInternal(windowBuffer.Slice(0, windowBuffer.Length - buffer.Length));
 
         this._cursorLeft = cursorLeft;
         this._cursorTop = cursorTop;
@@ -1064,8 +1041,8 @@ Exit:
             return;
         }
 
-        var windowBuffer = SimpleConsole.RentWindowBuffer();
-        var buffer = windowBuffer.AsSpan();
+        Span<char> windowBuffer = stackalloc char[64];
+        var buffer = windowBuffer;
 
         var moveCursor = this._cursorTop != top || this._cursorLeft != 0;
         if (moveCursor)
@@ -1082,8 +1059,7 @@ Exit:
             SimplePromptHelper.TryCopy(ConsoleHelper.RestoreCursorSpan, ref buffer);
         }
 
-        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - buffer.Length));
-        SimpleConsole.ReturnWindowBuffer(windowBuffer);
+        this.RawConsole.WriteInternal(windowBuffer.Slice(0, windowBuffer.Length - buffer.Length));
     }
 
     private void AdjustWindow()
@@ -1173,17 +1149,18 @@ Exit:
             if (newLine)
             {
                 this.AdvanceCursor(default, true);
-                this.RawConsole.WriteInternal(ConsoleHelper.EraseEntireLineAndNewLineSpan);
+                this.RawConsole.WriteInternal(ConsoleHelper.EraseToEndOfLineAndNewLineSpan);
             }
 
             return;
         }
 
-        var windowBuffer = SimpleConsole.RentWindowBuffer();
+        var windowBuffer = SimpleConsole.RentWindowBuffer(Math.Min(WindowBufferSize - 32, message.Length) + 32);
         var span = windowBuffer.AsSpan();
 
         var colorSpan = this.GetColorEscapeCode(color);
         Append(colorSpan, ref span);
+        var endsWithNewLine = message[^1] == '\n';
 
         while (message.Length > 0)
         {
@@ -1214,6 +1191,12 @@ Exit:
             Append(appendNewLine ? ConsoleHelper.EraseToEndOfLineAndNewLineSpan : ConsoleHelper.EraseToEndOfLineSpan, ref span);
 
             this.AdvanceCursor(text, appendNewLine);
+        }
+
+        if (newLine && endsWithNewLine)
+        {
+            Append(ConsoleHelper.EraseToEndOfLineAndNewLineSpan, ref span);
+            this.AdvanceCursor(default, true);
         }
 
         if (colorSpan.Length > 0)

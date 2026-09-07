@@ -11,7 +11,7 @@ internal sealed class Program
 {
     public static async Task Main(string[] args)
     {
-        var simpleConsole = SimpleConsole.Instance; // Get the singleton SimplePrompt instance. Note that all Console calls (such as Console.Out) will go through SimpleConsole.
+        var simpleConsole = SimpleConsole.Instance; // Redirect Console.Out and synchronous Console.ReadLine through SimplePrompt.
         simpleConsole.DefaultOptions = new ReadLineOptions()
         {// Set the default ReadLine options.
             InputColor = ConsoleColor.Yellow,
@@ -30,7 +30,11 @@ internal sealed class Program
         {
             var result = await simpleConsole.ReadLine();
 
-            if (result.Kind == InputResultKind.Canceled)
+            if (result.Kind == InputResultKind.Terminated)
+            {
+                break;
+            }
+            else if (result.Kind == InputResultKind.Canceled)
             {// Esc pressed
                 simpleConsole.WriteLine("Canceled");
                 continue;

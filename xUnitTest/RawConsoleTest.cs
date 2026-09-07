@@ -132,8 +132,10 @@ public class RawConsoleTest(SimpleConsoleFixture fixture)
     [Theory]
     [InlineData("\e[1;2A", ConsoleModifiers.Shift)]
     [InlineData("\e[1;3A", ConsoleModifiers.Alt)]
+    [InlineData("\e[1;4A", ConsoleModifiers.Shift | ConsoleModifiers.Alt)]
     [InlineData("\e[1;5A", ConsoleModifiers.Control)]
     [InlineData("\e[1;6A", ConsoleModifiers.Shift | ConsoleModifiers.Control)]
+    [InlineData("\e[1;7A", ConsoleModifiers.Alt | ConsoleModifiers.Control)]
     [InlineData("\e[1;8A", ConsoleModifiers.Shift | ConsoleModifiers.Alt | ConsoleModifiers.Control)]
     public void ModifiedSequences(string input, ConsoleModifiers expected)
     {
@@ -211,6 +213,66 @@ public class RawConsoleTest(SimpleConsoleFixture fixture)
     {
         var keys = this.Decode(input);
         Assert.Equal(input, new string(keys.Select(key => key.KeyChar).ToArray()));
+    }
+
+    [Theory]
+    [InlineData("\e[[A", ConsoleKey.F1)]
+    [InlineData("\e[[E", ConsoleKey.F5)]
+    [InlineData("\e[25~", ConsoleKey.F13)]
+    [InlineData("\e[26~", ConsoleKey.F14)]
+    [InlineData("\e[28~", ConsoleKey.F15)]
+    [InlineData("\e[29~", ConsoleKey.F16)]
+    [InlineData("\e[31~", ConsoleKey.F17)]
+    [InlineData("\e[32~", ConsoleKey.F18)]
+    [InlineData("\e[33~", ConsoleKey.F19)]
+    [InlineData("\e[34~", ConsoleKey.F20)]
+    public void ExtendedFunctionKeysLeaveFollowingTextIntact(string input, ConsoleKey expected)
+    {
+        var keys = this.Decode(input + "x");
+        Assert.Equal(2, keys.Count);
+        Assert.Equal(expected, keys[0].Key);
+        Assert.Equal('x', keys[1].KeyChar);
+    }
+
+    [Theory]
+    [InlineData("\eOM", ConsoleKey.Enter, '\r')]
+    [InlineData("\eOj", ConsoleKey.Multiply, '*')]
+    [InlineData("\eOk", ConsoleKey.Add, '+')]
+    [InlineData("\eOm", ConsoleKey.Subtract, '-')]
+    [InlineData("\eOo", ConsoleKey.Divide, '/')]
+    public void ApplicationKeypadPreservesCharacter(string input, ConsoleKey key, char character)
+    {
+        var decoded = Assert.Single(this.Decode(input));
+        Assert.Equal(key, decoded.Key);
+        Assert.Equal(character, decoded.KeyChar);
+    }
+
+    [Theory]
+    [InlineData("\e\e[A", ConsoleModifiers.Alt)]
+    [InlineData("\e\e[1;5A", ConsoleModifiers.Alt | ConsoleModifiers.Control)]
+    [InlineData("\e[1$", ConsoleModifiers.Shift)]
+    [InlineData("\e[1^", ConsoleModifiers.Control)]
+    [InlineData("\e[1@", ConsoleModifiers.Shift | ConsoleModifiers.Control)]
+    public void AltAndRxvtModifiers(string input, ConsoleModifiers modifiers)
+    {
+        var key = Assert.Single(this.Decode(input));
+        Assert.Equal(input.StartsWith("\e\e", StringComparison.Ordinal) ? ConsoleKey.UpArrow : ConsoleKey.Home, key.Key);
+        Assert.Equal(modifiers, key.Modifiers);
+    }
+
+    [Theory]
+    [InlineData("\e[")]
+    [InlineData("\e[99~")]
+    [InlineData("\e[1;9A")]
+    [InlineData("\e[1;5?")]
+    [InlineData("\e[1;")]
+    [InlineData("\e[0~")]
+    [InlineData("\eO?")]
+    public void MalformedSequencesPreserveCharactersAndRecover(string input)
+    {
+        var keys = this.Decode(input + "\e[A");
+        Assert.Equal(ConsoleKey.UpArrow, keys[^1].Key);
+        Assert.Equal(input, new string(keys.Take(keys.Count - 1).Select(key => key.KeyChar).ToArray()));
     }
 
     private List<ConsoleKeyInfo> Decode(string input)
