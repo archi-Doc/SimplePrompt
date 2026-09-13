@@ -473,7 +473,7 @@ internal sealed class ReadLineInstance
 
             if (colorSpan.Length > 0)
             {
-                SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
+                SimplePromptHelper.TryCopy(ConsoleHelper.ResetAttributesSpan, ref span); // Reset color
             }
 
             if (line.EndsWithEmptyRow)

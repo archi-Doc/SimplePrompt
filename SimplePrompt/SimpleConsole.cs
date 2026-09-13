@@ -329,7 +329,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.concurrentKeyQueue.Enqueue(keyInfo);
     }
 
-    Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
+    Task<InputResult> IConsoleService.ReadLineAsync(CancellationToken cancellationToken)
         => this.ReadLine(default, cancellationToken);
 
     #region Write
@@ -1201,7 +1201,7 @@ Exit:
 
         if (colorSpan.Length > 0)
         {
-            Append(ConsoleHelper.ResetSpan, ref span);
+            Append(ConsoleHelper.ResetAttributesSpan, ref span);
         }
 
         this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));

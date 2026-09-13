@@ -297,7 +297,7 @@ internal sealed class SimpleTextLine
         // Reset color
         if (colorSpan.Length > 0)
         {
-            SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref buffer);
+            SimplePromptHelper.TryCopy(ConsoleHelper.ResetAttributesSpan, ref buffer);
         }
 
         if (removedWidth > 0 && removedWidth <= buffer.Length)

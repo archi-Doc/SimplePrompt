@@ -387,7 +387,7 @@ public class WriteTest(SimpleConsoleFixture fixture)
     {
         await fixture.WaitForIdle();
         IConsoleService service = fixture.Console;
-        var task = service.ReadLine(TestContext.Current.CancellationToken);
+        var task = service.ReadLineAsync(TestContext.Current.CancellationToken);
         fixture.Type("service");
         fixture.Key(ConsoleKey.Enter);
         Assert.Equal("service", (await fixture.WaitResult(task)).Text);

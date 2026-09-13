@@ -138,15 +138,15 @@ internal static class SimplePromptHelper
     /// <returns><see langword="true"/> if the sequence was written; otherwise, <see langword="false"/>.</returns>
     public static bool TryCopySetCursor(ref Span<char> destination, int left, int top)
     {
-        // ConsoleHelper.SetCursorSpan + "{top + 1};{left + 1}H"
-        if (destination.Length < (ConsoleHelper.SetCursorSpan.Length + MaxSetCursorPositionLength))
+        // ConsoleHelper.CursorPositionPrefixSpan + "{top + 1};{left + 1}H"
+        if (destination.Length < (ConsoleHelper.CursorPositionPrefixSpan.Length + MaxSetCursorPositionLength))
         {
             return false;
         }
 
         var buffer = destination;
-        ConsoleHelper.SetCursorSpan.CopyTo(buffer);
-        buffer = buffer.Slice(ConsoleHelper.SetCursorSpan.Length);
+        ConsoleHelper.CursorPositionPrefixSpan.CopyTo(buffer);
+        buffer = buffer.Slice(ConsoleHelper.CursorPositionPrefixSpan.Length);
 
         (top + 1).TryFormat(buffer, out var written, default, CultureInfo.InvariantCulture);
         buffer = buffer.Slice(written);

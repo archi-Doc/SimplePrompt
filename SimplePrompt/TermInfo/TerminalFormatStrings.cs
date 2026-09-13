@@ -92,7 +92,7 @@ internal sealed class TerminalFormatStrings
         string? keyFormat = db.GetString(keyId);
         if (!string.IsNullOrEmpty(keyFormat))
         {
-            this.KeyFormatToConsoleKey.Add(keyFormat, new ConsoleKeyInfo(key == ConsoleKey.Enter ? '\r' : '\0', key, shift, alt, control));
+            this.KeyFormatToConsoleKey.AddOrUpdate(keyFormat, new ConsoleKeyInfo(key == ConsoleKey.Enter ? '\r' : '\0', key, shift, alt, control));
         }
     }
 
@@ -114,7 +114,7 @@ internal sealed class TerminalFormatStrings
         string? keyFormat = db.GetExtendedString(extendedName);
         if (!string.IsNullOrEmpty(keyFormat))
         {
-            this.KeyFormatToConsoleKey.Add(keyFormat, new ConsoleKeyInfo('\0', key, shift, alt, control));
+            this.KeyFormatToConsoleKey.AddOrUpdate(keyFormat, new ConsoleKeyInfo('\0', key, shift, alt, control));
         }
     }
 }

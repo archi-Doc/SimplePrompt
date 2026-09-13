@@ -65,7 +65,7 @@ internal sealed class Program
             }
             else
             {// Echo the input
-                var text = BaseHelper.RemoveCrLf(result.Text);
+                var text = BaseHelper.RemoveCrAndLfChars(result.Text);
                 simpleConsole.WriteLine($"Command: {text}");
             }
         }

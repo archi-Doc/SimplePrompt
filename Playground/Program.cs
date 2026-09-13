@@ -58,10 +58,10 @@ internal sealed class Program
 
     public static async Task Main(string[] args)
     {
-        AppCloseHandler.Set(() =>
+        AppCloseHandler.Register(() =>
         {// Closing the console window or terminating the process.
             root?.RequestTermination(); // Send a termination signal to the root.
-            root?.WaitForTermination(TimeSpan.FromSeconds(2)).Wait();
+            root?.WaitForTerminationAsync(TimeSpan.FromSeconds(2)).Wait();
         });
 
         Console.CancelKeyPress += (s, e) =>
@@ -73,25 +73,25 @@ internal sealed class Program
         var builder = new UnitBuilder()
             .Configure(context =>
             {
-                context.AddLoggerResolver(x =>
+                context.AddLogOutputResolver(x =>
                 {
-                    x.SetOutput<FileLogger<FileLoggerOptions>>();
+                    x.SetOutput<FileLogOutput<FileLogOutputOptions>>();
                     return;
                 });
             })
             .PostConfigure(context =>
             {
                 var logfile = "Logs/Log.txt";
-                context.SetOptions(context.GetOptions<FileLoggerOptions>() with
+                context.SetOptions(context.GetOrCreateOptions<FileLogOutputOptions>() with
                 {
-                    Path = Path.Combine(context.ProgramDirectory, logfile),
-                    MaxLogCapacity = 1,
+                    FilePath = Path.Combine(context.ProgramDirectory, logfile),
+                    MaxLogCapacityInMegabytes = 1,
                 });
             });
 
         var unit = builder.Build();
         root = unit.Context.ExecutionRoot;
-        var logger = unit.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
+        var logger = unit.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLogSource>>();
         logger.GetWriter()?.Write("Start");
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
@@ -246,7 +246,7 @@ internal sealed class Program
                 }
                 else
                 {
-                    var text = BaseHelper.RemoveCrLf(result.Text);
+                    var text = BaseHelper.RemoveCrAndLfChars(result.Text);
                     simpleConsole.WriteLine($"Command: {text}");
                 }
 
@@ -260,11 +260,11 @@ internal sealed class Program
             }
         }
 
-        await root.WaitForTermination(); // Wait for the termination infinitely.
+        await root.WaitForTerminationAsync(); // Wait for the termination infinitely.
         if (unit.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
         {
             logger.GetWriter()?.Write("End");
-            await logUnit.FlushAndTerminate();
+            await logUnit.FlushAndTerminateAsync();
         }
 
         KeyInputHookResult KeyInputHookMethod(ref ConsoleKeyInfo keyInfo)
