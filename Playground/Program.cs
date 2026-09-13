@@ -58,10 +58,10 @@ internal sealed class Program
 
     public static async Task Main(string[] args)
     {
-        AppCloseHandler.Set(() =>
+        AppCloseHandler.Register(() =>
         {// Closing the console window or terminating the process.
             root?.RequestTermination(); // Send a termination signal to the root.
-            root?.WaitForTermination(TimeSpan.FromSeconds(2)).Wait();
+            root?.WaitForTerminationAsync(TimeSpan.FromSeconds(2)).Wait();
         });
 
         Console.CancelKeyPress += (s, e) =>
@@ -73,31 +73,31 @@ internal sealed class Program
         var builder = new UnitBuilder()
             .Configure(context =>
             {
-                context.AddLoggerResolver(x =>
+                context.AddLogOutputResolver(x =>
                 {
-                    x.SetOutput<FileLogger<FileLoggerOptions>>();
+                    x.SetOutput<FileLogOutput<FileLogOutputOptions>>();
                     return;
                 });
             })
             .PostConfigure(context =>
             {
                 var logfile = "Logs/Log.txt";
-                context.SetOptions(context.GetOptions<FileLoggerOptions>() with
+                context.SetOptions(context.GetOrCreateOptions<FileLogOutputOptions>() with
                 {
-                    Path = Path.Combine(context.ProgramDirectory, logfile),
-                    MaxLogCapacity = 1,
+                    FilePath = Path.Combine(context.ProgramDirectory, logfile),
+                    MaxLogCapacityInMegabytes = 1,
                 });
             });
 
         var unit = builder.Build();
         root = unit.Context.ExecutionRoot;
-        var logger = unit.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLog>>();
+        var logger = unit.Context.ServiceProvider.GetRequiredService<ILogger<DefaultLogSource>>();
         logger.GetWriter()?.Write("Start");
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         var simpleConsole = SimpleConsole.Instance;
         simpleConsole.ExecutionGroup = root;
-        simpleConsole.DefaultOptions = new ReadLineOptions()
+        simpleConsole.DefaultReadLineOptions = new ReadLineOptions()
         {
             // MaxInputLength = 4,
             Prompt = "> ",
@@ -136,7 +136,7 @@ internal sealed class Program
 
         while (!root.IsTerminated)
         {
-            var options = simpleConsole.DefaultOptions with
+            var options = simpleConsole.DefaultReadLineOptions with
             {
                 // CancellationTokenSource = new(),
                 KeyInputHook = (ref keyInfo) =>
@@ -159,13 +159,13 @@ internal sealed class Program
 
             try
             {
-                var secondary = simpleConsole.DefaultOptions with
+                var secondary = simpleConsole.DefaultReadLineOptions with
                 {
                     Prompt = "Secondary> ",
                 };
 
-                // _ = simpleConsole.ReadLine(secondary);
-                var result = await simpleConsole.ReadLine(null, currentCts.Token);
+                // _ = simpleConsole.ReadLineAsync(secondary);
+                var result = await simpleConsole.ReadLineAsync(null, currentCts.Token);
 
                 if (result.Kind == InputResultKind.Terminated)
                 {
@@ -223,7 +223,7 @@ internal sealed class Program
 
                         // await Task.Delay(3_000, ctsStack.Peek().Token);
                         simpleConsole.WriteLine("<-");
-                        simpleConsole.EnqueueInput("a");
+                        simpleConsole.EnqueueLine("a");
                     }
                     catch
                     {
@@ -239,14 +239,14 @@ internal sealed class Program
 
                     _ = Task.Run(async () =>
                     {
-                        await Task.Delay(100); // Wait briefly to allow ReadLine() to be nested.
-                        var result = await simpleConsole.ReadLine(options2);
+                        await Task.Delay(100); // Wait briefly to allow ReadLineAsync() to be nested.
+                        var result = await simpleConsole.ReadLineAsync(options2);
                         Console.WriteLine($"Nested: {result.Text}");
                     });
                 }
                 else
                 {
-                    var text = BaseHelper.RemoveCrLf(result.Text);
+                    var text = BaseHelper.RemoveCrAndLfChars(result.Text);
                     simpleConsole.WriteLine($"Command: {text}");
                 }
 
@@ -260,11 +260,11 @@ internal sealed class Program
             }
         }
 
-        await root.WaitForTermination(); // Wait for the termination infinitely.
+        await root.WaitForTerminationAsync(); // Wait for the termination infinitely.
         if (unit.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
         {
             logger.GetWriter()?.Write("End");
-            await logUnit.FlushAndTerminate();
+            await logUnit.FlushAndTerminateAsync();
         }
 
         KeyInputHookResult KeyInputHookMethod(ref ConsoleKeyInfo keyInfo)
@@ -290,7 +290,7 @@ internal sealed class Program
                 _ = Task.Run(async () =>
                 {
                     await Task.Delay(100);
-                    var result = await simpleConsole.ReadLine(options2);
+                    var result = await simpleConsole.ReadLineAsync(options2);
                     Console.WriteLine($"Nested: {result.Text}");
                 });
 
@@ -357,7 +357,7 @@ internal sealed class Program
                 MultilineDelimiter = "|",
                 MaxInputLength = 3,
                 MaskingCharacter = '*',
-                TextInputHook = text =>
+                SubmitHook = text =>
                 {
                     var lower = text.ToLowerInvariant();
                     if (lower == "y" || lower == "n" || lower == "yes" || lower == "no")
@@ -370,7 +370,7 @@ internal sealed class Program
             };
 
             await Task.Delay(100);
-            var result = await simpleConsole.ReadLine(options);
+            var result = await simpleConsole.ReadLineAsync(options);
             Console.WriteLine($"Yes or No: {result.Text}");
         }
     }

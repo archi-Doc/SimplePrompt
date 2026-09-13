@@ -143,10 +143,10 @@ public class RegressionTest(SimpleConsoleFixture fixture)
     {
         var text = new string('a', 1023) + "😀z";
         fixture.ClearOutput();
-        var task = fixture.ReadLine();
+        var task = fixture.ReadLineAsync();
         if (queued)
         {
-            fixture.Console.EnqueueInput(text);
+            fixture.Console.EnqueueLine(text);
         }
         else
         {
@@ -161,7 +161,7 @@ public class RegressionTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task EmptyContinuationLineCanBeEditedAndSubmitted()
     {
-        var task = fixture.ReadLine(new() { LineContinuationCharacter = '\\', MultilineDelimiter = null });
+        var task = fixture.ReadLineAsync(new() { LineContinuationCharacter = '\\', MultilineDelimiter = null });
         fixture.Type("a\\");
         fixture.Key(ConsoleKey.Enter);
         fixture.Type("b\\");
@@ -187,14 +187,14 @@ public class RegressionTest(SimpleConsoleFixture fixture)
     public async Task ConsoleReaderAcceptsEmptyLines()
     {
         var task = Task.Run(() => fixture.ConsoleIn.ReadLine());
-        fixture.Console.EnqueueInput(null);
+        fixture.Console.EnqueueLine(null);
         Assert.Equal(string.Empty, await SimpleConsoleFixture.WaitAny(task));
     }
 
     [Fact]
     public async Task SurrogatePairMayArriveInSeparatePolls()
     {
-        var task = fixture.ReadLine();
+        var task = fixture.ReadLineAsync();
         fixture.Type("\uD83D");
         await SimpleConsoleFixture.Delay(50);
         fixture.Type("\uDE00x");
@@ -212,23 +212,23 @@ public class RegressionTest(SimpleConsoleFixture fixture)
     {
         var expected = new InvalidOperationException("test hook failure");
         var options = textHook
-            ? new ReadLineOptions { AllowEmptyInput = true, TextInputHook = _ => throw expected }
+            ? new ReadLineOptions { AllowEmptyInput = true, SubmitHook = _ => throw expected }
             : new ReadLineOptions { KeyInputHook = (ref ConsoleKeyInfo _) => throw expected };
-        var task = fixture.ReadLine(options);
+        var task = fixture.ReadLineAsync(options);
         fixture.Key(textHook ? ConsoleKey.Enter : ConsoleKey.F1);
         var actual = await Assert.ThrowsAsync<InvalidOperationException>(() => task.WaitAsync(SimpleConsoleFixture.Timeout, TestContext.Current.CancellationToken));
         Assert.Same(expected, actual);
         Assert.False(fixture.Console.IsReadLineInProgress);
-        var next = fixture.ReadLine();
-        fixture.Console.EnqueueInput("recovered");
+        var next = fixture.ReadLineAsync();
+        fixture.Console.EnqueueLine("recovered");
         Assert.Equal("recovered", await fixture.Wait(next));
     }
 
     [Fact]
     public async Task AbortCompletesEveryPendingRead()
     {
-        var outer = fixture.ReadLine(new() { Prompt = "outer> " });
-        var inner = fixture.ReadLine(new() { Prompt = "inner> " });
+        var outer = fixture.ReadLineAsync(new() { Prompt = "outer> " });
+        var inner = fixture.ReadLineAsync(new() { Prompt = "inner> " });
         fixture.Console.Abort();
         Assert.True((await fixture.WaitResult(outer)).IsTerminated);
         Assert.True((await fixture.WaitResult(inner)).IsTerminated);
@@ -238,7 +238,7 @@ public class RegressionTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task DelimitedInputPreservesBlankLines()
     {
-        var task = fixture.ReadLine(new() { MultilineDelimiter = "|" });
+        var task = fixture.ReadLineAsync(new() { MultilineDelimiter = "|" });
         fixture.Type("|");
         fixture.Key(ConsoleKey.Enter);
         fixture.Key(ConsoleKey.Enter);
@@ -250,7 +250,7 @@ public class RegressionTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task BackspaceRemovesLeadingZeroWidthCharacter()
     {
-        var task = fixture.ReadLine(new() { Prompt = string.Empty });
+        var task = fixture.ReadLineAsync(new() { Prompt = string.Empty });
         fixture.Type("\u0301a");
         fixture.Key(ConsoleKey.Home);
         fixture.Key(ConsoleKey.RightArrow);
@@ -278,7 +278,7 @@ public class RegressionTest(SimpleConsoleFixture fixture)
         {
             var expected = new List<string>();
             var cursor = 0;
-            var task = fixture.ReadLine(new() { Prompt = string.Empty, MultilineDelimiter = null, AllowEmptyInput = true });
+            var task = fixture.ReadLineAsync(new() { Prompt = string.Empty, MultilineDelimiter = null, AllowEmptyInput = true });
             // Begin with several wrapped rows before editing their boundaries.
             for (var i = 0; i < SimpleConsole.WindowWidth * 2; i++)
             {

@@ -37,7 +37,7 @@ public record class ReadLineOptions
         MaxInputLength = 3,
         MultilineDelimiter = default,
         CancelOnEscape = false,
-        TextInputHook = static text =>
+        SubmitHook = static text =>
         {
             var st = text.AsSpan().Trim();
             if (st.Equals("y", StringComparison.OrdinalIgnoreCase) ||
@@ -63,7 +63,7 @@ public record class ReadLineOptions
     /// <remarks>
     /// Counts each separator between input lines as one code unit, including in continuation mode.
     /// Excess input is discarded without splitting a surrogate pair. Nonpositive limits accept no characters.
-    /// Prompts and text produced by <see cref="TextInputHook"/> are not counted.
+    /// Prompts and text produced by <see cref="SubmitHook"/> are not counted.
     /// </remarks>
     public int MaxInputLength { get; init; } = 1024 * 64;
 
@@ -74,9 +74,9 @@ public record class ReadLineOptions
     public string Prompt { get; init; } = "> ";
 
     /// <summary>
-    /// Gets the prompt for subsequent input lines. Defaults to <c># </c>.
+    /// Gets the prompt for subsequent input lines in delimiter or line-continuation mode. Defaults to <c># </c>.
     /// </summary>
-    public string MultilinePrompt { get; init; } = "# ";
+    public string ContinuationPrompt { get; init; } = "# ";
 
     /// <summary>
     /// Gets the multiline delimiter. Defaults to three double quotes (<c>"""</c>).
@@ -102,7 +102,7 @@ public record class ReadLineOptions
     /// <summary>
     /// Gets a value indicating whether Enter can submit empty input. Defaults to <see langword="false"/>.
     /// </summary>
-    /// <remarks>Checked before <see cref="TextInputHook"/>; blank lines within nonempty multiline input are allowed.</remarks>
+    /// <remarks>Checked before <see cref="SubmitHook"/>; blank lines within nonempty multiline input are allowed.</remarks>
     public bool AllowEmptyInput { get; init; }
 
     /// <summary>
@@ -118,7 +118,7 @@ public record class ReadLineOptions
     /// Runs after <see cref="SimpleConsole.KeyInputHook"/>, key normalization, and the <see cref="CancelOnEscape"/> check.
     /// May rewrite the key, return <see cref="KeyInputHookResult.Handled"/> to discard it,
     /// or return <see cref="KeyInputHookResult.Cancel"/> to cancel the read.
-    /// Text from <see cref="SimpleConsole.EnqueueInput"/> bypasses key hooks.
+    /// Text from <see cref="SimpleConsole.EnqueueLine"/> bypasses key hooks.
     /// </remarks>
     public KeyInputHook? KeyInputHook { get; init; }
 
@@ -126,5 +126,5 @@ public record class ReadLineOptions
     /// Gets the submission validation or transformation hook. Defaults to <see langword="null"/>.
     /// </summary>
     /// <remarks>Returns the final text, or null to clear the input and prompt again. Exceptions fault the read task.</remarks>
-    public TextInputHook? TextInputHook { get; init; }
+    public SubmitHook? SubmitHook { get; init; }
 }

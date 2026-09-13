@@ -99,14 +99,14 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <summary>
     /// Gets or sets a value indicating whether keys received while idle are kept for the next read. Defaults to <see langword="true"/>.
     /// </summary>
-    /// <remarks>Retains up to 32768 key events and discards excess keys. Does not affect <see cref="EnqueueInput"/>.</remarks>
+    /// <remarks>Retains up to 32768 key events and discards excess keys. Does not affect <see cref="EnqueueLine"/>.</remarks>
     public bool BufferKeyInputWhileIdle { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets the options used when <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> is called without options.
+    /// Gets or sets the options used when <see cref="ReadLineAsync(ReadLineOptions?, CancellationToken)"/> is called without options.
     /// </summary>
     /// <remarks>Initially uses a new <see cref="ReadLineOptions"/> with default settings.</remarks>
-    public ReadLineOptions DefaultOptions { get; set; }
+    public ReadLineOptions DefaultReadLineOptions { get; set; }
 
     /// <summary>
     /// Gets the output writer captured when this instance was created.
@@ -115,7 +115,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
     /// <summary>
-    /// Gets a value indicating whether at least one <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress.
+    /// Gets a value indicating whether at least one <see cref="ReadLineAsync(ReadLineOptions?, CancellationToken)"/> operation is in progress.
     /// </summary>
     public bool IsReadLineInProgress
     {
@@ -165,7 +165,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.simpleTextReader = new(this, Console.In);
         this.RawConsole = new(this);
         this.simpleArrange = new(this);
-        this.DefaultOptions = new();
+        this.DefaultReadLineOptions = new();
         this.worker = new(this);
 
         try
@@ -213,7 +213,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <summary>
     /// Asynchronously reads console input using the specified editing and validation options.
     /// </summary>
-    /// <param name="options">The input options, or null to use <see cref="DefaultOptions"/>.</param>
+    /// <param name="options">The input options, or null to use <see cref="DefaultReadLineOptions"/>.</param>
     /// <param name="cancellationToken">The token used to cancel this read.</param>
     /// <returns>A task whose result indicates success, cancellation, or execution group termination.</returns>
     /// <remarks>
@@ -222,9 +222,9 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// and retains that read's original cancellation token. New reads take a copy of the options.
     /// Cancellation returns a result rather than canceling the task. Hook exceptions fault the task.
     /// </remarks>
-    public Task<InputResult> ReadLine(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
+    public Task<InputResult> ReadLineAsync(ReadLineOptions? options = default, CancellationToken cancellationToken = default)
     {
-        options ??= this.DefaultOptions;
+        options ??= this.DefaultReadLineOptions;
         using (this.syncObject.EnterScope())
         {
             // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
@@ -270,15 +270,15 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <summary>
     /// Clears the console and redraws any active prompt and input.
     /// </summary>
-    /// <param name="clearBuffer">
-    /// True to call <see cref="Console.Clear"/>; false to erase the visible screen using an ANSI sequence.
+    /// <param name="clearScreenBuffer">
+    /// True to clear the screen buffer by calling <see cref="Console.Clear"/>; false to erase only the visible screen using an ANSI sequence.
     /// </param>
     /// <remarks>Scrollback behavior depends on the terminal; clearing scrollback is not guaranteed.</remarks>
-    public void Clear(bool clearBuffer)
+    public void Clear(bool clearScreenBuffer)
     {
         using (this.syncObject.EnterScope())
         {
-            if (clearBuffer)
+            if (clearScreenBuffer)
             {
                 this._cursorTop = 0;
                 this._cursorLeft = 0;
@@ -306,15 +306,15 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     }
 
     /// <summary>
-    /// Queues literal input text followed by one submission attempt.
+    /// Queues a line of literal input text followed by one submission attempt.
     /// </summary>
     /// <param name="text">The text to enqueue, or null to submit empty input.</param>
     /// <remarks>
     /// Consumed only while the active read's input is empty; otherwise it remains queued.
-    /// Bypasses key hooks but still applies input limits, multiline rules, and the text hook.
+    /// Bypasses key hooks but still applies input limits, multiline rules, and <see cref="ReadLineOptions.SubmitHook"/>.
     /// Embedded newlines are text, not separate Enter key events.
     /// </remarks>
-    public void EnqueueInput(string? text)
+    public void EnqueueLine(string? text)
     {
         this.concurrentTextQueue.Enqueue(text);
     }
@@ -329,8 +329,8 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         this.concurrentKeyQueue.Enqueue(keyInfo);
     }
 
-    Task<InputResult> IConsoleService.ReadLine(CancellationToken cancellationToken)
-        => this.ReadLine(default, cancellationToken);
+    Task<InputResult> IConsoleService.ReadLineAsync(CancellationToken cancellationToken)
+        => this.ReadLineAsync(default, cancellationToken);
 
     #region Write
 
@@ -507,41 +507,41 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     }
 
     /// <summary>
-    /// Writes the specified message to the console without a newline.<br/>
-    /// Note that while <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> is waiting for input,<br/>
-    /// a newline is appended so that the message does not overlap the input line.
+    /// Writes the specified text to the console without a newline.<br/>
+    /// Note that while <see cref="ReadLineAsync(ReadLineOptions?, CancellationToken)"/> is waiting for input,<br/>
+    /// a newline is appended so that the text does not overlap the input line.
     /// </summary>
-    /// <param name="message">The message to write. If empty, nothing is written.</param>
+    /// <param name="message">The text to write. If empty, nothing is written.</param>
     /// <param name="color">The foreground color. Omit to leave the color unchanged.</param>
     public void Write(ReadOnlySpan<char> message = default, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, false, color);
 
     /// <summary>
-    /// Writes the specified message to the console followed by a newline.<br/>
-    /// If a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress,<br/>
-    /// the message is written above the prompt and the input line is redrawn.
+    /// Writes the specified text to the console followed by a newline.<br/>
+    /// If a <see cref="ReadLineAsync(ReadLineOptions?, CancellationToken)"/> operation is in progress,<br/>
+    /// the text is written above the prompt and the input line is redrawn.
     /// </summary>
-    /// <param name="message">The message to write. If empty, only a newline is written.</param>
+    /// <param name="message">The text to write. If empty, only a newline is written.</param>
     /// <param name="color">The foreground color. Omit to leave the color unchanged.</param>
     public void WriteLine(ReadOnlySpan<char> message, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, true, color);
 
     /// <summary>
-    /// Writes the specified message to the console without a newline.<br/>
-    /// Note that while <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> is waiting for input,<br/>
-    /// a newline is appended so that the message does not overlap the input line.
+    /// Writes the specified text to the console without a newline.<br/>
+    /// Note that while <see cref="ReadLineAsync(ReadLineOptions?, CancellationToken)"/> is waiting for input,<br/>
+    /// a newline is appended so that the text does not overlap the input line.
     /// </summary>
-    /// <param name="message">The message to write. If <see langword="null"/> or empty, nothing is written.</param>
+    /// <param name="message">The text to write. If <see langword="null"/> or empty, nothing is written.</param>
     /// <param name="color">The foreground color. Omit to leave the color unchanged.</param>
     public void Write(string? message, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, false, color);
 
     /// <summary>
-    /// Writes the specified message to the console followed by a newline.<br/>
-    /// If a <see cref="ReadLine(ReadLineOptions?, CancellationToken)"/> operation is in progress,<br/>
-    /// the message is written above the prompt and the input line is redrawn.
+    /// Writes the specified text to the console followed by a newline.<br/>
+    /// If a <see cref="ReadLineAsync(ReadLineOptions?, CancellationToken)"/> operation is in progress,<br/>
+    /// the text is written above the prompt and the input line is redrawn.
     /// </summary>
-    /// <param name="message">The message to write. If <see langword="null"/> or empty, only a newline is written.</param>
+    /// <param name="message">The text to write. If <see langword="null"/> or empty, only a newline is written.</param>
     /// <param name="color">The foreground color. Omit to leave the color unchanged.</param>
     public void WriteLine(string? message = null, ConsoleColor color = ConsoleHelper.DefaultColor)
         => this.WriteSpan(message, true, color);
@@ -686,7 +686,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                     var result = currentInstance.ProcessInput(SimplePromptHelper.EnterKeyInfo, queuedMessage.AsSpan());
                     if (result is not null)
                     {
-                        result = ProcessTextInputHook(result);
+                        result = ProcessSubmitHook(result);
                         if (result is not null)
                         {
                             inputResult = new(result);
@@ -782,7 +782,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                         currentInstance.CharPosition = 0; // The characters have been consumed.
                         if (result is not null)
                         {
-                            result = ProcessTextInputHook(result);
+                            result = ProcessSubmitHook(result);
                             if (result is null)
                             {// Rejected
                                 continue;
@@ -816,11 +816,11 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
             currentInstance.TaskCompletionSource.SetResult(inputResult);
             ReadLineInstance.Return(currentInstance);
 
-            string? ProcessTextInputHook(string result)
+            string? ProcessSubmitHook(string result)
             {
-                if (currentInstance.Options.TextInputHook is { } textInputHook)
+                if (currentInstance.Options.SubmitHook is { } submitHook)
                 {
-                    var newResult = textInputHook(result);
+                    var newResult = submitHook(result);
                     if (newResult is null)
                     {// Rejected by the hook delegate.
                         this.UnderlyingTextWriter.WriteLine();
@@ -1201,7 +1201,7 @@ Exit:
 
         if (colorSpan.Length > 0)
         {
-            Append(ConsoleHelper.ResetSpan, ref span);
+            Append(ConsoleHelper.ResetAttributesSpan, ref span);
         }
 
         this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - span.Length));

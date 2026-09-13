@@ -12,11 +12,11 @@ internal sealed class Program
     public static async Task Main(string[] args)
     {
         var simpleConsole = SimpleConsole.Instance; // Redirect Console.Out and synchronous Console.ReadLine through SimplePrompt.
-        simpleConsole.DefaultOptions = new ReadLineOptions()
+        simpleConsole.DefaultReadLineOptions = new ReadLineOptions()
         {// Set the default ReadLine options.
             InputColor = ConsoleColor.Yellow,
             Prompt = "> ",
-            MultilinePrompt = "# ",
+            ContinuationPrompt = "# ",
             MultilineDelimiter = "|",
             CancelOnEscape = true,
             AllowEmptyInput = true,
@@ -28,7 +28,7 @@ internal sealed class Program
 
         while (true)
         {
-            var result = await simpleConsole.ReadLine();
+            var result = await simpleConsole.ReadLineAsync();
 
             if (result.Kind == InputResultKind.Terminated)
             {
@@ -65,7 +65,7 @@ internal sealed class Program
             }
             else
             {// Echo the input
-                var text = BaseHelper.RemoveCrLf(result.Text);
+                var text = BaseHelper.RemoveCrAndLfChars(result.Text);
                 simpleConsole.WriteLine($"Command: {text}");
             }
         }

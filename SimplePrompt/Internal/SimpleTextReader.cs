@@ -25,5 +25,5 @@ internal sealed class SimpleTextReader : TextReader
     }
 
     public override string? ReadLine()
-        => this.SimpleConsole.ReadLine(this.ReadLineOptions).GetAwaiter().GetResult().Text;
+        => this.SimpleConsole.ReadLineAsync(this.ReadLineOptions).GetAwaiter().GetResult().Text;
 }

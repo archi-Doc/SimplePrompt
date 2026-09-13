@@ -104,7 +104,7 @@ internal sealed class RawConsole
                         Interop.Sys.UninitializeConsoleAfterRead();
                     }
 
-                    var validLength = BaseHelper.GetValidUtf8Length(this.bytes.AsSpan(0, this.bytesLength));
+                    var validLength = BaseHelper.GetCompleteUtf8Length(this.bytes.AsSpan(0, this.bytesLength));
 
                     Debug.Assert(this.IsCharsEmpty);
                     this.charsStartIndex = 0;

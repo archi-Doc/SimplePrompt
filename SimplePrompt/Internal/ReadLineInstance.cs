@@ -167,7 +167,7 @@ internal sealed class ReadLineInstance
                     }
 
                     var previousLine = this.LineList[this.LineList.Count - 1];
-                    line = SimpleTextLine.Rent(this.simpleConsole, this, this.LineList.Count, this.Options.MultilinePrompt.AsSpan(), true);
+                    line = SimpleTextLine.Rent(this.simpleConsole, this, this.LineList.Count, this.Options.ContinuationPrompt.AsSpan(), true);
                     this.LineList.Add(line);
                     line.Top = previousLine.Top + previousLine.Height;
 
@@ -473,7 +473,7 @@ internal sealed class ReadLineInstance
 
             if (colorSpan.Length > 0)
             {
-                SimplePromptHelper.TryCopy(ConsoleHelper.ResetSpan, ref span); // Reset color
+                SimplePromptHelper.TryCopy(ConsoleHelper.ResetAttributesSpan, ref span); // Reset color
             }
 
             if (line.EndsWithEmptyRow)

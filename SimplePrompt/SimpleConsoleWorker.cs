@@ -32,7 +32,7 @@ internal sealed class SimpleConsoleWorker
                     simpleConsole.Process();
                 }
                 catch
-                {// Never let a transient failure terminate the loop; that would hang every pending ReadLine().
+                {// Never let a transient failure terminate the loop; that would hang every pending ReadLineAsync().
                 }
             }
 

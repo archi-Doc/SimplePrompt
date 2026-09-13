@@ -22,7 +22,7 @@ if (!terminal || capturedWriter)
 
 var console = SimpleConsole.Instance;
 console.EnableColor = false;
-console.DefaultOptions = ReadLineOptions.SingleLine;
+console.DefaultReadLineOptions = ReadLineOptions.SingleLine;
 
 if (terminal)
 {
@@ -34,7 +34,7 @@ if (terminal)
     }
 
     Console.Error.WriteLine("READY");
-    var result = await Read(console.ReadLine());
+    var result = await Read(console.ReadLineAsync());
     Check(result.IsSuccess && result.Text == "日本語😀abZ", "Terminal UTF-8 input or cursor editing failed.");
     Console.WriteLine("TERMINAL-OUTPUT");
     if (capturedWriter)
@@ -45,11 +45,11 @@ if (terminal)
 else
 {
     // Exercise dependency code, the worker and console redirection after trimming.
-    console.EnqueueInput("日本語😀");
-    var queued = await Read(console.ReadLine());
+    console.EnqueueLine("日本語😀");
+    var queued = await Read(console.ReadLineAsync());
     Check(queued.IsSuccess && queued.Text == "日本語😀", "Queued Unicode input failed.");
 
-    var edited = console.ReadLine();
+    var edited = console.ReadLineAsync();
     Type("a😀b");
     Key(ConsoleKey.Backspace);
     Key(ConsoleKey.Backspace);
@@ -57,20 +57,20 @@ else
     Key(ConsoleKey.Enter);
     Check((await Read(edited)).Text == "ac", "Surrogate-pair editing failed.");
 
-    var multiline = console.ReadLine(ReadLineOptions.Multiline);
+    var multiline = console.ReadLineAsync(ReadLineOptions.Multiline);
     Type("\"\"\"");
     Key(ConsoleKey.Enter);
     Type("line\"\"\"");
     Key(ConsoleKey.Enter);
     Check((await Read(multiline)).Text == "\"\"\"\nline\"\"\"", "Multiline input failed.");
 
-    var hooked = console.ReadLine(ReadLineOptions.SingleLine with { TextInputHook = text => text.ToUpperInvariant() });
+    var hooked = console.ReadLineAsync(ReadLineOptions.SingleLine with { SubmitHook = text => text.ToUpperInvariant() });
     Type("hook");
     Key(ConsoleKey.Enter);
     Check((await Read(hooked)).Text == "HOOK", "Text input hook failed.");
 
     using var cancellation = new CancellationTokenSource();
-    var canceled = console.ReadLine(cancellationToken: cancellation.Token);
+    var canceled = console.ReadLineAsync(cancellationToken: cancellation.Token);
     cancellation.Cancel();
     Check((await Read(canceled)).IsCanceled, "Cancellation failed.");
 
@@ -88,11 +88,11 @@ else
 // Shutdown must stay permanent even after the caller replaces the execution group.
 var shutdownGroup = new ExecutionRoot();
 console.ExecutionGroup = shutdownGroup;
-var pendingShutdown = console.ReadLine();
+var pendingShutdown = console.ReadLineAsync();
 shutdownGroup.RequestTermination();
 Check((await Read(pendingShutdown)).IsTerminated, "Shutdown did not complete the pending read.");
 console.ExecutionGroup = null;
-Check((await Read(console.ReadLine())).IsTerminated, "A stopped worker accepted a read that cannot complete.");
+Check((await Read(console.ReadLineAsync())).IsTerminated, "A stopped worker accepted a read that cannot complete.");
 
 originalOutput.WriteLine("NativeAOT smoke test passed.");
 

@@ -13,4 +13,4 @@ namespace SimplePrompt;
 /// Runs synchronously on the input worker after input length and empty-input checks.
 /// Returned text is not checked again. Exceptions fault the read task.
 /// </remarks>
-public delegate string? TextInputHook(string text);
+public delegate string? SubmitHook(string text);
