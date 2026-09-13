@@ -97,7 +97,7 @@ internal sealed class Program
 
         var simpleConsole = SimpleConsole.Instance;
         simpleConsole.ExecutionGroup = root;
-        simpleConsole.DefaultOptions = new ReadLineOptions()
+        simpleConsole.DefaultReadLineOptions = new ReadLineOptions()
         {
             // MaxInputLength = 4,
             Prompt = "> ",
@@ -136,7 +136,7 @@ internal sealed class Program
 
         while (!root.IsTerminated)
         {
-            var options = simpleConsole.DefaultOptions with
+            var options = simpleConsole.DefaultReadLineOptions with
             {
                 // CancellationTokenSource = new(),
                 KeyInputHook = (ref keyInfo) =>
@@ -159,13 +159,13 @@ internal sealed class Program
 
             try
             {
-                var secondary = simpleConsole.DefaultOptions with
+                var secondary = simpleConsole.DefaultReadLineOptions with
                 {
                     Prompt = "Secondary> ",
                 };
 
-                // _ = simpleConsole.ReadLine(secondary);
-                var result = await simpleConsole.ReadLine(null, currentCts.Token);
+                // _ = simpleConsole.ReadLineAsync(secondary);
+                var result = await simpleConsole.ReadLineAsync(null, currentCts.Token);
 
                 if (result.Kind == InputResultKind.Terminated)
                 {
@@ -223,7 +223,7 @@ internal sealed class Program
 
                         // await Task.Delay(3_000, ctsStack.Peek().Token);
                         simpleConsole.WriteLine("<-");
-                        simpleConsole.EnqueueInput("a");
+                        simpleConsole.EnqueueLine("a");
                     }
                     catch
                     {
@@ -239,8 +239,8 @@ internal sealed class Program
 
                     _ = Task.Run(async () =>
                     {
-                        await Task.Delay(100); // Wait briefly to allow ReadLine() to be nested.
-                        var result = await simpleConsole.ReadLine(options2);
+                        await Task.Delay(100); // Wait briefly to allow ReadLineAsync() to be nested.
+                        var result = await simpleConsole.ReadLineAsync(options2);
                         Console.WriteLine($"Nested: {result.Text}");
                     });
                 }
@@ -290,7 +290,7 @@ internal sealed class Program
                 _ = Task.Run(async () =>
                 {
                     await Task.Delay(100);
-                    var result = await simpleConsole.ReadLine(options2);
+                    var result = await simpleConsole.ReadLineAsync(options2);
                     Console.WriteLine($"Nested: {result.Text}");
                 });
 
@@ -357,7 +357,7 @@ internal sealed class Program
                 MultilineDelimiter = "|",
                 MaxInputLength = 3,
                 MaskingCharacter = '*',
-                TextInputHook = text =>
+                SubmitHook = text =>
                 {
                     var lower = text.ToLowerInvariant();
                     if (lower == "y" || lower == "n" || lower == "yes" || lower == "no")
@@ -370,7 +370,7 @@ internal sealed class Program
             };
 
             await Task.Delay(100);
-            var result = await simpleConsole.ReadLine(options);
+            var result = await simpleConsole.ReadLineAsync(options);
             Console.WriteLine($"Yes or No: {result.Text}");
         }
     }

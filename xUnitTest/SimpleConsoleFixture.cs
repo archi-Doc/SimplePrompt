@@ -72,7 +72,7 @@ public sealed class SimpleConsoleFixture
     /// </summary>
     /// <param name="options">The options. If not specified, an empty-line-tolerant default is used.</param>
     /// <returns>The task.</returns>
-    public Task<InputResult> ReadLine(ReadLineOptions? options = default)
+    public Task<InputResult> ReadLineAsync(ReadLineOptions? options = default)
     {
         var cancellationTokenSource = new CancellationTokenSource();
         lock (this.cancellationTokenSources)
@@ -80,11 +80,11 @@ public sealed class SimpleConsoleFixture
             this.cancellationTokenSources.Add(cancellationTokenSource);
         }
 
-        return this.Console.ReadLine(options ?? new() { AllowEmptyInput = true }, cancellationTokenSource.Token);
+        return this.Console.ReadLineAsync(options ?? new() { AllowEmptyInput = true }, cancellationTokenSource.Token);
     }
 
     /// <summary>
-    /// Cancels every ReadLine operation started through <see cref="ReadLine(ReadLineOptions?)"/>.<br/>
+    /// Cancels every ReadLine operation started through <see cref="ReadLineAsync(ReadLineOptions?)"/>.<br/>
     /// A failed test may leave an operation in progress, which would break every subsequent test.
     /// </summary>
     public void CancelPendingReadLine()
@@ -104,7 +104,7 @@ public sealed class SimpleConsoleFixture
     /// <summary>
     /// Waits for the ReadLine operation and returns the input text.
     /// </summary>
-    /// <param name="task">The task returned by <see cref="ReadLine(ReadLineOptions?)"/>.</param>
+    /// <param name="task">The task returned by <see cref="ReadLineAsync(ReadLineOptions?)"/>.</param>
     /// <returns>The input text.</returns>
     public async Task<string?> Wait(Task<InputResult> task)
         => (await this.WaitResult(task)).Text;
@@ -112,7 +112,7 @@ public sealed class SimpleConsoleFixture
     /// <summary>
     /// Waits for the ReadLine operation and returns the result.
     /// </summary>
-    /// <param name="task">The task returned by <see cref="ReadLine(ReadLineOptions?)"/>.</param>
+    /// <param name="task">The task returned by <see cref="ReadLineAsync(ReadLineOptions?)"/>.</param>
     /// <returns>The result.</returns>
     public async Task<InputResult> WaitResult(Task<InputResult> task)
     {
@@ -122,7 +122,7 @@ public sealed class SimpleConsoleFixture
         }
         catch (TimeoutException)
         {// The console state is reported because the cause differs between environments (terminal, redirected, CI).
-            throw new TimeoutException($"ReadLine() did not complete within {Timeout.TotalSeconds} seconds. {this.GetEnvironmentInfo()}");
+            throw new TimeoutException($"ReadLineAsync() did not complete within {Timeout.TotalSeconds} seconds. {this.GetEnvironmentInfo()}");
         }
     }
 

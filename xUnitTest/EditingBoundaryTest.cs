@@ -85,7 +85,7 @@ public class EditingBoundaryTest(SimpleConsoleFixture fixture)
     [InlineData("", null)]
     [InlineData("yesterday", null)]
     public void YesNoValidationPreservesText(string input, string? expected)
-        => Assert.Equal(expected, ReadLineOptions.YesNo.TextInputHook!(input));
+        => Assert.Equal(expected, ReadLineOptions.YesNo.SubmitHook!(input));
 
     [Theory]
     [InlineData(40000, 65536)]
@@ -94,8 +94,8 @@ public class EditingBoundaryTest(SimpleConsoleFixture fixture)
     public async Task QueuedInputIsLimitedWithoutSplittingSurrogates(int length, int limit)
     {
         var input = new string('a', length) + "😀z";
-        var task = fixture.ReadLine(ReadLineOptions.SingleLine with { MaxInputLength = limit });
-        fixture.Console.EnqueueInput(input);
+        var task = fixture.ReadLineAsync(ReadLineOptions.SingleLine with { MaxInputLength = limit });
+        fixture.Console.EnqueueLine(input);
         var expectedLength = Math.Min(input.Length, limit);
         if (char.IsHighSurrogate(input[expectedLength - 1]))
         {

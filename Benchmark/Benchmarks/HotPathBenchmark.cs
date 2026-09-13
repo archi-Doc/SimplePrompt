@@ -39,7 +39,7 @@ public class HotPathBenchmark
 
     [Benchmark]
     public string? ValidateYesNo()
-        => ReadLineOptions.YesNo.TextInputHook!(" YES ");
+        => ReadLineOptions.YesNo.SubmitHook!(" YES ");
 
     [Benchmark]
     public string? SubmitSingleLine()

@@ -56,7 +56,7 @@ internal sealed class Program
 
         // Tests
         // await TestConsoleMode(simpleConsole);
-        await TestMultilinePrompt(simpleConsole);
+        await TestContinuationPrompt(simpleConsole);
 
         await root.WaitForTerminationAsync(); // Wait for the termination infinitely.
         if (unit.Context.ServiceProvider.GetService<LogUnit>() is { } logUnit)
@@ -66,18 +66,18 @@ internal sealed class Program
         }
     }
 
-    private static async Task TestMultilinePrompt(SimpleConsole simpleConsole)
+    private static async Task TestContinuationPrompt(SimpleConsole simpleConsole)
     {
         while (root?.IsTerminated == false)
         {
-            var options = simpleConsole.DefaultOptions with
+            var options = simpleConsole.DefaultReadLineOptions with
             {// Multiline prompt example
                 Prompt = "Description (n or F3:Nested, y or F4:Yes or No)\r\n\n<---\nInput> ",
                 // Prompt = "Input> ",
                 KeyInputHook = KeyInputHookMethod,
             };
 
-            var result = await simpleConsole.ReadLine(options);
+            var result = await simpleConsole.ReadLineAsync(options);
 
             if (!await ProcessInputResult(simpleConsole, result))
             {
@@ -128,7 +128,7 @@ internal sealed class Program
             };
 
             await Task.Delay(100);
-            var result = await simpleConsole.ReadLine(options2);
+            var result = await simpleConsole.ReadLineAsync(options2);
             Console.WriteLine($"Nested: {result.Text}");
         }
 
@@ -139,7 +139,7 @@ internal sealed class Program
                 Prompt = "Yes or No?\r\n[Y/n] ",
                 MultilineDelimiter = "|",
                 MaxInputLength = 5,
-                TextInputHook = text =>
+                SubmitHook = text =>
                 {
                     var lower = text.ToLowerInvariant();
                     if (lower == "y" || lower == "n" || lower == "yes" || lower == "no")
@@ -152,7 +152,7 @@ internal sealed class Program
             };
 
             await Task.Delay(100);
-            var result = await simpleConsole.ReadLine(options);
+            var result = await simpleConsole.ReadLineAsync(options);
             Console.WriteLine($"Yes or No: {result.Text}");
         }
     }
@@ -163,10 +163,10 @@ internal sealed class Program
 
         while (root?.IsTerminated == false)
         {
-            var options = simpleConsole.DefaultOptions with
+            var options = simpleConsole.DefaultReadLineOptions with
             {
                 Prompt = "Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input>Input> ",
-                MultilinePrompt = ">> ",
+                ContinuationPrompt = ">> ",
                 MultilineDelimiter = "...",
                 InputColor = ConsoleColor.Cyan,
                 CancelOnEscape = false,
@@ -194,7 +194,7 @@ internal sealed class Program
                 },
             };
 
-            var result = await simpleConsole.ReadLine(options);
+            var result = await simpleConsole.ReadLineAsync(options);
 
             if (!await ProcessInputResult(simpleConsole, result))
             {

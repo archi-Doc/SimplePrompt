@@ -50,7 +50,7 @@ using Arc.Unit;
 using SimplePrompt;
 
 var simpleConsole = SimpleConsole.Instance;
-simpleConsole.DefaultOptions = ReadLineOptions.SingleLine with
+simpleConsole.DefaultReadLineOptions = ReadLineOptions.SingleLine with
 {
     Prompt = "Command> ",
     CancelOnEscape = true,
@@ -59,7 +59,7 @@ simpleConsole.DefaultOptions = ReadLineOptions.SingleLine with
 simpleConsole.WriteLine("Enter a command, press Escape to cancel, or type exit.");
 while (true)
 {
-    var result = await simpleConsole.ReadLine();
+    var result = await simpleConsole.ReadLineAsync();
     if (result.Kind == InputResultKind.Terminated)
     {
         break;
@@ -80,7 +80,7 @@ while (true)
 }
 ```
 
-`ReadLine()` returns `Task<InputResult>`. `InputResult` is provided by `Arc.Unit`:
+`ReadLineAsync()` returns `Task<InputResult>`. `InputResult` is provided by `Arc.Unit`:
 
 | Member | Meaning |
 | --- | --- |
@@ -95,17 +95,17 @@ The following examples assume `simpleConsole = SimpleConsole.Instance` and `usin
 Accessing `SimpleConsole.Instance` initializes the singleton once, attempts to select UTF-8 output, and replaces `Console.Out` and `Console.In`.
 
 - `Console.Write()`, `Console.WriteLine()`, and writes through `Console.Out` use SimplePrompt's output handling.
-- Synchronous `Console.ReadLine()` and `Console.In.ReadLine()` use single-line input with no prompt, a 1024-code-unit limit, and empty input allowed. They use their own options, independently of `DefaultOptions`.
+- Synchronous `Console.ReadLine()` and `Console.In.ReadLine()` use single-line input with no prompt, a 1024-code-unit limit, and empty input allowed. They use their own options, independently of `DefaultReadLineOptions`.
 - The installed reader only overrides synchronous `ReadLine`; it does not forward general character or block reads to the original reader.
 - `Console.Error`, `Console.ReadKey()`, and `Console.KeyAvailable` keep their original behavior. Direct key reads do not consume queued input and may compete with SimplePrompt's input worker.
 
-`SimpleConsole` implements `Arc.Unit.IConsoleService`. Its interface `ReadLine` uses `DefaultOptions`; interface `ReadKey` and `KeyAvailable` call the corresponding `Console` APIs directly.
+`SimpleConsole` implements `Arc.Unit.IConsoleService`. Its interface `ReadLineAsync(cancellationToken)` uses `DefaultReadLineOptions`; interface `ReadKey` and `KeyAvailable` call the corresponding `Console` APIs directly.
 
-Rendered output goes to the writer captured at initialization, including redirected standard output. Cursor escape sequences can still appear in redirected output. Reading a file or pipe through redirected stdin is not supported by `SimpleConsole.ReadLine()`; preserve the original `Console.In` before initialization if your application needs to read it.
+Rendered output goes to the writer captured at initialization, including redirected standard output. Cursor escape sequences can still appear in redirected output. Reading a file or pipe through redirected stdin is not supported by `SimpleConsole.ReadLineAsync()`; preserve the original `Console.In` before initialization if your application needs to read it.
 
 ## ReadLineOptions
 
-`ReadLineOptions` is an immutable record. Use `with` to customize a preset, then pass it to `ReadLine(options)` or assign it to `DefaultOptions`.
+`ReadLineOptions` is an immutable record. Use `with` to customize a preset, then pass it to `ReadLineAsync(options)` or assign it to `DefaultReadLineOptions`.
 
 ```csharp
 var options = ReadLineOptions.SingleLine with
@@ -113,7 +113,7 @@ var options = ReadLineOptions.SingleLine with
     Prompt = "Name> ",
     MaxInputLength = 32,
 };
-var result = await simpleConsole.ReadLine(options);
+var result = await simpleConsole.ReadLineAsync(options);
 ```
 
 These defaults apply to `new ReadLineOptions()`:
@@ -127,12 +127,12 @@ These defaults apply to `new ReadLineOptions()`:
 | `CancelOnEscape` | `false` | Cancels the read when Escape is processed. |
 | `MaskingCharacter` | `'\0'` | Display mask; zero disables masking. Does not change the result text. |
 | `MultilineDelimiter` | `"""` (three double quotes) | Delimiter for multiline mode. Null or empty disables delimiter mode only. |
-| `MultilinePrompt` | `"# "` | Prompt for subsequent input lines. |
+| `ContinuationPrompt` | `"# "` | Prompt for subsequent input lines in delimiter or continuation mode. |
 | `LineContinuationCharacter` | `'\0'` | Trailing character that continues input onto the next line; zero disables continuation. |
 | `KeyInputHook` | `null` | Per-read key interception. See [Input Hooks](#input-hooks). |
-| `TextInputHook` | `null` | Submission validation or transformation. See [Input Hooks](#input-hooks). |
+| `SubmitHook` | `null` | Submission validation or transformation. See [Input Hooks](#input-hooks). |
 
-`MaxInputLength` excludes prompts, counts a surrogate pair as two code units, and counts each separator between input lines as one. Excess input is truncated without splitting a surrogate pair; nonpositive limits accept no characters. This also applies to continuation lines whose separators are removed from the final result. Text returned by `TextInputHook` is not subject to this limit.
+`MaxInputLength` excludes prompts, counts a surrogate pair as two code units, and counts each separator between input lines as one. Excess input is truncated without splitting a surrogate pair; nonpositive limits accept no characters. This also applies to continuation lines whose separators are removed from the final result. Text returned by `SubmitHook` is not subject to this limit.
 
 | Preset | Settings |
 | --- | --- |
@@ -191,7 +191,7 @@ var options = ReadLineOptions.SingleLine with
 {
     LineContinuationCharacter = '\\',
 };
-var result = await simpleConsole.ReadLine(options);
+var result = await simpleConsole.ReadLineAsync(options);
 ```
 
 ```text
@@ -211,7 +211,7 @@ var options = ReadLineOptions.SingleLine with
     Prompt = "Password> ",
     MaskingCharacter = '*',
 };
-var result = await simpleConsole.ReadLine(options);
+var result = await simpleConsole.ReadLineAsync(options);
 ```
 
 Masking preserves input display width, so a wide character can produce multiple mask characters. `result.Text` contains the actual input.
@@ -230,19 +230,19 @@ var options = ReadLineOptions.SingleLine with
             ? KeyInputHookResult.Cancel
             : KeyInputHookResult.NotHandled,
 };
-var result = await simpleConsole.ReadLine(options);
+var result = await simpleConsole.ReadLineAsync(options);
 ```
 
-With `CancelOnEscape` enabled, Escape cancels before the per-read hook runs; the global hook can still intercept it. Text queued with `EnqueueInput()` bypasses both key hooks.
+With `CancelOnEscape` enabled, Escape cancels before the per-read hook runs; the global hook can still intercept it. Text queued with `EnqueueLine()` bypasses both key hooks.
 
-`TextInputHook` receives submitted text after multiline processing, input limits, and the empty-input check. Return a string to accept or transform it, or null to clear the input and prompt again:
+`SubmitHook` receives submitted text after multiline processing, input limits, and the empty-input check. Return a string to accept or transform it, or null to clear the input and prompt again:
 
 ```csharp
 var options = ReadLineOptions.SingleLine with
 {
-    TextInputHook = text => int.TryParse(text, out _) ? text : null,
+    SubmitHook = text => int.TryParse(text, out _) ? text : null,
 };
-var result = await simpleConsole.ReadLine(options);
+var result = await simpleConsole.ReadLineAsync(options);
 ```
 
 The transformed text is not checked again for length or emptiness. Hooks run synchronously on the input worker; keep them short. A thrown exception faults the active read task and is rethrown when it is awaited.
@@ -252,24 +252,24 @@ The transformed text is not checked again for length or emptiness. Hooks run syn
 A new read can start while another is pending. The latest read receives input, and the earlier read resumes when it completes:
 
 ```csharp
-var outer = simpleConsole.ReadLine(ReadLineOptions.SingleLine with { Prompt = "Outer> " });
-var inner = simpleConsole.ReadLine(ReadLineOptions.SingleLine with { Prompt = "Inner> " });
+var outer = simpleConsole.ReadLineAsync(ReadLineOptions.SingleLine with { Prompt = "Outer> " });
+var inner = simpleConsole.ReadLineAsync(ReadLineOptions.SingleLine with { Prompt = "Inner> " });
 
 var innerResult = await inner;
 var outerResult = await outer;
 ```
 
-After checking termination and cancellation, passing the same options object as an existing read returns that read's task. It retains the original cancellation token. Distinct options objects can create nested reads even when their values are equal. Omitting options uses the current `DefaultOptions` object.
+After checking termination and cancellation, passing the same options object as an existing read returns that read's task. It retains the original cancellation token. Distinct options objects can create nested reads even when their values are equal. Omitting options uses the current `DefaultReadLineOptions` object.
 
 Each new read copies its options. `TryGetCurrentReadLineOptions(out var options)` returns that active snapshot, or false with null when no read is pending.
 
 ### Queued Input
 
-`EnqueueInput()` queues literal text followed by one submission attempt. It is consumed only when the active read's input is empty; otherwise it remains queued. Input limits, multiline rules, and `TextInputHook` still apply.
+`EnqueueLine()` queues literal text followed by one submission attempt. It is consumed only when the active read's input is empty; otherwise it remains queued. Input limits, multiline rules, and `SubmitHook` still apply.
 
 ```csharp
-simpleConsole.EnqueueInput("example");
-var result = await simpleConsole.ReadLine(ReadLineOptions.SingleLine);
+simpleConsole.EnqueueLine("example");
+var result = await simpleConsole.ReadLineAsync(ReadLineOptions.SingleLine);
 ```
 
 Null or empty text attempts an empty submission. Embedded newlines are literal text, not separate Enter events. Use `EnqueueKey()` for editing keys or an Enter event; these pass through the key hooks:
@@ -287,7 +287,7 @@ A canceled token, Escape with `CancelOnEscape`, or `Cancel` from the per-read ke
 
 ```csharp
 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-var result = await simpleConsole.ReadLine(
+var result = await simpleConsole.ReadLineAsync(
     ReadLineOptions.SingleLine with { CancelOnEscape = true }, cts.Token);
 ```
 
@@ -304,11 +304,11 @@ Optionally assign an `Arc.Threading.ExecutionGroup` to `ExecutionGroup` to contr
 | Member | Purpose |
 | --- | --- |
 | `Instance` | Lazily initialized singleton. |
-| `ReadLine(options, cancellationToken)` | Starts or retrieves a pending read and returns `Task<InputResult>`. |
+| `ReadLineAsync(options, cancellationToken)` | Starts or retrieves a pending read and returns `Task<InputResult>`. |
 | `Write(...)` / `WriteLine(...)` | Writes with optional foreground color; supports bool, char, decimal, double, float, int, uint, long, ulong, string, and `ReadOnlySpan<char>`. |
-| `Clear(clearBuffer)` | Clears the screen and redraws active input. |
-| `EnqueueInput(text)` / `EnqueueKey(keyInfo)` | Queues text or a key event. |
-| `DefaultOptions` | Options for reads without explicit options. Initially a new `ReadLineOptions`. |
+| `Clear(clearScreenBuffer)` | Clears the screen and redraws active input. |
+| `EnqueueLine(text)` / `EnqueueKey(keyInfo)` | Queues a line to submit or a key event. |
+| `DefaultReadLineOptions` | Options for reads without explicit options. Initially a new `ReadLineOptions`. |
 | `KeyInputHook` | Global key interception. |
 | `EnableColor` | Enables library-generated color sequences; initially true. |
 | `BufferKeyInputWhileIdle` | Retains idle key input; initially true. |

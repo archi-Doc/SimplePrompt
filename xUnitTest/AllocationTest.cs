@@ -11,7 +11,7 @@ public class AllocationTest(SimpleConsoleFixture fixture)
     [Fact]
     public void YesNoValidationDoesNotAllocate()
     {
-        var hook = ReadLineOptions.YesNo.TextInputHook!;
+        var hook = ReadLineOptions.YesNo.SubmitHook!;
         for (var i = 0; i < 100; i++)
         {
             hook(" YES ");
