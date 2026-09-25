@@ -36,7 +36,13 @@ public sealed class SimpleConsoleFixture
     public static Task<T> WaitAny<T>(Task<T> task)
         => task.WaitAsync(Timeout, TestContext.Current.CancellationToken);
 
+    /// <summary>
+    /// The key which <see cref="SettleHook"/> consumes to signal <see cref="Settle"/>.
+    /// </summary>
+    private const ConsoleKey SettleKey = ConsoleKey.F24;
+
     private readonly List<CancellationTokenSource> cancellationTokenSources = new();
+    private TaskCompletionSource? settleSource;
 
     public SimpleConsoleFixture()
     {
@@ -44,7 +50,13 @@ public sealed class SimpleConsoleFixture
         this.Console = SimpleConsole.Instance;
         this.ConsoleOut = System.Console.Out; // SimpleTextWriter
         this.ConsoleIn = System.Console.In; // SimpleTextReader
+        this.SettleHook = this.ProcessSettleKey;
     }
+
+    /// <summary>
+    /// Gets a per-read key hook that must be set in <see cref="ReadLineOptions.KeyInputHook"/> to use <see cref="Settle"/>.
+    /// </summary>
+    public KeyInputHook SettleHook { get; }
 
     /// <summary>
     /// Gets the writer which receives all console output.
@@ -160,7 +172,12 @@ public sealed class SimpleConsoleFixture
     /// Clears the recorded console output.
     /// </summary>
     public void ClearOutput()
-        => this.Sink.GetStringBuilder().Clear();
+    {
+        lock (this.Console.UnderlyingTextWriter)
+        {// The worker writes through the synchronized writer that Console.SetOut() created.
+            this.Sink.GetStringBuilder().Clear();
+        }
+    }
 
     /// <summary>
     /// Clears the recorded console output and returns what was recorded.
@@ -168,9 +185,30 @@ public sealed class SimpleConsoleFixture
     /// <returns>The recorded output.</returns>
     public string TakeOutput()
     {
-        var output = this.Sink.ToString();
-        this.ClearOutput();
-        return output;
+        lock (this.Console.UnderlyingTextWriter)
+        {
+            var output = this.Sink.ToString();
+            this.Sink.GetStringBuilder().Clear();
+            return output;
+        }
+    }
+
+    /// <summary>
+    /// Waits until the worker has processed every key enqueued so far by the active read,
+    /// whose options must use <see cref="SettleHook"/>.
+    /// </summary>
+    /// <returns>A task.</returns>
+    public async Task Settle()
+    {
+        // The hook sees the marker after the preceding keys. The second marker is picked up by a later pass,
+        // so the pass that processed the preceding keys (including their rendering) has completed.
+        for (var i = 0; i < 2; i++)
+        {
+            var source = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Volatile.Write(ref this.settleSource, source);
+            this.Console.EnqueueKey(new ConsoleKeyInfo(default, SettleKey, false, false, false));
+            await source.Task.WaitAsync(Timeout, TestContext.Current.CancellationToken);
+        }
     }
 
     /// <summary>
@@ -197,6 +235,35 @@ public sealed class SimpleConsoleFixture
 
             await Task.Delay(5);
         }
+    }
+
+    /// <summary>
+    /// Creates a terminal model that starts at the tracked cursor position.
+    /// </summary>
+    /// <returns>The terminal.</returns>
+    internal VirtualTerminal CreateTerminal()
+        => new(SimpleConsole.WindowWidth, SimpleConsole.WindowHeight, SimpleConsole.GetCursorPosition());
+
+    /// <summary>
+    /// Feeds the recorded output to the terminal and checks that the tracked cursor matches the terminal cursor.
+    /// </summary>
+    /// <param name="terminal">The terminal.</param>
+    internal void AssertCursor(VirtualTerminal terminal)
+    {
+        terminal.Feed(this.TakeOutput());
+        Assert.False(terminal.PendingWrap, "The cursor was left in the deferred wrap state.");
+        Assert.Equal(terminal.Cursor, SimpleConsole.GetCursorPosition());
+    }
+
+    private KeyInputHookResult ProcessSettleKey(ref ConsoleKeyInfo keyInfo)
+    {
+        if (keyInfo.Key != SettleKey)
+        {
+            return KeyInputHookResult.NotHandled;
+        }
+
+        Volatile.Read(ref this.settleSource)?.TrySetResult();
+        return KeyInputHookResult.Handled;
     }
 }
 

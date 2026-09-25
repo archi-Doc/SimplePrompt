@@ -381,6 +381,73 @@ public class RegressionTest(SimpleConsoleFixture fixture)
     }
 
     [Fact]
+    public async Task AltGrCharactersAreTextInput()
+    {
+        var task = fixture.ReadLineAsync();
+        fixture.Console.EnqueueKey(new ConsoleKeyInfo('@', ConsoleKey.Q, false, true, true)); // AltGr+Q on a German layout.
+        fixture.Console.EnqueueKey(new ConsoleKeyInfo('\u0011', ConsoleKey.Q, false, true, true)); // Ctrl+Alt+Q remains a shortcut.
+        fixture.Type("x");
+        fixture.Key(ConsoleKey.Enter);
+        Assert.Equal("@x", await fixture.Wait(task));
+    }
+
+    [Theory]
+    [InlineData("ab\r")]
+    [InlineData("ab~")]
+    public async Task CharactersBeforeADiscardedKeyAreDisplayed(string input)
+    {
+        var task = fixture.ReadLineAsync(new()
+        {
+            KeyInputHook = (ref ConsoleKeyInfo keyInfo) => keyInfo.KeyChar == '~' ? KeyInputHookResult.Handled : fixture.SettleHook(ref keyInfo),
+        });
+
+        await fixture.Settle();
+        fixture.ClearOutput();
+        fixture.Type(input);
+        await fixture.Settle();
+        Assert.Contains("ab", fixture.TakeOutput());
+
+        fixture.Key(ConsoleKey.Enter);
+        Assert.Equal("ab", await fixture.Wait(task));
+    }
+
+    [Fact]
+    public async Task SubmitHookCanWriteWhileAnotherThreadHoldsConsoleOut()
+    {
+        using var hookEntered = new ManualResetEventSlim();
+        var task = fixture.ReadLineAsync(new()
+        {
+            SubmitHook = text =>
+            {
+                hookEntered.Set();
+                fixture.ConsoleOut.WriteLine("from hook");
+                return text;
+            },
+        });
+
+        fixture.Type("a");
+
+        // Console.Out is a synchronized writer. A thread that holds it and writes through SimpleConsole
+        // must not deadlock with the worker thread writing to it from the hook.
+        var writer = Task.Factory.StartNew(
+            () =>
+            {
+                lock (fixture.ConsoleOut)
+                {
+                    fixture.Key(ConsoleKey.Enter);
+                    Assert.True(hookEntered.Wait(SimpleConsoleFixture.Timeout));
+                    fixture.Console.WriteLine("from writer");
+                }
+            },
+            TestContext.Current.CancellationToken,
+            TaskCreationOptions.LongRunning,
+            TaskScheduler.Default);
+
+        await writer.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        Assert.Equal("a", await fixture.Wait(task));
+    }
+
+    [Fact]
     public void MixedWidthCaretMatchesCharacterBoundaries()
     {
         var random = new Random(1729);

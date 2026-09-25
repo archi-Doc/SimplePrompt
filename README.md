@@ -356,7 +356,7 @@ dotnet coverage collect -s xUnitTest/coverage.config.xml -f cobertura -o artifac
 
 The [coverage configuration](xUnitTest/coverage.config.xml) measures the SimplePrompt library. CI uploads the Cobertura report as the `code-coverage` artifact. Use the report's line and branch results to identify untested paths; the NativeAOT and pseudo-terminal checks above cover additional runtime integration.
 
-Console tests share a serialized fixture because the singleton replaces process-wide streams. Regression tests cover wrapped prompts, exact row boundaries, wide-character insertion, surrogate pairs, multiline resets, output formatting, and input validation. Allocation tests check warmed-up validation and submission paths. Windows coverage cannot exercise Unix stdin, signals, or pseudo-terminal I/O; use the platform-specific CI jobs for those paths.
+Console tests share a serialized fixture because the singleton replaces process-wide streams. Regression tests cover wrapped prompts, exact row boundaries, wide-character insertion, surrogate pairs, multiline resets, output formatting, and input validation. Display tests feed the output to an xterm-compatible screen model, including deferred wrapping at the right margin, and compare the rendered rows and cursor with the tracked state after randomized editing. Allocation tests check warmed-up validation and submission paths. Windows coverage cannot exercise Unix stdin, signals, or pseudo-terminal I/O; use the platform-specific CI jobs for those paths.
 
 ## Performance
 
