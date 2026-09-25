@@ -36,6 +36,62 @@ internal static class SimplePromptHelper
         return true;
     }
 
+    /// <summary>
+    /// Gets the index of the last character of the escape sequence that starts at <paramref name="index"/>.
+    /// </summary>
+    /// <param name="text">The text.</param>
+    /// <param name="index">The index of the escape character.</param>
+    /// <returns>The index of the last character of the sequence. An incomplete sequence extends to the end of the text.</returns>
+    /// <remarks>
+    /// Recognizes control sequences (CSI), control strings such as OSC terminated by BEL or ST,
+    /// and other escape sequences such as <c>ESC 7</c> (ECMA-48).
+    /// </remarks>
+    public static int GetEscapeSequenceEnd(ReadOnlySpan<char> text, int index)
+    {
+        if (++index < text.Length)
+        {
+            var c = text[index];
+            if (c == '[')
+            {// Parameter and intermediate bytes followed by a final byte.
+                while (++index < text.Length)
+                {
+                    if (text[index] is >= '@' and <= '~')
+                    {
+                        return index;
+                    }
+                }
+            }
+            else if (c is ']' or 'P' or 'X' or '^' or '_')
+            {// OSC, DCS, SOS, PM or APC string.
+                while (++index < text.Length)
+                {
+                    if (text[index] == '\a')
+                    {
+                        return index;
+                    }
+                    else if (text[index] == '\e')
+                    {// ST (ESC \), or a new sequence which terminates the string.
+                        return (index + 1) < text.Length && text[index + 1] == '\\' ? index + 1 : index - 1;
+                    }
+                }
+            }
+            else
+            {// Intermediate bytes followed by a final byte.
+                while (index < text.Length && text[index] is >= ' ' and <= '/')
+                {
+                    index++;
+                }
+
+                if (index < text.Length)
+                {
+                    return index;
+                }
+            }
+        }
+
+        return text.Length - 1;
+    }
+
     public static byte GetCharWidth(int codePoint)
     {
         // Fast path: ASCII (the vast majority of the input/output).

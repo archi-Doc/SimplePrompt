@@ -98,8 +98,6 @@ internal sealed class SimpleTextLine
 
     public bool EndsWithEmptyRow => this.Rows.Count > 0 && this.Rows[this.Rows.Count - 1].Length == 0;
 
-    internal ReadOnlySpan<char> PromptSpan => this.charArray.AsSpan(0, this.PromptLength);
-
     internal ReadOnlySpan<char> InputSpan => this.charArray.AsSpan(this.PromptLength, this.InputLength);
 
     public bool ProcessInternal(ConsoleKeyInfo keyInfo, ReadOnlySpan<char> charBuffer)
@@ -244,14 +242,27 @@ internal sealed class SimpleTextLine
         var endCursor = endIndex == this.TotalLength ? this.GetEndCursor() : this.GetCursor(endIndex);
         var scroll = endCursor.Top - this.WindowHeight + 1;
 
-        var capacity = checked(Math.Max(this.TotalLength, this.PromptLength + this.InputWidth) + removedWidth + 128);
+        var capacity = checked(Math.Max(this.TotalLength, this.PromptLength + this.InputWidth) + this.Height + removedWidth + 128);
         var windowBuffer = SimpleConsole.RentWindowBuffer(capacity);
         var buffer = windowBuffer.AsSpan();
 
         // Hide cursor
         SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref buffer);
 
-        if (startCursor.Left != this.SimpleConsole._cursorLeft || startCursor.Top != this.SimpleConsole._cursorTop)
+        var moveCursor = startCursor.Left != this.SimpleConsole._cursorLeft || startCursor.Top != this.SimpleConsole._cursorTop;
+        if (startCursor.Left == 0 && startCursor.RowIndex > 0)
+        {
+            var previousRow = this.rows[startCursor.RowIndex - 1];
+            if (previousRow.Width < this.WindowWidth && previousRow.Top >= 0)
+            {// The previous row ends before the margin because the next wide character does not fit.
+             // It may have just become shorter, so erase the columns after it.
+                SimplePromptHelper.TryCopySetCursor(ref buffer, previousRow.Width, previousRow.Top);
+                SimplePromptHelper.TryCopy(ConsoleHelper.EraseToEndOfLineSpan, ref buffer);
+                moveCursor = true;
+            }
+        }
+
+        if (moveCursor)
         {// Move cursor
             SimplePromptHelper.TryCopySetCursor(ref buffer, startCursor.Left, startCursor.Top);
         }
@@ -261,33 +272,9 @@ internal sealed class SimpleTextLine
             SimplePromptHelper.TryCopy(ConsoleHelper.SaveCursorSpan, ref buffer);
         }
 
-        if (startIndex < this.PromptLength)
-        {// Prompt
-            SimplePromptHelper.TryCopy(this.charArray.AsSpan(0, this.PromptLength), ref buffer);
-            startIndex = this.PromptLength;
-        }
-
-        var length = endIndex - startIndex;
-
-        // Input color
+        // Prompt and input
         var colorSpan = this.SimpleConsole.GetColorEscapeCode(this.ReadLineInstance.Options.InputColor);
-        SimplePromptHelper.TryCopy(colorSpan, ref buffer);
-
-        // Characters
-        var maskingCharacter = this.ReadLineInstance.Options.MaskingCharacter;
-        if (maskingCharacter == default)
-        {// Plain
-            SimplePromptHelper.TryCopy(this.charArray.AsSpan(startIndex, length), ref buffer);
-        }
-        else
-        {// Masked
-            var totalWidth = (int)BaseHelper.Sum(this.widthArray.AsSpan(startIndex, length));
-            if (totalWidth <= buffer.Length)
-            {
-                buffer.Slice(0, totalWidth).Fill(maskingCharacter);
-                buffer = buffer.Slice(totalWidth);
-            }
-        }
+        this.CopyText(ref buffer, startIndex, endIndex, colorSpan);
 
         if (endCursor.Left == 0)
         {// New line at the end
@@ -345,6 +332,81 @@ internal sealed class SimpleTextLine
         if (this.SimpleConsole._cursorLeft == 0)
         {
             this.SimpleConsole.SetCursorPosition(this.SimpleConsole._cursorLeft, this.SimpleConsole._cursorTop, CursorOperation.None);
+        }
+    }
+
+    /// <summary>
+    /// Copies the prompt and input characters from <paramref name="start"/> to <paramref name="end"/>,
+    /// inserting <paramref name="colorSpan"/> where the input starts and masking the input if specified.
+    /// </summary>
+    /// <param name="buffer">The destination buffer. It is sliced by the number of written characters.</param>
+    /// <param name="start">The start position in the line.</param>
+    /// <param name="end">The end position in the line.</param>
+    /// <param name="colorSpan">The input color escape code.</param>
+    /// <remarks>
+    /// A row which ends before the right margin (because the next wide character does not fit) is padded with spaces.
+    /// The terminal would otherwise skip those columns, which may still display old characters,
+    /// and a masked wide character would be split across rows.
+    /// </remarks>
+    internal void CopyText(ref Span<char> buffer, int start, int end, ReadOnlySpan<char> colorSpan)
+    {
+        if (!this.TryGetRowFromArrayPosition(start, out var row))
+        {
+            return;
+        }
+
+        var promptLength = this.PromptLength;
+        var maskingCharacter = this.ReadLineInstance.Options.MaskingCharacter;
+        var colored = false;
+        while (true)
+        {
+            var rowEnd = Math.Min(row.End, end);
+            if (start < promptLength)
+            {// Prompt
+                var promptEnd = Math.Min(rowEnd, promptLength);
+                SimplePromptHelper.TryCopy(this.charArray.AsSpan(start, promptEnd - start), ref buffer);
+                start = promptEnd;
+            }
+
+            if (!colored && start >= promptLength)
+            {// Input color
+                SimplePromptHelper.TryCopy(colorSpan, ref buffer);
+                colored = true;
+            }
+
+            if (start < rowEnd)
+            {// Input
+                if (maskingCharacter == default)
+                {
+                    SimplePromptHelper.TryCopy(this.charArray.AsSpan(start, rowEnd - start), ref buffer);
+                }
+                else
+                {
+                    var width = (int)BaseHelper.Sum(this.widthArray.AsSpan(start, rowEnd - start));
+                    if (width <= buffer.Length)
+                    {
+                        buffer.Slice(0, width).Fill(maskingCharacter);
+                        buffer = buffer.Slice(width);
+                    }
+                }
+
+                start = rowEnd;
+            }
+
+            var nextIndex = row.Index + 1;
+            if (start >= end || nextIndex >= this.rows.Count)
+            {
+                return;
+            }
+
+            var padding = this.WindowWidth - row.Width;
+            if (padding > 0 && padding <= buffer.Length)
+            {
+                buffer.Slice(0, padding).Fill(' ');
+                buffer = buffer.Slice(padding);
+            }
+
+            row = this.rows[nextIndex];
         }
     }
 
@@ -470,22 +532,17 @@ internal sealed class SimpleTextLine
 
     private void ClearLine()
     {
-        // Overwrite the displayed input (InputWidth columns) with spaces, then drop the content.
-        var inputWidth = this.InputWidth;
-        this.EnsureBuffer(this.PromptLength + inputWidth);
-        Array.Fill<char>(this.charArray, ' ', this.PromptLength, inputWidth);
-        Array.Fill<byte>(this.widthArray, 1, this.PromptLength, inputWidth);
-        this._inputLength = inputWidth;
-        this.Write(this.PromptLength, this.TotalLength, false, 0);
-
+        // Drop the content and erase the rest of the row where the input starts.
+        // Rows freed below are cleared by HeightChanged(), so neither masking nor row padding leaves characters behind.
         var previousHeight = this.Height;
         this.Clear();
+        this.Write(this.PromptLength, this.TotalLength, true, 0, eraseLine: true);
+        this.ReadLineInstance.CurrentLocation.Reset(this, CursorOperation.ForceSet);
+
         if (this.Height != previousHeight)
         {
             this.ReadLineInstance.HeightChanged(this, this.Height - previousHeight);
         }
-
-        this.ReadLineInstance.CurrentLocation.Reset(this, CursorOperation.ForceSet);
     }
 
     private void ProcessCharBuffer(ReadOnlySpan<char> charBuffer)

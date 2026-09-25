@@ -100,6 +100,23 @@ public class SimplePromptHelperTest
         Assert.Equal(4, span.Length); // Unchanged.
     }
 
+    [Theory]
+    [InlineData("\e[0mx", 3)] // Control sequence
+    [InlineData("\e[?25hx", 5)]
+    [InlineData("\e[12;34Hx", 7)]
+    [InlineData("\e]0;title\ax", 9)] // OSC terminated by BEL
+    [InlineData("\e]8;;url\e\\x", 9)] // OSC terminated by ST
+    [InlineData("\e]8;;url\e[0m", 7)] // A new sequence terminates the string.
+    [InlineData("\ePdata\e\\x", 7)] // DCS
+    [InlineData("\e7x", 1)]
+    [InlineData("\e(Bx", 2)] // Intermediate byte
+    [InlineData("\e", 0)] // Incomplete sequences extend to the end.
+    [InlineData("\e[12", 3)]
+    [InlineData("\e]title", 6)]
+    [InlineData("\e(", 1)]
+    public void GetEscapeSequenceEnd(string text, int expected)
+        => Assert.Equal(expected, SimplePromptHelper.GetEscapeSequenceEnd(text, 0));
+
     [Fact]
     public void IsMultiline()
     {

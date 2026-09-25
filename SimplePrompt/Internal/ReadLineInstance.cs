@@ -166,15 +166,15 @@ internal sealed class ReadLineInstance
                         return null;
                     }
 
+                    // Start the new line below every row of the last line, wherever the caret is.
+                    this.CurrentLocation.CursorLast();
                     var previousLine = this.LineList[this.LineList.Count - 1];
                     line = SimpleTextLine.Rent(this.simpleConsole, this, this.LineList.Count, this.Options.ContinuationPrompt.AsSpan(), true);
                     this.LineList.Add(line);
                     line.Top = previousLine.Top + previousLine.Height;
 
-                    this.simpleConsole.UnderlyingTextWriter.WriteLine();
-                    this.simpleConsole.NewLineCursor();
-                    this.simpleConsole.UnderlyingTextWriter.Write(line.PromptSpan);
-                    this.simpleConsole.AdvanceCursor(line.PromptSpan, false);
+                    this.simpleConsole.WriteNewLine();
+                    line.Redraw();
                     this.CurrentLocation.Reset(line);
 
                     return null;
@@ -271,9 +271,14 @@ internal sealed class ReadLineInstance
         if (diff > 0)
         {
             this.simpleConsole.ClearRow(line.Top + line.Height - 1);
+            if (index < this.LineList.Count - 1)
+            {// The following lines move down, possibly below the window.
+                var lastLine = this.LineList[this.LineList.Count - 1];
+                this.simpleConsole.ScrollToFit(lastLine.Top + lastLine.Height + diff);
+            }
         }
 
-        var top = -1;
+        var top = line.Top + line.Height;
         for (var i = index + 1; i < this.LineList.Count; i++)
         {
             this.LineList[i].Top += diff;
@@ -282,13 +287,10 @@ internal sealed class ReadLineInstance
         }
 
         if (diff < 0)
-        {
-            if (top >= 0)
+        {// Clear the rows freed below the last line.
+            for (var i = 0; i < -diff; i++)
             {
-                for (var i = 0; i < -diff; i++)
-                {
-                    this.simpleConsole.ClearRow(top++);
-                }
+                this.simpleConsole.ClearRow(top++);
             }
         }
 
@@ -434,7 +436,7 @@ internal sealed class ReadLineInstance
         var capacity = 0;
         foreach (var line in this.LineList)
         {
-            capacity = checked(capacity + line.PromptLength + (this.Options.MaskingCharacter == default ? line.InputLength : line.InputWidth) + 64);
+            capacity = checked(capacity + line.PromptLength + (this.Options.MaskingCharacter == default ? line.InputLength : line.InputWidth) + line.Height + 64);
         }
 
         var windowBuffer = SimpleConsole.RentWindowBuffer(capacity);
@@ -450,27 +452,7 @@ internal sealed class ReadLineInstance
                 SimplePromptHelper.TryCopy(ConsoleHelper.NewLineSpan, ref span);
             }
 
-            if (line.PromptLength > 0)
-            {
-                SimplePromptHelper.TryCopy(line.PromptSpan, ref span);
-            }
-
-            SimplePromptHelper.TryCopy(colorSpan, ref span); // Input color
-
-            var maskingCharacter = this.Options.MaskingCharacter;
-            if (maskingCharacter == default)
-            {
-                SimplePromptHelper.TryCopy(line.InputSpan, ref span);
-            }
-            else
-            {
-                if (span.Length >= line.InputWidth)
-                {
-                    span.Slice(0, line.InputWidth).Fill(maskingCharacter);
-                    span = span.Slice(line.InputWidth);
-                }
-            }
-
+            line.CopyText(ref span, 0, line.TotalLength, colorSpan);
             if (colorSpan.Length > 0)
             {
                 SimplePromptHelper.TryCopy(ConsoleHelper.ResetAttributesSpan, ref span); // Reset color
@@ -487,6 +469,7 @@ internal sealed class ReadLineInstance
             y += line.Height;
         }
 
+        this.TrackCursorAtEnd();
         var scroll = y - this.simpleConsole._windowHeight;
         if (scroll > 0)
         {
@@ -528,14 +511,15 @@ internal sealed class ReadLineInstance
             line.Top = top;
             top += line.Height;
 
-            if (windowBuffer is null || windowBuffer.Length < currentPrompt.Length + 64)
+            var capacity = checked(currentPrompt.Length + line.Height + 64);
+            if (windowBuffer is null || windowBuffer.Length < capacity)
             {
                 if (windowBuffer is not null)
                 {
                     SimpleConsole.ReturnWindowBuffer(windowBuffer);
                 }
 
-                windowBuffer = SimpleConsole.RentWindowBuffer(checked(currentPrompt.Length + 64));
+                windowBuffer = SimpleConsole.RentWindowBuffer(capacity);
             }
 
             var span = windowBuffer.AsSpan();
@@ -545,7 +529,11 @@ internal sealed class ReadLineInstance
                 SimplePromptHelper.TryCopy(ConsoleHelper.HideCursorSpan, ref span);
             }
 
-            SimplePromptHelper.TryCopy(currentPrompt, ref span);
+            line.CopyText(ref span, 0, line.PromptLength, default);
+            if (line.EndsWithEmptyRow)
+            {// Complete the deferred wrap of a full row, as Redraw() does, so that the line occupies its empty row.
+                SimplePromptHelper.TryCopy(SimplePromptHelper.ForceNewLineCursor, ref span);
+            }
 
             if (isInput)
             {
@@ -575,6 +563,7 @@ internal sealed class ReadLineInstance
             SimpleConsole.ReturnWindowBuffer(windowBuffer);
         }
 
+        this.TrackCursorAtEnd();
         this.Scroll();
 
         this.CurrentLocation.Reset();
@@ -593,6 +582,16 @@ internal sealed class ReadLineInstance
         {
             this.simpleConsole.Scroll(scroll, true);
         }
+    }
+
+    /// <summary>
+    /// Sets the tracked cursor to the end of the last line, where the terminal cursor is after the lines are written.
+    /// </summary>
+    private void TrackCursorAtEnd()
+    {
+        var line = this.LineList[this.LineList.Count - 1];
+        this.simpleConsole._cursorLeft = line.Rows[line.Rows.Count - 1].Width;
+        this.simpleConsole._cursorTop = line.Top + line.Height - 1;
     }
 
     private void ReleaseLines()
@@ -615,19 +614,8 @@ internal sealed class ReadLineInstance
         var line = this.LineList[this.LineList.Count - 1];
         var top = line.Top + line.Height;
         for (var i = 0; i < -dif; i++)
-        {
-            this.ClearLine(top + i);
+        {// ClearRow() keeps the terminal cursor where the tracked cursor is.
+            this.simpleConsole.ClearRow(top + i);
         }
-    }
-
-    private void ClearLine(int top)
-    {
-        Span<char> windowBuffer = stackalloc char[64];
-        var buffer = windowBuffer;
-
-        SimplePromptHelper.TryCopySetCursor(ref buffer, 0, top);
-        SimplePromptHelper.TryCopy(ConsoleHelper.EraseEntireLineSpan, ref buffer);
-
-        this.RawConsole.WriteInternal(windowBuffer.Slice(0, windowBuffer.Length - buffer.Length));
     }
 }

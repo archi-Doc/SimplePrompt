@@ -148,6 +148,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     private readonly List<ReadLineInstance> instanceList = [];
 
     private long adjustWindowTime;
+    private volatile bool windowResized;
 
     #endregion
 
@@ -171,38 +172,9 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         try
         {
 #pragma warning disable CA1416 // Validate platform compatibility
-            this.posixSignalRegistration = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ =>
-            {
-                (int Left, int Top) cursor;
-                try
-                {
-                    cursor = Console.GetCursorPosition();
-                }
-                catch
-                {
-                    return;
-                }
-
-                using (this.syncObject.EnterScope())
-                {// Adjusts the cursor position when attached to a console.
-                    if (this.TryGetActiveInstance(out var activeInstance))
-                    {
-                        if (cursor.Top != this._cursorTop ||
-                            cursor.Left != this._cursorLeft)
-                        {// Cursor changed
-                            if (activeInstance.LineList.Count > 0)
-                            {
-                                activeInstance.LineList[0].Top = cursor.Top;
-                                activeInstance.ResetCursor(CursorOperation.None);
-                                activeInstance.Redraw();
-                                activeInstance.CurrentLocation.Restore(CursorOperation.None);
-                            }
-
-                            // this.simpleArrange.Arrange(cursor, true);
-                        }
-                    }
-                }
-            });
+            // Rearrange on the next poll of the worker. Querying the cursor here would race with the worker,
+            // which reads the terminal's reply from stdin as key input.
+            this.posixSignalRegistration = PosixSignalRegistration.Create(PosixSignal.SIGWINCH, _ => this.windowResized = true);
 #pragma warning restore CA1416 // Validate platform compatibility
         }
         catch
@@ -254,8 +226,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
 
             if (this._cursorLeft > 0)
             {
-                this.UnderlyingTextWriter.WriteLine();
-                this.NewLineCursor();
+                this.WriteNewLine();
             }
 
             // Create and prepare a ReadLineInstance.
@@ -602,11 +573,10 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     {
         using (this.syncObject.EnterScope())
         {
-            if (this.instanceList.Count > 0)
+            if (this.TryGetActiveInstance(out var activeInstance))
             {// New line
-                this.instanceList[^1].CurrentLocation.MoveToEnd();
-                this.UnderlyingTextWriter.WriteLine();
-                this.NewLineCursor();
+                activeInstance.CurrentLocation.MoveToEnd();
+                this.WriteNewLine();
             }
 
             foreach (var x in this.instanceList)
@@ -624,13 +594,16 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         ReadLineInstance? currentInstance = null;
         try
         {
-            ConsoleKeyInfo keyInfo = default;
+            ConsoleKeyInfo keyInfo;
             InputResult inputResult;
+            string? result = null;
 
             // Detect window resize.
             var current = Environment.TickCount64;
-            if ((current - this.adjustWindowTime) >= AdjustWindowIntervalInMilliseconds)
+            if (this.windowResized ||
+                (current - this.adjustWindowTime) >= AdjustWindowIntervalInMilliseconds)
             {
+                this.windowResized = false;
                 this.adjustWindowTime = current;
                 this.AdjustWindow();
             }
@@ -648,7 +621,6 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
             }
 
             // Get the current instance
-
             using (this.syncObject.EnterScope())
             {
                 for (var i = 0; i < this.instanceList.Count - 1; i++)
@@ -672,8 +644,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                     inputResult = new(InputResultKind.Canceled);
                     goto CompleteInstance;
                 }
-                else if (this.ExecutionGroup?.IsTerminated == true/* ||
-                    this.worker.IsTerminated*/)
+                else if (this.ExecutionGroup?.IsTerminated == true)
                 {// Terminated
                     inputResult = new(InputResultKind.Terminated);
                     goto CompleteInstance;
@@ -683,24 +654,24 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                     currentInstance.IsEmptyInput() &&
                     this.concurrentTextQueue.TryDequeue(out var queuedMessage))
                 {
-                    var result = currentInstance.ProcessInput(SimplePromptHelper.EnterKeyInfo, queuedMessage.AsSpan());
-                    if (result is not null)
-                    {
-                        result = ProcessSubmitHook(result);
-                        if (result is not null)
-                        {
-                            inputResult = new(result);
-                            goto CompleteInstance;
-                        }
-                    }
+                    result = currentInstance.ProcessInput(SimplePromptHelper.EnterKeyInfo, queuedMessage.AsSpan());
+                }
+            }
+
+            if (result is not null)
+            {
+                result = ProcessSubmitHook(result);
+                if (result is not null)
+                {
+                    inputResult = new(result);
+                    goto CompleteInstance;
                 }
             }
 
             while (this.inputKeyQueue.TryDequeue(out keyInfo))
             {// Dequeue key input and process it.
-    ProcessKeyInfo:
                 if (keyInfo.KeyChar == '\n' ||
-                keyInfo.Key == ConsoleKey.Enter)
+                    keyInfo.Key == ConsoleKey.Enter)
                 {
                     keyInfo = SimplePromptHelper.EnterKeyInfo;
                 }
@@ -719,9 +690,9 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                     goto CompleteInstance;
                 }
 
-                if (currentInstance.Options.KeyInputHook is not null)
+                if (currentInstance.Options.KeyInputHook is { } keyInputHook)
                 {
-                    var hookResult = currentInstance.Options.KeyInputHook(ref keyInfo);
+                    var hookResult = keyInputHook(ref keyInfo);
                     if (hookResult == KeyInputHookResult.Handled)
                     {
                         continue;
@@ -733,82 +704,41 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                     }
                 }
 
-                bool processInput = true;
-                bool hasPendingKey = false;
-                ConsoleKeyInfo pendingKeyInfo = default;
-                if (IsControl(keyInfo))
-                {// Control
-                }
-                else
-                {// Not control: accumulate the character and consume the following keys as well.
+                if (!IsControl(keyInfo))
+                {// Accumulate characters so that consecutive input is inserted and rendered at once.
                     currentInstance.CharBuffer[currentInstance.CharPosition++] = keyInfo.KeyChar;
-                    if (this.inputKeyQueue.TryDequeue(out var nextKeyInfo))
+                    if (currentInstance.CharPosition < ReadLineInstance.CharBufferSize)
                     {
-                        processInput = false;
-                        if (currentInstance.CharPosition >= (ReadLineInstance.CharBufferSize - 1))
-                        {
-                            if (!char.IsHighSurrogate(currentInstance.CharBuffer[currentInstance.CharPosition - 1]) ||
-                                !char.IsLowSurrogate(nextKeyInfo.KeyChar))
-                            {// The buffer is full.
-                                processInput = true;
-                            }
-                        }
+                        continue;
+                    }
 
-                        if (processInput)
-                        {// Flush the accumulated characters first, then process the next key.
-                            hasPendingKey = true;
-                            pendingKeyInfo = nextKeyInfo;
-                            keyInfo = default;
-                        }
-                        else
-                        {
-                            keyInfo = nextKeyInfo;
-                            goto ProcessKeyInfo;
-                        }
-                    }
-                    else if (char.IsHighSurrogate(keyInfo.KeyChar))
-                    {
-                        // Keep a trailing high surrogate until its next key arrives.
-                        processInput = false;
-                    }
+                    keyInfo = default; // The buffer is full.
                 }
 
-                if (processInput)
-                {// Process input
-                    string? result;
-                    using (this.syncObject.EnterScope())
+                result = ProcessCharacters(keyInfo);
+                if (result is not null)
+                {
+                    result = ProcessSubmitHook(result);
+                    if (result is not null)
                     {
-                        result = currentInstance.ProcessInput(keyInfo, currentInstance.CharBuffer.AsSpan(0, currentInstance.CharPosition));
-                        currentInstance.CharPosition = 0; // The characters have been consumed.
-                        if (result is not null)
-                        {
-                            result = ProcessSubmitHook(result);
-                            if (result is null)
-                            {// Rejected
-                                continue;
-                            }
-
-                            inputResult = new(result);
-                            goto CompleteInstance;
-                        }
-                    }
-
-                    if (hasPendingKey)
-                    {// Process pending key input.
-                        keyInfo = pendingKeyInfo;
-                        goto ProcessKeyInfo;
+                        inputResult = new(result);
+                        goto CompleteInstance;
                     }
                 }
             }
 
+            // Render the characters accumulated so far, including those followed by a discarded key.
+            ProcessCharacters(default);
             return;
 
-    CompleteInstance:
+CompleteInstance:
             using (this.syncObject.EnterScope())
             {
-                currentInstance.CurrentLocation.MoveToEnd();
-                this.UnderlyingTextWriter.WriteLine();
-                this.NewLineCursor();
+                if (this.IsActiveInstance(currentInstance))
+                {// Move below the input. If another read has started meanwhile, the lines are left as they are.
+                    currentInstance.CurrentLocation.MoveToEnd();
+                    this.WriteNewLine();
+                }
 
                 this.RemoveInstance(currentInstance);
             }
@@ -816,33 +746,79 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
             currentInstance.TaskCompletionSource.SetResult(inputResult);
             ReadLineInstance.Return(currentInstance);
 
-            string? ProcessSubmitHook(string result)
-            {
-                if (currentInstance.Options.SubmitHook is { } submitHook)
+            string? ProcessCharacters(ConsoleKeyInfo keyInfo)
+            {// Inserts the accumulated characters and processes the key.
+             // Without a key, a trailing high surrogate is kept until its low surrogate arrives, so that a surrogate pair is never split.
+                var charBuffer = currentInstance.CharBuffer;
+                var charPosition = currentInstance.CharPosition;
+                var length = charPosition;
+                if (keyInfo.Key == ConsoleKey.None)
                 {
-                    var newResult = submitHook(result);
-                    if (newResult is null)
-                    {// Rejected by the hook delegate.
-                        this.UnderlyingTextWriter.WriteLine();
-                        this.NewLineCursor();
-                        currentInstance.Reset();
-                        currentInstance.Redraw();
-                        currentInstance.CurrentLocation.Reset();
+                    if (length > 0 && char.IsHighSurrogate(charBuffer[length - 1]))
+                    {
+                        length--;
                     }
 
-                    return newResult;
+                    if (length == 0)
+                    {
+                        return null;
+                    }
                 }
-                else
+
+                string? result;
+                using (this.syncObject.EnterScope())
+                {
+                    result = currentInstance.ProcessInput(keyInfo, charBuffer.AsSpan(0, length));
+                }
+
+                if (length < charPosition)
+                {
+                    charBuffer[0] = charBuffer[length];
+                }
+
+                currentInstance.CharPosition = charPosition - length;
+                return result;
+            }
+
+            string? ProcessSubmitHook(string result)
+            {// Called outside the lock: the hook may write to Console.Out, whose lock another thread may hold while waiting for this console.
+                if (currentInstance.Options.SubmitHook is not { } submitHook)
                 {
                     return result;
                 }
+
+                var newResult = submitHook(result);
+                if (newResult is null)
+                {// Rejected by the hook delegate: keep the rejected input and prompt again below it.
+                    using (this.syncObject.EnterScope())
+                    {
+                        if (this.IsActiveInstance(currentInstance))
+                        {
+                            currentInstance.CurrentLocation.MoveToEnd();
+                            this.WriteNewLine();
+                            currentInstance.Reset();
+                            currentInstance.Redraw();
+                            currentInstance.CurrentLocation.Reset();
+                        }
+                        else
+                        {// Another read has started meanwhile; this one is redrawn when it becomes active again.
+                            currentInstance.Reset();
+                        }
+                    }
+                }
+
+                return newResult;
             }
         }
         catch (Exception exception)
         {
             using (this.syncObject.EnterScope())
             {
-                currentInstance ??= this.instanceList.LastOrDefault();
+                if (currentInstance is null)
+                {
+                    this.TryGetActiveInstance(out currentInstance);
+                }
+
                 if (currentInstance is null || !this.instanceList.Contains(currentInstance))
                 {
                     return;
@@ -856,83 +832,106 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         }
     }
 
-    internal void AdvanceCursor(ReadOnlySpan<char> text, bool newLine)
+    /// <summary>
+    /// Advances the tracked cursor over text written to the terminal.
+    /// </summary>
+    /// <param name="text">The text, which may contain escape sequences and carriage returns but no line feeds.</param>
+    /// <param name="newLine">Whether a newline follows the text.</param>
+    /// <returns>
+    /// <see langword="true"/> if the text ends exactly at the right margin. The tracked cursor is then on the next row,
+    /// whereas the terminal defers the wrap until the next character, and erasing in that state also erases the last character.
+    /// </returns>
+    internal bool AdvanceCursor(ReadOnlySpan<char> text, bool newLine)
     {
         var left = this._cursorLeft;
         var top = this._cursorTop;
         var windowWidth = this._windowWidth;
-        var windowHeight = this._windowHeight;
+        var atMargin = false;
 
         for (var i = 0; i < text.Length; i++)
         {
-            while (text[i] == '\e')
-            {// Skip ANSI escape code
-                i++;
-                while (i < text.Length)
-                {
-                    if (char.IsAsciiLetter(text[i]))
-                    {
-                        i++;
-                        break;
-                    }
-
-                    i++;
-                }
-
-                if (i >= text.Length)
-                {
-                    goto Exit;
-                }
-            }
-
             int width;
             var c = text[i];
-            if (char.IsHighSurrogate(c) && (i + 1) < text.Length && char.IsLowSurrogate(text[i + 1]))
+            if (c == '\e')
+            {// Escape sequences do not move the cursor.
+                i = SimplePromptHelper.GetEscapeSequenceEnd(text, i);
+                continue;
+            }
+            else if (c == '\r')
+            {
+                if (atMargin)
+                {// The deferred wrap has not taken place, so the cursor returns to the row of the text.
+                    top--;
+                    atMargin = false;
+                }
+
+                left = 0;
+                continue;
+            }
+            else if (c == '\t')
+            {
+                if (!atMargin)
+                {// Next tab stop (every 8 columns), without wrapping.
+                    left = Math.Min((left | 7) + 1, windowWidth - 1);
+                }
+
+                continue;
+            }
+            else if (char.IsHighSurrogate(c) && (i + 1) < text.Length && char.IsLowSurrogate(text[i + 1]))
             {// A surrogate pair occupies the width of a single character.
-                width = SimplePromptHelper.GetCharWidth(char.ConvertToUtf32(c, text[i + 1]));
-                i++;
+                width = SimplePromptHelper.GetCharWidth(char.ConvertToUtf32(c, text[++i]));
             }
             else
             {
                 width = SimplePromptHelper.GetCharWidth(c);
             }
 
+            if (width == 0)
+            {// Control characters and combining marks.
+                continue;
+            }
+
+            atMargin = false;
             left += width;
             if (left == windowWidth)
             {
                 left = 0;
                 top++;
+                atMargin = true;
             }
             else if (left > windowWidth)
-            {
+            {// A wide character that does not fit wraps to the next row.
                 left = width;
                 top++;
             }
         }
 
-Exit:
-        if (newLine)
-        {
-            if (top > this._cursorTop &&
-                left == 0)
-            {// Already on a new line.
-            }
-            else
-            {
-                left = 0;
-                top++;
-            }
+        if (newLine && !atMargin)
+        {// At the margin, the newline completes the deferred wrap.
+            left = 0;
+            top++;
         }
 
         this._cursorLeft = left;
         this._cursorTop = top;
 
         // Scroll if needed.
-        var scroll = top - windowHeight + 1;
+        var scroll = top - this._windowHeight + 1;
         if (scroll > 0)
         {
             this.Scroll(scroll, true);
         }
+
+        return atMargin;
+    }
+
+    /// <summary>
+    /// Writes a newline and advances the tracked cursor. Output errors are ignored, as for other rendering.
+    /// </summary>
+    internal void WriteNewLine()
+    {
+        this.RawConsole.WriteInternal(ConsoleHelper.NewLineSpan);
+        this.NewLineCursor();
     }
 
     internal void NewLineCursor()
@@ -946,6 +945,35 @@ Exit:
         {
             this.Scroll(scroll, true);
         }
+    }
+
+    /// <summary>
+    /// Scrolls the terminal so that the rows above <paramref name="bottom"/> are within the window.
+    /// </summary>
+    /// <param name="bottom">The row below the last row to be displayed.</param>
+    /// <remarks>Moving the cursor below the window does not scroll the terminal, so newlines are written on the last row.</remarks>
+    internal void ScrollToFit(int bottom)
+    {
+        var scroll = bottom - this._windowHeight;
+        if (scroll <= 0)
+        {
+            return;
+        }
+
+        var windowBuffer = SimpleConsole.RentWindowBuffer(checked((scroll * ConsoleHelper.NewLineSpan.Length) + 64));
+        var buffer = windowBuffer.AsSpan();
+        SimplePromptHelper.TryCopySetCursor(ref buffer, 0, this._windowHeight - 1);
+        for (var i = 0; i < scroll; i++)
+        {
+            SimplePromptHelper.TryCopy(ConsoleHelper.NewLineSpan, ref buffer);
+        }
+
+        this.RawConsole.WriteInternal(windowBuffer.AsSpan(0, windowBuffer.Length - buffer.Length));
+        SimpleConsole.ReturnWindowBuffer(windowBuffer);
+
+        this._cursorLeft = 0;
+        this._cursorTop = this._windowHeight - 1;
+        this.Scroll(scroll, false);
     }
 
     internal void Scroll(int scroll, bool moveCursor)
@@ -1027,7 +1055,8 @@ Exit:
 
             activeInstance.ResetCursor(CursorOperation.Hide);
 
-            this.WriteInternal(message, true, color);
+            // End the output line (unless the message already does) so that the prompt is redrawn below it.
+            this.WriteInternal(message, newLine || message[^1] != '\n', color);
 
             activeInstance.Redraw();
             activeInstance.CurrentLocation.Restore(CursorOperation.Show);
@@ -1114,13 +1143,17 @@ Exit:
         this._windowHeight = windowHeight;
     }
 
+    private bool IsActiveInstance(ReadLineInstance instance)
+        => this.instanceList.Count > 0 && this.instanceList[^1] == instance;
+
     private void RemoveInstance(ReadLineInstance target)
     {
+        var wasActive = this.IsActiveInstance(target);
         target.Clear();
         this.instanceList.Remove(target);
 
-        if (this.TryGetActiveInstance(out var activeInstance))
-        {
+        if (wasActive && this.TryGetActiveInstance(out var activeInstance))
+        {// The previous read becomes active again.
             activeInstance.Redraw();
             activeInstance.CurrentLocation.Restore(CursorOperation.None);
         }
@@ -1188,9 +1221,20 @@ Exit:
 
             // Text
             Append(text, ref span);
-            Append(appendNewLine ? ConsoleHelper.EraseToEndOfLineAndNewLineSpan : ConsoleHelper.EraseToEndOfLineSpan, ref span);
+            var atMargin = this.AdvanceCursor(text, appendNewLine);
+            if (atMargin && appendNewLine)
+            {// The text fills the row, so there is nothing to erase (erasing would also erase the last character).
+                Append(ConsoleHelper.NewLineSpan, ref span);
+            }
+            else
+            {
+                if (atMargin)
+                {// Complete the deferred wrap before erasing, so that the tracked cursor matches the terminal.
+                    Append(SimplePromptHelper.ForceNewLineCursor, ref span);
+                }
 
-            this.AdvanceCursor(text, appendNewLine);
+                Append(appendNewLine ? ConsoleHelper.EraseToEndOfLineAndNewLineSpan : ConsoleHelper.EraseToEndOfLineSpan, ref span);
+            }
         }
 
         if (newLine && endsWithNewLine)
@@ -1250,6 +1294,7 @@ Exit:
         }
 
         this.PrepareWindow();
+        this.worker.Start(); // After the cursor query, whose reply the worker would otherwise read as key input.
     }
 
     private void EnqueueKeyInput(ref ConsoleKeyInfo keyInfo)
@@ -1276,8 +1321,11 @@ Exit:
         {
             return true;
         }
-        else if ((keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt)) != 0)
-        {
+
+        var modifiers = keyInfo.Modifiers & (ConsoleModifiers.Control | ConsoleModifiers.Alt);
+        if (modifiers != 0 &&
+            (modifiers != (ConsoleModifiers.Control | ConsoleModifiers.Alt) || char.IsControl(keyInfo.KeyChar)))
+        {// Control or Alt shortcut. AltGr is reported as Control+Alt with a printable character, which is text input.
             return true;
         }
 

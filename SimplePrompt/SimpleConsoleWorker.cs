@@ -8,14 +8,26 @@ namespace SimplePrompt;
 internal sealed class SimpleConsoleWorker
 {
     private static readonly TimeSpan IntervalTimeSpan = TimeSpan.FromMilliseconds(10);
+    private readonly SimpleConsole simpleConsole;
     private volatile bool isTerminated;
 
     public bool IsTerminated => this.isTerminated;
 
     public SimpleConsoleWorker(SimpleConsole simpleConsole)
     {
+        this.simpleConsole = simpleConsole;
+    }
+
+    /// <summary>
+    /// Starts polling. Call once after initialization: on Unix the worker reads stdin directly,
+    /// which would race with the terminal's reply to the initial cursor position query.
+    /// </summary>
+    public void Start()
+    {
         _ = Task.Run(async () =>
         {
+            var simpleConsole = this.simpleConsole;
+
             // A single PeriodicTimer avoids allocating a delay task on every iteration.
             using var timer = new PeriodicTimer(IntervalTimeSpan);
             while (true)
