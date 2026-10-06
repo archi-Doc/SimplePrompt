@@ -293,7 +293,7 @@ public class WriteTest(SimpleConsoleFixture fixture)
         var writer = fixture.ConsoleOut;
         var provider = writer.FormatProvider;
 
-        Assert.Equal(Encoding.UTF8, writer.Encoding);
+        Assert.Equal(fixture.Console.UnderlyingTextWriter.Encoding, writer.Encoding);
         Assert.NotNull(fixture.Console.UnderlyingTextWriter);
 
         this.AssertWrite("plain string", () => writer.Write("plain string"));

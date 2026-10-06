@@ -29,5 +29,8 @@ public enum KeyInputHookResult
 /// </summary>
 /// <param name="keyInfo">The key to inspect or replace.</param>
 /// <returns>The action to take for this key.</returns>
-/// <remarks>Runs synchronously on the input worker. Exceptions fault the active read task, if any.</remarks>
+/// <remarks>
+/// Runs synchronously on the input worker; do not block waiting for another read.
+/// Exceptions fault the read whose hook is running, or the active read for a global hook.
+/// </remarks>
 public delegate KeyInputHookResult KeyInputHook(ref ConsoleKeyInfo keyInfo);

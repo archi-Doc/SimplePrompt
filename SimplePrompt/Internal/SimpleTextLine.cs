@@ -9,7 +9,7 @@ using Arc.Unit;
 namespace SimplePrompt.Internal;
 
 /// <summary>
-/// Represents a logical input line (a prompt and its input) which is wrapped into one or more <see cref="SimpleTextRow"/>.
+/// Stores a logical prompt/input line and its wrapped display rows.
 /// </summary>
 internal sealed class SimpleTextLine
 {
@@ -114,7 +114,7 @@ internal sealed class SimpleTextLine
             {// Exit or Multiline """
                 if (!this.ReadLineInstance.Options.AllowEmptyInput)
                 {
-                    if (this.ReadLineInstance.IsEmptyInput())
+                    if (this.ReadLineInstance.IsEmptyInput(includeBufferedCharacters: false))
                     {// Empty input
                         return false;
                     }
@@ -340,8 +340,8 @@ internal sealed class SimpleTextLine
     /// inserting <paramref name="colorSpan"/> where the input starts and masking the input if specified.
     /// </summary>
     /// <param name="buffer">The destination buffer. It is sliced by the number of written characters.</param>
-    /// <param name="start">The start position in the line.</param>
-    /// <param name="end">The end position in the line.</param>
+    /// <param name="start">The inclusive UTF-16 start position in the line.</param>
+    /// <param name="end">The exclusive UTF-16 end position in the line.</param>
     /// <param name="colorSpan">The input color escape code.</param>
     /// <remarks>
     /// A row which ends before the right margin (because the next wide character does not fit) is padded with spaces.
@@ -431,7 +431,6 @@ internal sealed class SimpleTextLine
         this._inputLength = 0;
         this._inputWidth = 0;
 
-        this.ReleaseRows();
         this.ResetRows();
     }
 
@@ -458,7 +457,7 @@ internal sealed class SimpleTextLine
 
     private void ResetRows()
     {
-        var row = SimpleTextRow.Rent(this);
+        var row = this.rows.Count == 0 ? SimpleTextRow.Rent(this) : this.rows[0];
         row.Prepare(0, this.IsInput ? this.PromptLength : -1, this.TotalLength, this.TotalWidth);
         bool rowChanged = false;
         int widthDiff = 0;
@@ -522,6 +521,8 @@ internal sealed class SimpleTextLine
 
         var previousHeight = this.Height;
         var result = row.AddInput(-removedLength, -removedWidth);
+        // Reflow can move the caret to another row without changing the total height.
+        location.Advance(0);
         this.Write(location.ArrayPosition, this.TotalLength, true, Math.Max(0, -result.WidthDiff), eraseLine: true);
 
         if (result.RowChanged)

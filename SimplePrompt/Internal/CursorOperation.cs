@@ -23,7 +23,7 @@ internal enum CursorOperation
     Hide,
 
     /// <summary>
-    /// The cursor position is updated even if it is unchanged. Currently behaves the same as <see cref="None"/>.
+    /// The cursor position is updated even if it is unchanged.
     /// </summary>
     ForceSet,
 }

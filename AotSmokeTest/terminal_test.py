@@ -33,10 +33,17 @@ def run(executable, mode, timeout=30):
     output = {stream: bytearray() for stream in streams}
     query_buffer = b""
     sent_input = False
+    utf8_input = "日本語😀abc".encode()
+    # Split UTF-8 scalars and terminal sequences across multiple native reads.
+    input_chunks = [utf8_input[:1], utf8_input[1:5], utf8_input[5:],
+                    b"\x1b", b"[", b"D", b"\x1b[", b"3", b"~Z\r"]
+    input_index = 0
+    next_input_time = None
     deadline = time.monotonic() + timeout
     try:
         while streams and time.monotonic() < deadline:
-            readable, _, _ = select.select(streams, [], [], 0.1)
+            wait_time = 0.1 if next_input_time is None else min(0.1, max(0, next_input_time - time.monotonic()))
+            readable, _, _ = select.select(streams, [], [], wait_time)
             for stream in readable:
                 try:
                     data = os.read(stream, 65536)
@@ -55,9 +62,13 @@ def run(executable, mode, timeout=30):
                         os.write(master, b"\x1b[1;1R")
                     query_buffer = query_buffer[-3:]
                 if not sent_input and b"READY" in output[process.stderr.fileno()]:
-                    # UTF-8 text, left arrow, Delete, insertion, Enter.
-                    os.write(master, "日本語😀abc\x1b[D\x1b[3~Z\r".encode())
                     sent_input = True
+                    next_input_time = time.monotonic()
+            if next_input_time is not None and time.monotonic() >= next_input_time:
+                # Keep servicing terminal queries while each fragment awaits its turn.
+                os.write(master, input_chunks[input_index])
+                input_index += 1
+                next_input_time = time.monotonic() + 0.02 if input_index < len(input_chunks) else None
             if process.poll() is not None and not readable:
                 break
 

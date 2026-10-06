@@ -66,7 +66,7 @@ internal static partial class TermInfo
 
         public string Term => this._term;
 
-        internal bool HasExtendedStrings => this._extendedStrings is not null;
+        internal bool HasExtendedStrings => this._extendedStrings is { Count: > 0 };
 
         private const int NamesOffset = 12;
 
@@ -106,6 +106,9 @@ internal static partial class TermInfo
             return this._extendedStrings is not null && this._extendedStrings.TryGetValue(name, out value) ? value : null;
         }
 
+        public string? GetExtendedString(ReadOnlySpan<char> name)
+            => this._extendedStrings is not null && this._extendedStrings.GetAlternateLookup<ReadOnlySpan<char>>().TryGetValue(name, out var value) ? value : null;
+
         private static Dictionary<string, string>? ParseExtendedStrings(byte[] data, int extendedBeginning, bool readAs32Bit)
         {
             const int ExtendedHeaderSize = 10;
@@ -122,7 +125,7 @@ internal static partial class TermInfo
             int extendedStringTableByteSize = ReadInt16(data, extendedBeginning + (2 * 4));
             if (extendedBoolCount < 0 ||
                 extendedNumberCount < 0 ||
-                extendedStringCount < 0 ||
+                extendedStringCount <= 0 ||
                 extendedStringNumOffsets < 0 ||
                 extendedStringTableByteSize < 0)
             {
@@ -139,7 +142,6 @@ internal static partial class TermInfo
                 return null;
             }
 
-            var values = new string?[extendedStringCount];
             var namesStart = extendedStringTableStart;
             for (int i = 0; i < extendedStringCount; i++)
             {
@@ -150,21 +152,26 @@ internal static partial class TermInfo
                 }
 
                 int offset = extendedStringTableStart + relativeOffset;
-                var value = ReadString(data, offset, extendedStringTableEnd);
-                if (value is null)
+                if (offset >= extendedStringTableEnd)
                 {
                     return null;
                 }
 
-                values[i] = value;
-                namesStart = Math.Max(namesStart, offset + value.Length + 1);
+                var length = data.AsSpan(offset, extendedStringTableEnd - offset).IndexOf((byte)0);
+                if (length < 0)
+                {
+                    return null;
+                }
+
+                namesStart = Math.Max(namesStart, offset + length + 1);
             }
 
-            var extendedStrings = new Dictionary<string, string>(extendedStringCount);
+            var extendedStrings = new Dictionary<string, string>(extendedStringCount, StringComparer.Ordinal);
             var stringNamesOffset = extendedOffsetsStart + ((extendedStringCount + extendedBoolCount + extendedNumberCount) * 2);
-            for (var i = 0; i < values.Length; i++)
+            for (var i = 0; i < extendedStringCount; i++)
             {
-                if (values[i] is not { } value)
+                var valueOffset = ReadInt16(data, extendedOffsetsStart + (i * 2));
+                if (valueOffset < 0)
                 {
                     continue;
                 }
@@ -175,7 +182,7 @@ internal static partial class TermInfo
                     return null;
                 }
 
-                extendedStrings.TryAdd(name, value);
+                extendedStrings.TryAdd(name, ReadString(data, extendedStringTableStart + valueOffset, namesStart)!);
             }
 
             return extendedStrings;

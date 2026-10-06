@@ -97,8 +97,18 @@ internal sealed class ReadLineInstance
         this.CurrentLocation.Uninitialize();
     }
 
-    public bool IsEmptyInput()
+    /// <summary>
+    /// Determines whether the read has no input, including characters waiting to be inserted by default.
+    /// </summary>
+    /// <param name="includeBufferedCharacters">Whether to count the pending character buffer.</param>
+    /// <returns>Whether the input is empty.</returns>
+    public bool IsEmptyInput(bool includeBufferedCharacters = true)
     {
+        if (includeBufferedCharacters && this.CharPosition > 0)
+        {
+            return false;
+        }
+
         foreach (var x in this.LineList)
         {
             if (x.IsInput && x.InputLength > 0)
@@ -394,7 +404,8 @@ internal sealed class ReadLineInstance
         }
 
         var top = this.LineList[0].Top;
-        if (this.simpleConsole._cursorTop != top ||
+        if (cursorOperation is CursorOperation.Hide or CursorOperation.ForceSet ||
+            this.simpleConsole._cursorTop != top ||
             this.simpleConsole._cursorLeft != 0)
         {
             this.simpleConsole.SetCursorPosition(0, top, cursorOperation);

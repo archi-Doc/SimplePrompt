@@ -3,20 +3,18 @@
 namespace SimplePrompt.Internal;
 
 /// <summary>
-/// A <see cref="TextReader"/> installed as <see cref="Console.In"/> so that Console.ReadLine() goes through <see cref="SimpleConsole"/>.
+/// Routes <see cref="Console.ReadLine"/> through <see cref="SimpleConsole"/>.
 /// </summary>
+/// <remarks>Returns <see langword="null"/> when the console worker has terminated.</remarks>
 internal sealed class SimpleTextReader : TextReader
 {
     public ReadLineOptions ReadLineOptions { get; }
 
     public SimpleConsole SimpleConsole { get; }
 
-    public TextReader UnderlyingTextReader { get; }
-
-    public SimpleTextReader(SimpleConsole simpleConsole, TextReader inner)
+    public SimpleTextReader(SimpleConsole simpleConsole)
     {
         this.SimpleConsole = simpleConsole;
-        this.UnderlyingTextReader = inner;
         this.ReadLineOptions = ReadLineOptions.SingleLine with
         {
             Prompt = string.Empty,
@@ -25,5 +23,8 @@ internal sealed class SimpleTextReader : TextReader
     }
 
     public override string? ReadLine()
-        => this.SimpleConsole.ReadLineAsync(this.ReadLineOptions).GetAwaiter().GetResult().Text;
+    {
+        var result = this.SimpleConsole.ReadLineAsync(this.ReadLineOptions).GetAwaiter().GetResult();
+        return result.IsTerminated ? null : result.Text;
+    }
 }

@@ -131,12 +131,10 @@ internal sealed class Program
 
         Console.WriteLine(true);
         Console.WriteLine(1.23d);
-        var top = SimpleConsole.CursorTop;
-        var position = SimpleConsole.GetCursorPosition();
 
         while (!root.IsTerminated)
         {
-            var options = simpleConsole.DefaultReadLineOptions with
+            /* var options = simpleConsole.DefaultReadLineOptions with
             {
                 // CancellationTokenSource = new(),
                 KeyInputHook = (ref keyInfo) =>
@@ -149,7 +147,7 @@ internal sealed class Program
 
                     return KeyInputHookResult.NotHandled;
                 }
-            };
+            }; */
 
             using var currentCts = new CancellationTokenSource();
             lock (ctsStack)
@@ -159,10 +157,10 @@ internal sealed class Program
 
             try
             {
-                var secondary = simpleConsole.DefaultReadLineOptions with
+                /* var secondary = simpleConsole.DefaultReadLineOptions with
                 {
                     Prompt = "Secondary> ",
-                };
+                }; */
 
                 // _ = simpleConsole.ReadLineAsync(secondary);
                 var result = await simpleConsole.ReadLineAsync(null, currentCts.Token);
@@ -351,22 +349,12 @@ internal sealed class Program
 
         async Task YesOrNoPrompt()
         {
-            var options = ReadLineOptions.Multiline with
+            var options = ReadLineOptions.YesNo with
             {
                 Prompt = "Yes or No?\r\n[Y/n] ",
                 MultilineDelimiter = "|",
                 MaxInputLength = 3,
                 MaskingCharacter = '*',
-                SubmitHook = text =>
-                {
-                    var lower = text.ToLowerInvariant();
-                    if (lower == "y" || lower == "n" || lower == "yes" || lower == "no")
-                    {
-                        return text;
-                    }
-
-                    return null;
-                },
             };
 
             await Task.Delay(100);

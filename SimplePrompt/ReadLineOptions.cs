@@ -7,7 +7,7 @@ namespace SimplePrompt;
 /// <summary>
 /// Configures console input, prompts, and validation.
 /// </summary>
-/// <remarks>Use a <c>with</c> expression to create a modified copy.</remarks>
+/// <remarks>Use a <c>with</c> expression to create a modified copy. Each read takes a shallow copy of its options.</remarks>
 public record class ReadLineOptions
 {
     /// <summary>
@@ -31,7 +31,7 @@ public record class ReadLineOptions
     /// <summary>
     /// Provides single-line input accepting only y, yes, n, or no, ignoring case and surrounding whitespace.
     /// </summary>
-    /// <remarks>Limits input to three UTF-16 code units and returns accepted text unchanged.</remarks>
+    /// <remarks>The three-code-unit limit includes whitespace. Accepted text is returned unchanged; invalid input prompts again.</remarks>
     public static readonly ReadLineOptions YesNo = new()
     {
         MaxInputLength = 3,
@@ -91,7 +91,7 @@ public record class ReadLineOptions
     /// <summary>
     /// Gets the trailing character that continues input onto the next line. Defaults to <c>\0</c> (disabled).
     /// </summary>
-    /// <remarks>Continuation lines are joined without newlines, removing their trailing continuation markers.</remarks>
+    /// <remarks>Continuation lines are joined without newlines, removing trailing continuation markers from nonfinal lines.</remarks>
     public char LineContinuationCharacter { get; init; }
 
     /// <summary>
@@ -118,6 +118,8 @@ public record class ReadLineOptions
     /// Runs after <see cref="SimpleConsole.KeyInputHook"/>, key normalization, and the <see cref="CancelOnEscape"/> check.
     /// May rewrite the key, return <see cref="KeyInputHookResult.Handled"/> to discard it,
     /// or return <see cref="KeyInputHookResult.Cancel"/> to cancel the read.
+    /// If the hook starts a nested read and returns <see cref="KeyInputHookResult.NotHandled"/>,
+    /// the rewritten key reaches that read's hook without repeating the global hook.
     /// Text from <see cref="SimpleConsole.EnqueueLine"/> bypasses key hooks.
     /// </remarks>
     public KeyInputHook? KeyInputHook { get; init; }
@@ -125,6 +127,9 @@ public record class ReadLineOptions
     /// <summary>
     /// Gets the submission validation or transformation hook. Defaults to <see langword="null"/>.
     /// </summary>
-    /// <remarks>Returns the final text, or null to clear the input and prompt again. Exceptions fault the read task.</remarks>
+    /// <remarks>
+    /// Runs synchronously after multiline processing and the empty-input check. Returned text is not checked again.
+    /// Return null to start fresh input below the rejected submission. Exceptions fault the read task.
+    /// </remarks>
     public SubmitHook? SubmitHook { get; init; }
 }
