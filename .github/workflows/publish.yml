@@ -16,7 +16,7 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
     - name: Test
-      run: dotnet test --no-restore --verbosity normal
+      run: dotnet test -c Release --no-restore --no-build --verbosity normal
 
     - name: Package
       run: dotnet pack -c Release -o bin SimplePrompt/SimplePrompt.csproj
