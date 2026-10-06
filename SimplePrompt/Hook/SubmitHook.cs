@@ -5,12 +5,12 @@ namespace SimplePrompt;
 /// <summary>
 /// Validates or transforms submitted input.
 /// </summary>
-/// <param name="text">The input text submitted by the user.</param>
+/// <param name="text">The submitted text after multiline processing.</param>
 /// <returns>
-/// The final text, or <see langword="null"/> to clear the input and prompt again.
+/// The final text, or <see langword="null"/> to start fresh input below the rejected submission.
 /// </returns>
 /// <remarks>
 /// Runs synchronously on the input worker after input length and empty-input checks.
-/// Returned text is not checked again. Exceptions fault the read task.
+/// Returned text is not checked again for length or emptiness. Exceptions fault the read task.
 /// </remarks>
 public delegate string? SubmitHook(string text);

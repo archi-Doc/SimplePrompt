@@ -96,6 +96,7 @@ Accessing `SimpleConsole.Instance` initializes the singleton once, attempts to s
 
 - `Console.Write()`, `Console.WriteLine()`, and writes through `Console.Out` use SimplePrompt's output handling.
 - Synchronous `Console.ReadLine()` and `Console.In.ReadLine()` use single-line input with no prompt, a 1024-code-unit limit, and empty input allowed. They use their own options, independently of `DefaultReadLineOptions`.
+- These synchronous reads return null after worker termination, allowing normal end-of-input loops to stop.
 - The installed reader only overrides synchronous `ReadLine`; it does not forward general character or block reads to the original reader.
 - `Console.Error`, `Console.ReadKey()`, and `Console.KeyAvailable` keep their original behavior. Direct key reads do not consume queued input and may compete with SimplePrompt's input worker.
 
@@ -138,7 +139,7 @@ These defaults apply to `new ReadLineOptions()`:
 | --- | --- |
 | `SingleLine` | Multiline modes disabled, limit 1024, empty input rejected. |
 | `Multiline` | Default options, including the `"""` delimiter. |
-| `YesNo` | Single-line input, limit 3, accepting y/yes/n/no after trimming and ignoring case. Returns accepted text unchanged; invalid input prompts again. |
+| `YesNo` | Single-line input, limit 3 including whitespace, accepting y/yes/n/no after trimming and ignoring case. Returns accepted text unchanged; invalid input prompts again. |
 
 ## Key Bindings
 
@@ -154,6 +155,8 @@ These defaults apply to `new ReadLineOptions()`:
 | Ctrl+U | Clears the current input line. |
 
 Tab, Insert, and command history are not implemented. Editing preserves surrogate pairs but does not treat every Unicode grapheme cluster as a single unit; rendered widths also depend on the terminal.
+
+On Unix, a standalone Escape waits about 100 milliseconds to distinguish it from a terminal key sequence, plus the usual input polling delay.
 
 ## Features
 
@@ -235,7 +238,7 @@ var result = await simpleConsole.ReadLineAsync(options);
 
 With `CancelOnEscape` enabled, Escape cancels before the per-read hook runs; the global hook can still intercept it. Text queued with `EnqueueLine()` bypasses both key hooks.
 
-`SubmitHook` receives submitted text after multiline processing, input limits, and the empty-input check. Return a string to accept or transform it, or null to clear the input and prompt again:
+`SubmitHook` receives submitted text after multiline processing, input limits, and the empty-input check. Return a string to accept or transform it, or null to start fresh input below the rejected submission:
 
 ```csharp
 var options = ReadLineOptions.SingleLine with
@@ -245,7 +248,7 @@ var options = ReadLineOptions.SingleLine with
 var result = await simpleConsole.ReadLineAsync(options);
 ```
 
-The transformed text is not checked again for length or emptiness. Hooks run synchronously on the input worker; keep them short. A thrown exception faults the active read task and is rethrown when it is awaited.
+The transformed text is not checked again for length or emptiness. Hooks run synchronously on the input worker; keep them short and do not block waiting for another read. A thrown exception faults the read whose hook is running; a global hook exception faults the active read, if any.
 
 ### Nested Reads
 
@@ -261,7 +264,9 @@ var outerResult = await outer;
 
 After checking termination and cancellation, passing the same options object as an existing read returns that read's task. It retains the original cancellation token. Distinct options objects can create nested reads even when their values are equal. Omitting options uses the current `DefaultReadLineOptions` object.
 
-Each new read copies its options. `TryGetCurrentReadLineOptions(out var options)` returns that active snapshot, or false with null when no read is pending.
+Each new read takes a shallow copy of its options; hook delegates and their captured state are shared. `TryGetCurrentReadLineOptions(out var options)` returns that active snapshot, or false with null when no read is pending.
+
+A per-read key hook may start a nested read; remaining keys go to that read. If the hook returns `NotHandled`, the triggering key, including any rewrite, also reaches the new read's key hook. The global hook is not repeated. Return `Handled` to consume the triggering key.
 
 ### Queued Input
 
@@ -281,6 +286,8 @@ simpleConsole.EnqueueKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false
 
 `BufferKeyInputWhileIdle` defaults to true and retains up to 32768 key events received while no read is pending. Excess keys are discarded. Setting it to false discards keys processed while idle. This setting does not affect queued text.
 
+Larger key bursts during an active read are processed over multiple polls. Accepted text remains subject to `MaxInputLength`.
+
 ### Cancellation and Shutdown
 
 A canceled token, Escape with `CancelOnEscape`, or `Cancel` from the per-read key hook completes the read with `InputResultKind.Canceled`. The returned task is not canceled and does not throw `OperationCanceledException` for these normal cancellation paths.
@@ -292,6 +299,8 @@ var result = await simpleConsole.ReadLineAsync(
 ```
 
 Optionally assign an `Arc.Threading.ExecutionGroup` to `ExecutionGroup` to control the worker's lifetime. Termination is observed on the next input poll, normally within 10 milliseconds. It stops input polling and completes pending reads with `InputResultKind.Terminated`. This is permanent shutdown: subsequent reads also return `Terminated`, even if the group is replaced or cleared. With no group assigned, the worker runs until process exit.
+
+Shutdown leaves the installed `Console.In` and `Console.Out` in place. Synchronous `Console.ReadLine()` returns null; output remains available.
 
 ### Screen and Cursor
 
@@ -349,6 +358,7 @@ CI defines NativeAOT jobs for Windows, Linux, and macOS. Unix input uses .NET's 
 Run from the repository root:
 
 ```sh
+dotnet build -c Release
 dotnet test --project xUnitTest/xUnitTest.csproj -c Release
 dotnet tool restore
 dotnet coverage collect -s xUnitTest/coverage.config.xml -f cobertura -o artifacts/coverage.cobertura.xml "dotnet xUnitTest/bin/Release/net10.0/xUnitTest.dll"
@@ -358,11 +368,19 @@ The [coverage configuration](xUnitTest/coverage.config.xml) measures the SimpleP
 
 Console tests share a serialized fixture because the singleton replaces process-wide streams. Regression tests cover wrapped prompts, exact row boundaries, wide-character insertion, surrogate pairs, multiline resets, output formatting, and input validation. Display tests feed the output to an xterm-compatible screen model, including deferred wrapping at the right margin, and compare the rendered rows and cursor with the tracked state after randomized editing. Allocation tests check warmed-up validation and submission paths. Windows coverage cannot exercise Unix stdin, signals, or pseudo-terminal I/O; use the platform-specific CI jobs for those paths.
 
+On Linux or macOS, test the pseudo-terminal harness itself before running the native executable:
+
+```sh
+python3 -m unittest discover -s AotSmokeTest -p 'test_terminal_test.py'
+```
+
 ## Performance
 
-The input worker reuses one timer, including when an execution group is assigned. Input lines and rows are pooled. Row lookup uses binary search, short cursor sequences use stack buffers, and completed input is copied directly into its result string. Clearing multiline input removes lines from the end to avoid repeated list shifts.
+The input worker reuses one timer, including when an execution group is assigned. Input lines and rows are pooled. Row lookup and cursor restoration use binary search, short cursor sequences use stack buffers, and completed input is copied directly into its result string. Clearing an input line reuses its prompt rows; clearing multiline input removes lines from the end to avoid repeated list shifts.
 
 Queued text is inserted directly from its source span, avoiding staging copies and repeated layout passes. Rendering buffers are pooled and sized for the operation.
+
+Terminal capability initialization reads spans and avoids temporary arrays and concatenated modifier-name strings.
 
 Yes/no validation uses spans without temporary strings. Numeric and supported object output use span formatting; `StringBuilder` output uses stack or pooled buffers. Custom formatters that exceed the buffer fall back to their string representation. A read still allocates its options snapshot, completion task, and result; cold pools and large input may allocate additional storage.
 

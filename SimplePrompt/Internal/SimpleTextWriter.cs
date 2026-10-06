@@ -21,7 +21,7 @@ internal sealed class SimpleTextWriter : TextWriter
         this.UnderlyingTextWriter = inner;
     }
 
-    public override Encoding Encoding => System.Text.Encoding.UTF8;
+    public override Encoding Encoding => this.UnderlyingTextWriter.Encoding;
 
     public override IFormatProvider FormatProvider => this.UnderlyingTextWriter.FormatProvider;
 
@@ -50,10 +50,10 @@ internal sealed class SimpleTextWriter : TextWriter
         => this.SimpleConsole.WriteSpan(string.Format(this.FormatProvider, format, arg), true);
 
     public override void Write(char[] buffer, int index, int count)
-        => this.SimpleConsole.WriteSpan(buffer.AsSpan(index, count), false);
+        => this.SimpleConsole.WriteSpan(GetBufferSpan(buffer, index, count), false);
 
     public override void WriteLine(char[] buffer, int index, int count)
-        => this.SimpleConsole.WriteSpan(buffer.AsSpan(index, count), true);
+        => this.SimpleConsole.WriteSpan(GetBufferSpan(buffer, index, count), true);
 
     public override void Write(bool value)
         => this.SimpleConsole.Write(value);
@@ -172,6 +172,19 @@ internal sealed class SimpleTextWriter : TextWriter
 
     public override void Flush()
         => this.UnderlyingTextWriter.Flush();
+
+    private static ReadOnlySpan<char> GetBufferSpan(char[] buffer, int index, int count)
+    {
+        ArgumentNullException.ThrowIfNull(buffer);
+        ArgumentOutOfRangeException.ThrowIfNegative(index);
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        if (buffer.Length - index < count)
+        {
+            throw new ArgumentException("The index and count exceed the buffer length.");
+        }
+
+        return buffer.AsSpan(index, count);
+    }
 
     private void WriteObject(object value, bool newLine)
     {

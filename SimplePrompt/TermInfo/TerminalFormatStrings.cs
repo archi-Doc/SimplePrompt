@@ -100,16 +100,18 @@ internal sealed class TerminalFormatStrings
     {
         if (db.HasExtendedStrings)
         {
-            this.AddKey(db, extendedNamePrefix + "3", key, shift: false, alt: true, control: false);
-            this.AddKey(db, extendedNamePrefix + "4", key, shift: true, alt: true, control: false);
-            this.AddKey(db, extendedNamePrefix + "5", key, shift: false, alt: false, control: true);
-            this.AddKey(db, extendedNamePrefix + "6", key, shift: true, alt: false, control: true);
-            this.AddKey(db, extendedNamePrefix + "7", key, shift: false, alt: true, control: true);
-            this.AddKey(db, extendedNamePrefix + "8", key, shift: true, alt: true, control: true);
+            Span<char> name = stackalloc char[extendedNamePrefix.Length + 1];
+            extendedNamePrefix.AsSpan().CopyTo(name);
+            for (var modifier = 3; modifier <= 8; modifier++)
+            {
+                name[^1] = (char)('0' + modifier);
+                var flags = modifier - 1;
+                this.AddKey(db, name, key, shift: (flags & 1) != 0, alt: (flags & 2) != 0, control: (flags & 4) != 0);
+            }
         }
     }
 
-    private void AddKey(TermInfo.Database db, string extendedName, ConsoleKey key, bool shift, bool alt, bool control)
+    private void AddKey(TermInfo.Database db, ReadOnlySpan<char> extendedName, ConsoleKey key, bool shift, bool alt, bool control)
     {
         string? keyFormat = db.GetExtendedString(extendedName);
         if (!string.IsNullOrEmpty(keyFormat))

@@ -16,6 +16,8 @@ internal sealed class RawConsole
 {
     public bool UseStdin { get; private set; }
 
+    internal const int EscapeSequenceTimeoutMilliseconds = 100;
+
     private const int BufferCapacity = 1024;
     private const int MinimalSequenceLength = 3;
     private const int SequencePrefixLength = 2; // ^[[ ("^[" stands for Escape)
@@ -26,7 +28,6 @@ internal sealed class RawConsole
 
     private readonly SimpleConsole simpleConsole;
     private readonly Encoding encoding;
-    private readonly TermInfo.Database? db;
     private readonly TerminalFormatStrings terminalFormatStrings;
 
     private readonly Lock bufferLock = new();
@@ -35,6 +36,7 @@ internal sealed class RawConsole
     private int bytesLength;
     private int charsStartIndex;
     private int charsEndIndex;
+    private long escapeSequenceStart = -1;
 
     private byte posixDisableValue;
     private byte veraseCharacter;
@@ -48,16 +50,17 @@ internal sealed class RawConsole
         this.simpleConsole = inputConsole;
         this.encoding = Encoding.UTF8;
 
+        TermInfo.Database? db = null;
         try
         {
             this.InitializeStdin();
-            this.db = TermInfo.DatabaseFactory.ReadActiveDatabase();
+            db = TermInfo.DatabaseFactory.ReadActiveDatabase();
         }
         catch
         {
         }
 
-        this.terminalFormatStrings = new(this.db);
+        this.terminalFormatStrings = new(db);
     }
 
     public unsafe bool TryRead(out ConsoleKeyInfo keyInfo)
@@ -66,7 +69,7 @@ internal sealed class RawConsole
         {
             if (this.UseStdin)
             {// Stdin
-                if (this.TryConsumeBuffer(out keyInfo))
+                if (this.TryReadStdinBuffer(Environment.TickCount64, out keyInfo))
                 {
                     return true;
                 }
@@ -79,7 +82,7 @@ internal sealed class RawConsole
 
                 using (this.bufferLock.EnterScope())
                 {
-                    if (this.TryConsumeBufferInternal(out keyInfo))
+                    if (this.TryConsumeStdinBufferInternal(Environment.TickCount64, out keyInfo))
                     {
                         return true;
                     }
@@ -89,13 +92,13 @@ internal sealed class RawConsole
                     Interop.Sys.InitializeConsoleBeforeRead(minChars: 0, decisecondsTimeout: 0);
                     try
                     {
-                        var span = this.bytes.AsSpan(this.bytesLength, this.bytes.Length - this.bytesLength);
+                        var span = this.GetStdinReadBuffer();
                         fixed (byte* buffer = span)
                         {
                             var readLength = Interop.Sys.ReadStdin(buffer, span.Length);
                             if (readLength > 0)
                             {// A negative value indicates a read failure; the buffer state must be kept valid.
-                                this.bytesLength += readLength;
+                                this.CommitStdinRead(readLength);
                             }
                         }
                     }
@@ -104,18 +107,7 @@ internal sealed class RawConsole
                         Interop.Sys.UninitializeConsoleAfterRead();
                     }
 
-                    var validLength = BaseHelper.GetCompleteUtf8Length(this.bytes.AsSpan(0, this.bytesLength));
-
-                    Debug.Assert(this.IsCharsEmpty);
-                    this.charsStartIndex = 0;
-                    this.charsEndIndex = this.encoding.GetChars(this.bytes.AsSpan(0, validLength), this.chars.AsSpan());
-                    this.bytesLength -= validLength;
-                    if (this.bytesLength > 0)
-                    {// Move the remaining bytes (an incomplete UTF-8 sequence) to the front.
-                        this.bytes.AsSpan(validLength, this.bytesLength).CopyTo(this.bytes.AsSpan());
-                    }
-
-                    return this.TryConsumeBufferInternal(out keyInfo);
+                    return this.TryConsumeStdinBufferInternal(Environment.TickCount64, out keyInfo);
                 }
             }
             else
@@ -171,6 +163,94 @@ internal sealed class RawConsole
         }
 
         return list;
+    }
+
+    /// <summary>
+    /// Feeds bytes through the native input buffer without requiring a terminal.
+    /// </summary>
+    /// <param name="input">Bytes that fit in the remaining buffer capacity.</param>
+    internal void AppendStdinInput(ReadOnlySpan<byte> input)
+    {
+        using (this.bufferLock.EnterScope())
+        {
+            input.CopyTo(this.GetStdinReadBuffer());
+            this.CommitStdinRead(input.Length);
+        }
+    }
+
+    /// <summary>
+    /// Reads a buffered key, allowing a bounded delay for incomplete escape sequences.
+    /// </summary>
+    /// <param name="timestamp">The monotonic time in milliseconds.</param>
+    /// <param name="keyInfo">The decoded key, if available.</param>
+    /// <returns>Whether a key was decoded.</returns>
+    internal bool TryReadStdinBuffer(long timestamp, out ConsoleKeyInfo keyInfo)
+    {
+        using (this.bufferLock.EnterScope())
+        {
+            return this.TryConsumeStdinBufferInternal(timestamp, out keyInfo);
+        }
+    }
+
+    private static bool IsIncompleteEscapeSequence(ReadOnlySpan<char> input)
+    {
+        if (input.IsEmpty || input[0] != Escape)
+        {
+            return false;
+        }
+
+        if (input.Length == 1)
+        {
+            return true;
+        }
+
+        if (input[1] == Escape)
+        {// An additional Escape can modify a terminal sequence with Alt.
+            input = input.Slice(1);
+            if (input.Length == 1)
+            {
+                return true;
+            }
+        }
+
+        if (input[1] == 'O')
+        {
+            return input.Length == 2;
+        }
+
+        if (input[1] != '[')
+        {
+            return false;
+        }
+
+        if (input.Length == 2 || (input.Length == 3 && input[2] == '['))
+        {
+            return true;
+        }
+
+        if (!char.IsBetween(input[2], '1', '9'))
+        {
+            return false;
+        }
+
+        var end = 3;
+        if (input.Length > end && char.IsAsciiDigit(input[end]))
+        {
+            end++;
+        }
+
+        if (input.Length == end)
+        {
+            return true;
+        }
+
+        if (input[end] != ModifierSeparator)
+        {
+            return false;
+        }
+
+        return input.Length == end + 1 ||
+            (input.Length == end + 2 && char.IsBetween(input[end + 1], '2', '8'));
     }
 
     private static ConsoleKeyInfo ParseFromSingleChar(char single, bool isAlt)
@@ -243,18 +323,51 @@ internal sealed class RawConsole
         }
     }
 
-    private bool TryConsumeBuffer(out ConsoleKeyInfo keyInfo)
+    private Span<byte> GetStdinReadBuffer()
     {
-        if (this.IsCharsEmpty)
+        var remaining = this.charsEndIndex - this.charsStartIndex;
+        if (this.charsStartIndex > 0)
         {
-            keyInfo = default;
-            return false;
+            this.CharsSpan.CopyTo(this.chars);
+            this.charsStartIndex = 0;
+            this.charsEndIndex = remaining;
         }
 
-        using (this.bufferLock.EnterScope())
-        {
-            return this.TryConsumeBufferInternal(out keyInfo);
+        // UTF-8 produces no more UTF-16 code units than input bytes, including replacement characters.
+        var capacity = Math.Min(this.bytes.Length, this.chars.Length - remaining);
+        return this.bytes.AsSpan(this.bytesLength, capacity - this.bytesLength);
+    }
+
+    private void CommitStdinRead(int readLength)
+    {
+        this.bytesLength += readLength;
+        var validLength = BaseHelper.GetCompleteUtf8Length(this.bytes.AsSpan(0, this.bytesLength));
+        this.charsEndIndex += this.encoding.GetChars(this.bytes.AsSpan(0, validLength), this.chars.AsSpan(this.charsEndIndex));
+        this.bytesLength -= validLength;
+        if (this.bytesLength > 0)
+        {// Retain incomplete UTF-8 bytes independently of an incomplete escape sequence.
+            this.bytes.AsSpan(validLength, this.bytesLength).CopyTo(this.bytes);
         }
+    }
+
+    private bool TryConsumeStdinBufferInternal(long timestamp, out ConsoleKeyInfo keyInfo)
+    {
+        if (IsIncompleteEscapeSequence(this.CharsSpan))
+        {
+            if (this.escapeSequenceStart < 0)
+            {
+                this.escapeSequenceStart = timestamp;
+            }
+
+            if (timestamp - this.escapeSequenceStart < EscapeSequenceTimeoutMilliseconds)
+            {
+                keyInfo = default;
+                return false;
+            }
+        }
+
+        this.escapeSequenceStart = -1;
+        return this.TryConsumeBufferInternal(out keyInfo);
     }
 
     private bool TryConsumeBufferInternal(out ConsoleKeyInfo keyInfo)
@@ -574,9 +687,6 @@ internal sealed class RawConsole
         Span<Interop.ControlCharacterNames> controlCharacterNames =
         [
             Interop.ControlCharacterNames.VERASE,
-            Interop.ControlCharacterNames.VEOL,
-            Interop.ControlCharacterNames.VEOL2,
-            Interop.ControlCharacterNames.VEOF,
         ];
 
         Span<byte> controlCharacterValues = stackalloc byte[controlCharacterNames.Length];

@@ -7,7 +7,7 @@ using Arc.Unit;
 namespace SimplePrompt.Internal;
 
 /// <summary>
-/// Provides the character width calculation and the buffer writing helpers.
+/// Calculates terminal character widths and writes escape sequences into buffers.
 /// </summary>
 internal static class SimplePromptHelper
 {
@@ -92,6 +92,11 @@ internal static class SimplePromptHelper
         return text.Length - 1;
     }
 
+    /// <summary>
+    /// Estimates the terminal column width of a Unicode code point, without grapheme-cluster shaping.
+    /// </summary>
+    /// <param name="codePoint">The Unicode code point.</param>
+    /// <returns>Zero for controls and combining marks, two for recognized wide characters, or one otherwise.</returns>
     public static byte GetCharWidth(int codePoint)
     {
         // Fast path: ASCII (the vast majority of the input/output).
@@ -173,8 +178,6 @@ internal static class SimplePromptHelper
 
         // Emoji and other symbols
         if ((codePoint >= 0x1F300 && codePoint <= 0x1F9FF) ||
-            (codePoint >= 0x1F600 && codePoint <= 0x1F64F) ||
-            (codePoint >= 0x1F680 && codePoint <= 0x1F6FF) ||
             (codePoint >= 0x2600 && codePoint <= 0x26FF) ||
             (codePoint >= 0x2700 && codePoint <= 0x27BF))
         {

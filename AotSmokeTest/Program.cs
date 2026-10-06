@@ -93,6 +93,7 @@ shutdownGroup.RequestTermination();
 Check((await Read(pendingShutdown)).IsTerminated, "Shutdown did not complete the pending read.");
 console.ExecutionGroup = null;
 Check((await Read(console.ReadLineAsync())).IsTerminated, "A stopped worker accepted a read that cannot complete.");
+Check(Console.ReadLine() is null, "Console.ReadLine did not report EOF after shutdown.");
 
 originalOutput.WriteLine("NativeAOT smoke test passed.");
 

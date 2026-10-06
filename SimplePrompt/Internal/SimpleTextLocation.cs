@@ -23,7 +23,7 @@ internal sealed class SimpleTextLocation
 
     public bool TryGetLine([MaybeNullWhen(false)] out SimpleTextLine line)
     {
-        if (this.LineIndex >= this.readLineInstance.LineList.Count)
+        if ((uint)this.LineIndex >= (uint)this.readLineInstance.LineList.Count)
         {
             line = default;
             return false;
@@ -35,7 +35,7 @@ internal sealed class SimpleTextLocation
 
     public bool TryGetLineAndRow([MaybeNullWhen(false)] out SimpleTextLine line, [MaybeNullWhen(false)] out SimpleTextRow row)
     {
-        if (this.LineIndex >= this.readLineInstance.LineList.Count)
+        if ((uint)this.LineIndex >= (uint)this.readLineInstance.LineList.Count)
         {
             line = default;
             row = default;
@@ -43,7 +43,7 @@ internal sealed class SimpleTextLocation
         }
 
         line = this.readLineInstance.LineList[this.LineIndex];
-        if (this.RowIndex >= line.Rows.Count)
+        if ((uint)this.RowIndex >= (uint)line.Rows.Count)
         {
             line = default;
             row = default;
@@ -98,14 +98,14 @@ internal sealed class SimpleTextLocation
 
     public void LocationToCursor()
     {
-        if (this.LineIndex >= this.readLineInstance.LineList.Count)
+        if ((uint)this.LineIndex >= (uint)this.readLineInstance.LineList.Count)
         {
             this.Reset();
             return;
         }
 
         var line = this.readLineInstance.LineList[this.LineIndex];
-        if (this.RowIndex >= line.Rows.Count)
+        if ((uint)this.RowIndex >= (uint)line.Rows.Count)
         {
             this.Reset();
             return;
@@ -211,19 +211,14 @@ internal sealed class SimpleTextLocation
         }
 
         this.ArrayPosition += length;
-        if (this.ArrayPosition > line.TotalLength)
-        {
-            this.ArrayPosition = line.TotalLength;
-        }
-
         this.CursorPosition += width;
-        if (this.CursorPosition >= row.Width)
+        if (this.ArrayPosition >= row.End)
         {
             var nextRowIndex = this.RowIndex + 1;
             if (nextRowIndex < line.Rows.Count)
             {
                 this.RowIndex = nextRowIndex;
-                this.CursorPosition -= row.Width;
+                this.CursorPosition = 0;
                 row = line.Rows[nextRowIndex];
             }
             else
@@ -323,6 +318,11 @@ internal sealed class SimpleTextLocation
 
     public void ChangeLine(int diff)
     {
+        if (this.readLineInstance.LineList.Count == 0)
+        {
+            return;
+        }
+
         var nextLine = this.LineIndex + diff;
         if (nextLine < 0)
         {
@@ -357,50 +357,22 @@ internal sealed class SimpleTextLocation
     internal void Restore(CursorOperation cursorOperation)
     {
         if (!this.TryGetLine(out var line) ||
-            line.Rows.Count == 0)
+            !line.TryGetRowFromArrayPosition(this.ArrayPosition, out var row))
         {
             this.Reset(cursorOperation);
             return;
         }
 
-        var row = line.Rows[line.Rows.Count - 1];
-        var top = -1;
-        var left = -1;
-        if (this.ArrayPosition >= row.Start &&
-            this.ArrayPosition <= row.End)
-        {
-            this.RowIndex = row.Index;
-            top = row.Top;
-            left = row.ArrayPositionToCursorPosition(this.ArrayPosition);
-        }
-        else
-        {
-            for (var i = 0; i < line.Rows.Count - 1; i++)
-            {
-                row = line.Rows[i];
-                if (this.ArrayPosition >= row.Start &&
-                    this.ArrayPosition < row.End)
-                {
-                    this.RowIndex = i;
-                    top = row.Top;
-                    left = row.ArrayPositionToCursorPosition(this.ArrayPosition);
-                    break;
-                }
-            }
-        }
-
-        if (top < 0)
-        {
-            this.Reset(cursorOperation);
-            return;
-        }
-
+        this.RowIndex = row.Index;
+        this.CursorPosition = row.ArrayPositionToCursorPosition(this.ArrayPosition);
+        var top = Math.Max(0, row.Top);
         top = top >= this.simpleConsole._windowHeight ? this.simpleConsole._windowHeight - 1 : top;
+        var left = this.CursorPosition;
         left = left >= this.simpleConsole._windowWidth ? this.simpleConsole._windowWidth - 1 : left;
-        this.CursorPosition = left;
 
         if (this.simpleConsole._cursorTop != top ||
-            this.simpleConsole._cursorLeft != left)
+            this.simpleConsole._cursorLeft != left ||
+            cursorOperation is CursorOperation.Hide or CursorOperation.ForceSet)
         {
             this.simpleConsole.SetCursorPosition(left, top, cursorOperation);
         }
@@ -452,7 +424,8 @@ internal sealed class SimpleTextLocation
         left = left >= this.simpleConsole._windowWidth ? this.simpleConsole._windowWidth - 1 : left;
 
         if (this.simpleConsole._cursorTop != top ||
-            this.simpleConsole._cursorLeft != left)
+            this.simpleConsole._cursorLeft != left ||
+            cursorOperation is CursorOperation.Hide or CursorOperation.ForceSet)
         {
             this.simpleConsole.SetCursorPosition(left, top, cursorOperation);
         }

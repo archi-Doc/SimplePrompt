@@ -59,13 +59,7 @@ internal sealed class SimpleArrange
             var total = 0;
             for (var i = 0; i < line.Index; i++)
             {
-                foreach (var x in lineList[i].Rows)
-                {
-                    if (x.Length > 0)
-                    {
-                        total++;
-                    }
-                }
+                total += lineList[i].Height;
             }
 
             lineList[0].Top = newCursor.Top - row.Index - total;

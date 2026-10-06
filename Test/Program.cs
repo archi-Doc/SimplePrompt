@@ -52,6 +52,7 @@ internal sealed class Program
         Console.OutputEncoding = System.Text.Encoding.UTF8;
 
         var simpleConsole = SimpleConsole.Instance;
+        simpleConsole.ExecutionGroup = root;
         Console.WriteLine(Environment.OSVersion.ToString());
 
         // Tests
@@ -79,7 +80,7 @@ internal sealed class Program
 
             var result = await simpleConsole.ReadLineAsync(options);
 
-            if (!await ProcessInputResult(simpleConsole, result))
+            if (!ProcessInputResult(simpleConsole, result))
             {
                 break;
             }
@@ -134,21 +135,11 @@ internal sealed class Program
 
         async Task YesOrNoPrompt()
         {
-            var options = ReadLineOptions.Multiline with
+            var options = ReadLineOptions.YesNo with
             {
                 Prompt = "Yes or No?\r\n[Y/n] ",
                 MultilineDelimiter = "|",
                 MaxInputLength = 5,
-                SubmitHook = text =>
-                {
-                    var lower = text.ToLowerInvariant();
-                    if (lower == "y" || lower == "n" || lower == "yes" || lower == "no")
-                    {
-                        return text;
-                    }
-
-                    return null;
-                },
             };
 
             await Task.Delay(100);
@@ -196,14 +187,14 @@ internal sealed class Program
 
             var result = await simpleConsole.ReadLineAsync(options);
 
-            if (!await ProcessInputResult(simpleConsole, result))
+            if (!ProcessInputResult(simpleConsole, result))
             {
                 break;
             }
         }
     }
 
-    private static async Task<bool> ProcessInputResult(SimpleConsole simpleConsole, InputResult result)
+    private static bool ProcessInputResult(SimpleConsole simpleConsole, InputResult result)
     {
         if (result.Kind == InputResultKind.Terminated)
         {

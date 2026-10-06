@@ -50,6 +50,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <remarks>
     /// Replaces <see cref="Console.Out"/> and <see cref="Console.In"/>, routing output and synchronous
     /// <see cref="Console.ReadLine"/> calls through this instance. The reader overrides synchronous ReadLine only.
+    /// Synchronous ReadLine returns null after worker termination.
     /// Leaves <see cref="Console.ReadKey()"/>, <see cref="Console.KeyAvailable"/>, and <see cref="Console.Error"/> unchanged.
     /// </remarks>
     public static SimpleConsole Instance => LazyInstance.Value;
@@ -78,6 +79,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// Defaults to null, which leaves the worker running until process exit.
     /// Group termination stops the worker permanently; pending and subsequent reads return <see cref="InputResultKind.Terminated"/>.
     /// Termination is observed on the next input poll, normally within 10 milliseconds.
+    /// The installed console streams remain in place; synchronous ReadLine returns null after termination.
     /// </remarks>
     public ExecutionGroup? ExecutionGroup { get; set; }
 
@@ -99,7 +101,10 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <summary>
     /// Gets or sets a value indicating whether keys received while idle are kept for the next read. Defaults to <see langword="true"/>.
     /// </summary>
-    /// <remarks>Retains up to 32768 key events and discards excess keys. Does not affect <see cref="EnqueueLine"/>.</remarks>
+    /// <remarks>
+    /// Retains up to 32768 idle key events and discards excess keys. Active reads process larger bursts over multiple polls.
+    /// Does not affect <see cref="EnqueueLine"/>.
+    /// </remarks>
     public bool BufferKeyInputWhileIdle { get; set; } = true;
 
     /// <summary>
@@ -147,6 +152,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     private readonly Lock syncObject = new();
     private readonly List<ReadLineInstance> instanceList = [];
 
+    private ConsoleKeyInfo? deferredKey;
     private long adjustWindowTime;
     private volatile bool windowResized;
 
@@ -163,7 +169,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         }
 
         this.simpleTextWriter = new(this, Console.Out);
-        this.simpleTextReader = new(this, Console.In);
+        this.simpleTextReader = new(this);
         this.RawConsole = new(this);
         this.simpleArrange = new(this);
         this.DefaultReadLineOptions = new();
@@ -190,6 +196,7 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <returns>A task whose result indicates success, cancellation, or execution group termination.</returns>
     /// <remarks>
     /// The latest read receives input; an earlier pending read resumes when it completes.
+    /// Hooks may start nested reads but must not synchronously wait for their completion.
     /// After termination and cancellation checks, reusing the same options object returns its pending task
     /// and retains that read's original cancellation token. New reads take a copy of the options.
     /// Cancellation returns a result rather than canceling the task. Hook exceptions fault the task.
@@ -199,8 +206,6 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
         options ??= this.DefaultReadLineOptions;
         using (this.syncObject.EnterScope())
         {
-            // Prepare the window, and if the cursor is in the middle of a line, insert a newline.
-            this.PrepareWindow();
             if (this.worker.IsTerminated || this.ExecutionGroup?.IsTerminated == true)
             {
                 return TerminatedReadTask;
@@ -219,6 +224,8 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                 }
             }
 
+            // Prepare the window only for a new read; canceled and shared reads need no terminal queries.
+            this.PrepareWindow();
             if (this.instanceList.Count > 0)
             {
                 this.instanceList[^1].CurrentLocation.CursorLast();
@@ -608,15 +615,21 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                 this.AdjustWindow();
             }
 
+            // Bound each poll and leave excess active input at its source until there is room.
+            // Idle input still uses the fixed retention limit in EnqueueKeyInput.
+            var remainingKeys = this.IsReadLineInProgress ? WindowBufferSize - this.inputKeyQueue.Count : WindowBufferSize;
+
             // Read key -> InputKeyQueue
-            while (this.RawConsole.TryRead(out keyInfo))
+            while (remainingKeys > 0 && this.RawConsole.TryRead(out keyInfo))
             {
+                remainingKeys--;
                 this.EnqueueKeyInput(ref keyInfo);
             }
 
             // KeyInfo queue (EnqueueKey) -> InputKeyQueue
-            while (this.concurrentKeyQueue.TryDequeue(out keyInfo))
+            while (remainingKeys > 0 && this.concurrentKeyQueue.TryDequeue(out keyInfo))
             {
+                remainingKeys--;
                 this.EnqueueKeyInput(ref keyInfo);
             }
 
@@ -668,8 +681,26 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                 }
             }
 
-            while (this.inputKeyQueue.TryDequeue(out keyInfo))
+            while (true)
             {// Dequeue key input and process it.
+                using (this.syncObject.EnterScope())
+                {
+                    if (!this.IsActiveInstance(currentInstance))
+                    {// A hook or another thread started a nested read; preserve the remaining input for it.
+                        return;
+                    }
+
+                    if (this.deferredKey is { } deferred)
+                    {
+                        keyInfo = deferred;
+                        this.deferredKey = null;
+                    }
+                    else if (!this.inputKeyQueue.TryDequeue(out keyInfo))
+                    {
+                        break;
+                    }
+                }
+
                 if (keyInfo.KeyChar == '\n' ||
                     keyInfo.Key == ConsoleKey.Enter)
                 {
@@ -704,18 +735,28 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                     }
                 }
 
-                if (!IsControl(keyInfo))
-                {// Accumulate characters so that consecutive input is inserted and rendered at once.
-                    currentInstance.CharBuffer[currentInstance.CharPosition++] = keyInfo.KeyChar;
-                    if (currentInstance.CharPosition < ReadLineInstance.CharBufferSize)
-                    {
-                        continue;
+                using (this.syncObject.EnterScope())
+                {
+                    if (!this.IsActiveInstance(currentInstance))
+                    {// Retry the unhandled key against the new read without applying the global hook twice.
+                        this.deferredKey = keyInfo;
+                        return;
                     }
 
-                    keyInfo = default; // The buffer is full.
+                    if (!IsControl(keyInfo))
+                    {// Accumulate characters so that consecutive input is inserted and rendered at once.
+                        currentInstance.CharBuffer[currentInstance.CharPosition++] = keyInfo.KeyChar;
+                        if (currentInstance.CharPosition < ReadLineInstance.CharBufferSize)
+                        {
+                            continue;
+                        }
+
+                        keyInfo = default; // The buffer is full.
+                    }
+
+                    result = ProcessCharacters(keyInfo);
                 }
 
-                result = ProcessCharacters(keyInfo);
                 if (result is not null)
                 {
                     result = ProcessSubmitHook(result);
@@ -749,6 +790,12 @@ CompleteInstance:
             string? ProcessCharacters(ConsoleKeyInfo keyInfo)
             {// Inserts the accumulated characters and processes the key.
              // Without a key, a trailing high surrogate is kept until its low surrogate arrives, so that a surrogate pair is never split.
+                using var scope = this.syncObject.EnterScope();
+                if (!this.IsActiveInstance(currentInstance))
+                {
+                    return null;
+                }
+
                 var charBuffer = currentInstance.CharBuffer;
                 var charPosition = currentInstance.CharPosition;
                 var length = charPosition;
@@ -765,11 +812,7 @@ CompleteInstance:
                     }
                 }
 
-                string? result;
-                using (this.syncObject.EnterScope())
-                {
-                    result = currentInstance.ProcessInput(keyInfo, charBuffer.AsSpan(0, length));
-                }
+                var result = currentInstance.ProcessInput(keyInfo, charBuffer.AsSpan(0, length));
 
                 if (length < charPosition)
                 {
@@ -1149,7 +1192,6 @@ CompleteInstance:
     private void RemoveInstance(ReadLineInstance target)
     {
         var wasActive = this.IsActiveInstance(target);
-        target.Clear();
         this.instanceList.Remove(target);
 
         if (wasActive && this.TryGetActiveInstance(out var activeInstance))
@@ -1308,7 +1350,7 @@ CompleteInstance:
         if (this.BufferKeyInputWhileIdle ||
             this.IsReadLineInProgress)
         {
-            if (this.inputKeyQueue.Count < WindowBufferSize)
+            if (this.inputKeyQueue.Count < WindowBufferSize || this.IsReadLineInProgress)
             {
                 this.inputKeyQueue.Enqueue(keyInfo);
             }
