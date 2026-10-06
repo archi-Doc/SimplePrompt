@@ -414,37 +414,73 @@ public class RegressionTest(SimpleConsoleFixture fixture)
     [Fact]
     public async Task SubmitHookCanWriteWhileAnotherThreadHoldsConsoleOut()
     {
-        using var hookEntered = new ManualResetEventSlim();
+        using var allowHookWrite = new ManualResetEventSlim();
+        using var writerCompleted = new ManualResetEventSlim();
+        var hookEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var task = fixture.ReadLineAsync(new()
         {
             SubmitHook = text =>
             {
-                hookEntered.Set();
+                hookEntered.SetResult();
+                if (!allowHookWrite.Wait(SimpleConsoleFixture.Timeout))
+                {
+                    throw new TimeoutException("The output contention test did not release the submit hook.");
+                }
+
                 fixture.ConsoleOut.WriteLine("from hook");
                 return text;
             },
         });
 
         fixture.Type("a");
+        fixture.Key(ConsoleKey.Enter);
 
-        // Console.Out is a synchronized writer. A thread that holds it and writes through SimpleConsole
-        // must not deadlock with the worker thread writing to it from the hook.
-        var writer = Task.Factory.StartNew(
-            () =>
+        // The submit hook must release the console state lock before waiting to write through Console.Out.
+        Task? writer = null;
+        try
+        {
+            // On Unix, window-size queries also lock Console.Out. Let the worker reach the hook first.
+            await hookEntered.Task.WaitAsync(SimpleConsoleFixture.Timeout, TestContext.Current.CancellationToken);
+            bool completedWhileOutputLocked;
+            lock (fixture.ConsoleOut)
             {
-                lock (fixture.ConsoleOut)
-                {
-                    fixture.Key(ConsoleKey.Enter);
-                    Assert.True(hookEntered.Wait(SimpleConsoleFixture.Timeout));
-                    fixture.Console.WriteLine("from writer");
-                }
-            },
-            TestContext.Current.CancellationToken,
-            TaskCreationOptions.LongRunning,
-            TaskScheduler.Default);
+                allowHookWrite.Set();
+                writer = Task.Factory.StartNew(
+                    () =>
+                    {
+                        try
+                        {
+                            fixture.Console.WriteLine("from writer");
+                        }
+                        finally
+                        {
+                            writerCompleted.Set();
+                        }
+                    },
+                    CancellationToken.None,
+                    TaskCreationOptions.LongRunning,
+                    TaskScheduler.Default);
 
-        await writer.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        Assert.Equal("a", await fixture.Wait(task));
+                // Release Console.Out on timeout so a lock-order regression cannot strand either thread.
+                completedWhileOutputLocked = writerCompleted.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+            }
+
+            await writer.WaitAsync(SimpleConsoleFixture.Timeout, TestContext.Current.CancellationToken);
+            Assert.True(completedWhileOutputLocked, "SimpleConsole output blocked while the submit hook waited for Console.Out.");
+            Assert.Equal("a", await fixture.Wait(task));
+        }
+        finally
+        {
+            allowHookWrite.Set();
+            fixture.CancelPendingReadLine();
+            if (writer is not null)
+            {
+                // Finish cleanup even when the test is canceled, before disposing the writer's signal.
+                await writer.WaitAsync(SimpleConsoleFixture.Timeout, CancellationToken.None);
+            }
+
+            await fixture.WaitForIdle();
+        }
     }
 
     [Fact]
