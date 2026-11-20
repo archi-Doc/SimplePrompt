@@ -308,6 +308,20 @@ Shutdown leaves the installed `Console.In` and `Console.Out` in place. Synchrono
 
 `CursorLeft`, `CursorTop`, and `GetCursorPosition()` return tracked zero-based coordinates. They do not query the terminal when read. `WindowWidth` and `WindowHeight` are refreshed periodically, with minimum values of 30 columns and 10 rows. Accessing these static members also initializes the singleton.
 
+Output that bypasses SimplePrompt is not tracked: writes to `Console.OpenStandardOutput()`, `Console.Error`, or `UnderlyingTextWriter`, and child processes sharing the console. On Windows, each new read reads the console's cursor position before drawing its prompt, so the prompt starts at the beginning of a line and editing stays on the prompt row. To write after such output, call `SynchronizeCursorPosition()` first; `CursorLeft` then tells whether the output ended in the middle of a line:
+
+```csharp
+// After a child process that shares the console exits.
+if (simpleConsole.SynchronizeCursorPosition() && SimpleConsole.CursorLeft > 0)
+{
+    simpleConsole.WriteLine();
+}
+
+simpleConsole.WriteLine("Command cancelled.");
+```
+
+`SynchronizeCursorPosition()` returns false and keeps the tracked position when standard output is redirected, and on Unix, where reading the position requires a terminal query whose reply would compete with key input. If a read is pending and the cursor has moved, its prompt and input are redrawn below the output.
+
 ## SimpleConsole Members
 
 | Member | Purpose |
@@ -326,6 +340,7 @@ Shutdown leaves the installed `Console.In` and `Console.Out` in place. Synchrono
 | `UnderlyingTextWriter` | Output writer captured at initialization. |
 | `ExecutionGroup` | Optional worker lifetime control. |
 | `CursorLeft` / `CursorTop` / `GetCursorPosition()` | Static access to tracked cursor coordinates. |
+| `SynchronizeCursorPosition()` | Updates the tracked cursor from the console after output that bypassed SimplePrompt (Windows). |
 | `WindowWidth` / `WindowHeight` | Static access to cached window dimensions. |
 
 ## NativeAOT
