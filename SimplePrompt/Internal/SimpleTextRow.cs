@@ -3,6 +3,8 @@
 using Arc;
 using Arc.Collections;
 
+#pragma warning disable SA1143 // Conditional expressions must be formatted consistently
+
 namespace SimplePrompt.Internal;
 
 /// <summary>

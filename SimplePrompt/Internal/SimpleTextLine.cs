@@ -6,6 +6,10 @@ using Arc;
 using Arc.Collections;
 using Arc.Unit;
 
+#pragma warning disable SA1143
+#pragma warning disable SA1202 // Elements should be ordered by access
+#pragma warning disable SA1401 // Fields should be private
+
 namespace SimplePrompt.Internal;
 
 /// <summary>
@@ -43,12 +47,8 @@ internal sealed class SimpleTextLine
     private int _promptLength;
     private int _promptWidth;
 
-#pragma warning disable SA1202 // Elements should be ordered by access
-#pragma warning disable SA1401 // Fields should be private
     internal int _inputLength;
     internal int _inputWidth;
-#pragma warning restore SA1401 // Fields should be private
-#pragma warning restore SA1202 // Elements should be ordered by access
 
     public SimpleConsole SimpleConsole { get; private set; }
 
