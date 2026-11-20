@@ -7,7 +7,7 @@ import tempfile
 import time
 import unittest
 
-from terminal_test import run
+from terminal_test import ESCAPE_TIMEOUT, InputTimingError, run, run_with_retries
 
 
 class TerminalTest(unittest.TestCase):
@@ -23,9 +23,46 @@ class TerminalTest(unittest.TestCase):
         )
         self.executable.chmod(0o755)
 
-    def run_child(self, mode="terminal", timeout=5):
+    def run_child(self, mode="terminal", timeout=5, **options):
         with contextlib.redirect_stdout(io.StringIO()):
-            run(str(self.executable), mode, timeout=timeout)
+            run(str(self.executable), mode, timeout=timeout, **options)
+
+    def write_failing_child_after_input(self, counter):
+        # Signals readiness so that the input is sent, then fails after receiving all of it, even at slow intervals.
+        self.write_child(
+            f'with open({str(counter)!r}, "a") as file:\n'
+            '    file.write("x")\n'
+            'os.write(2, b"READY\\n")\n'
+            "time.sleep(1.2)\n"
+            "os._exit(1)\n"
+        )
+
+    def test_failure_reports_input_timing(self):
+        self.write_failing_child_after_input(Path(self.directory.name) / "runs")
+        with self.assertRaisesRegex(AssertionError, "terminal: exit 1\\n(.|\\n)*input chunks sent at \\+ms: 0, "):
+            self.run_child()
+
+    def test_slow_escape_input_is_a_timing_error(self):
+        self.write_failing_child_after_input(Path(self.directory.name) / "runs")
+        with self.assertRaises(InputTimingError):
+            self.run_child(input_interval=ESCAPE_TIMEOUT)
+
+    def test_retries_only_timing_errors(self):
+        counter = Path(self.directory.name) / "runs"
+        self.write_failing_child_after_input(counter)
+        with contextlib.redirect_stdout(io.StringIO()) as printed:
+            with self.assertRaises(InputTimingError):
+                run_with_retries(str(self.executable), "terminal", attempts=2, timeout=5, input_interval=ESCAPE_TIMEOUT)
+        self.assertEqual("xx", counter.read_text(encoding="utf-8"))
+        self.assertIn("attempt 1 of 2", printed.getvalue())
+
+        counter.unlink()
+        self.write_child(f'open({str(counter)!r}, "a").write("x")\nos.closerange(0, 3)\nos._exit(3)\n')
+        with contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(AssertionError, "terminal: exit 3") as error:
+                run_with_retries(str(self.executable), "terminal", attempts=2, timeout=5)
+        self.assertNotIsInstance(error.exception, InputTimingError)
+        self.assertEqual("x", counter.read_text(encoding="utf-8"))
 
     def test_waits_for_exit_after_all_streams_close(self):
         self.write_child(

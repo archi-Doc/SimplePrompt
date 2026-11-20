@@ -69,46 +69,42 @@ internal sealed class RawConsole
         {
             if (this.UseStdin)
             {// Stdin
-                if (this.TryReadStdinBuffer(Environment.TickCount64, out keyInfo))
+                var timestamp = Environment.TickCount64;
+
+                // An incomplete escape sequence does not expire before the input that has already arrived is read.
+                // Otherwise a delayed poll would split a sequence whose remaining bytes are waiting in stdin.
+                if (this.TryReadStdinBuffer(timestamp, false, out keyInfo))
                 {
                     return true;
                 }
 
-                if (!Interop.Sys.StdinReady())
-                {// No key available
-                    keyInfo = default;
-                    return false;
-                }
-
-                using (this.bufferLock.EnterScope())
+                if (Interop.Sys.StdinReady())
                 {
-                    if (this.TryConsumeStdinBufferInternal(Environment.TickCount64, out keyInfo))
+                    using (this.bufferLock.EnterScope())
                     {
-                        return true;
-                    }
-
-                    // minChars: 0 makes the read return immediately when no character is available,
-                    // so that the polling loop is never blocked.
-                    Interop.Sys.InitializeConsoleBeforeRead(minChars: 0, decisecondsTimeout: 0);
-                    try
-                    {
-                        var span = this.GetStdinReadBuffer();
-                        fixed (byte* buffer = span)
+                        // minChars: 0 makes the read return immediately when no character is available,
+                        // so that the polling loop is never blocked.
+                        Interop.Sys.InitializeConsoleBeforeRead(minChars: 0, decisecondsTimeout: 0);
+                        try
                         {
-                            var readLength = Interop.Sys.ReadStdin(buffer, span.Length);
-                            if (readLength > 0)
-                            {// A negative value indicates a read failure; the buffer state must be kept valid.
-                                this.CommitStdinRead(readLength);
+                            var span = this.GetStdinReadBuffer();
+                            fixed (byte* buffer = span)
+                            {
+                                var readLength = Interop.Sys.ReadStdin(buffer, span.Length);
+                                if (readLength > 0)
+                                {// A negative value indicates a read failure; the buffer state must be kept valid.
+                                    this.CommitStdinRead(readLength);
+                                }
                             }
                         }
+                        finally
+                        {
+                            Interop.Sys.UninitializeConsoleAfterRead();
+                        }
                     }
-                    finally
-                    {
-                        Interop.Sys.UninitializeConsoleAfterRead();
-                    }
-
-                    return this.TryConsumeStdinBufferInternal(Environment.TickCount64, out keyInfo);
                 }
+
+                return this.TryReadStdinBuffer(timestamp, true, out keyInfo);
             }
             else
             {// Console
@@ -185,10 +181,23 @@ internal sealed class RawConsole
     /// <param name="keyInfo">The decoded key, if available.</param>
     /// <returns>Whether a key was decoded.</returns>
     internal bool TryReadStdinBuffer(long timestamp, out ConsoleKeyInfo keyInfo)
+        => this.TryReadStdinBuffer(timestamp, true, out keyInfo);
+
+    /// <summary>
+    /// Reads a buffered key, allowing a bounded delay for incomplete escape sequences.
+    /// </summary>
+    /// <param name="timestamp">The monotonic time in milliseconds.</param>
+    /// <param name="allowExpiry">
+    /// Whether an incomplete escape sequence whose delay has elapsed is decoded as separate keys.
+    /// False keeps it until the input that has already arrived is read.
+    /// </param>
+    /// <param name="keyInfo">The decoded key, if available.</param>
+    /// <returns>Whether a key was decoded.</returns>
+    internal bool TryReadStdinBuffer(long timestamp, bool allowExpiry, out ConsoleKeyInfo keyInfo)
     {
         using (this.bufferLock.EnterScope())
         {
-            return this.TryConsumeStdinBufferInternal(timestamp, out keyInfo);
+            return this.TryConsumeStdinBufferInternal(timestamp, allowExpiry, out keyInfo);
         }
     }
 
@@ -350,7 +359,7 @@ internal sealed class RawConsole
         }
     }
 
-    private bool TryConsumeStdinBufferInternal(long timestamp, out ConsoleKeyInfo keyInfo)
+    private bool TryConsumeStdinBufferInternal(long timestamp, bool allowExpiry, out ConsoleKeyInfo keyInfo)
     {
         if (IsIncompleteEscapeSequence(this.CharsSpan))
         {
@@ -359,7 +368,7 @@ internal sealed class RawConsole
                 this.escapeSequenceStart = timestamp;
             }
 
-            if (timestamp - this.escapeSequenceStart < EscapeSequenceTimeoutMilliseconds)
+            if (!allowExpiry || timestamp - this.escapeSequenceStart < EscapeSequenceTimeoutMilliseconds)
             {
                 keyInfo = default;
                 return false;

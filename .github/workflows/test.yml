@@ -25,7 +25,7 @@ jobs:
       run: dotnet tool restore
     - name: Collect library coverage
       run: dotnet coverage collect -s xUnitTest/coverage.config.xml -f cobertura -o artifacts/coverage.cobertura.xml "dotnet xUnitTest/bin/Release/net10.0/xUnitTest.dll"
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v7
       with:
         name: code-coverage
         path: artifacts/coverage.cobertura.xml

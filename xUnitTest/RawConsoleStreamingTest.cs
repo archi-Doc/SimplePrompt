@@ -80,6 +80,42 @@ public class RawConsoleStreamingTest(SimpleConsoleFixture fixture)
         Assert.Equal('[', key.KeyChar);
     }
 
+    [Fact]
+    public void ExpiredEscapeWaitsForInputThatHasAlreadyArrived()
+    {// A delayed poll reads the pending bytes before letting the sequence expire.
+        var raw = new RawConsole(fixture.Console);
+        raw.AppendStdinInput("\e"u8);
+        Assert.False(raw.TryReadStdinBuffer(0, out _));
+
+        var timestamp = RawConsole.EscapeSequenceTimeoutMilliseconds * 3;
+        Assert.False(raw.TryReadStdinBuffer(timestamp, false, out _));
+        raw.AppendStdinInput("[D"u8);
+        Assert.True(raw.TryReadStdinBuffer(timestamp, true, out var key));
+        Assert.Equal(ConsoleKey.LeftArrow, key.Key);
+        Assert.False(raw.TryReadStdinBuffer(timestamp, true, out _));
+    }
+
+    [Fact]
+    public void ExpiryCanBeDeferredOnlyUntilTheNextRead()
+    {
+        var raw = new RawConsole(fixture.Console);
+        raw.AppendStdinInput("\e["u8);
+        Assert.False(raw.TryReadStdinBuffer(0, out _));
+        Assert.False(raw.TryReadStdinBuffer(1000, false, out _));
+
+        // No more input arrived, so the deadline from the first sight of the sequence applies.
+        Assert.True(raw.TryReadStdinBuffer(1000, true, out var key));
+        Assert.Equal(ConsoleKey.Escape, key.Key);
+        Assert.True(raw.TryReadStdinBuffer(1000, true, out key));
+        Assert.Equal('[', key.KeyChar);
+
+        // Complete keys are returned without waiting for a read.
+        raw.AppendStdinInput("x\e"u8);
+        Assert.True(raw.TryReadStdinBuffer(1000, false, out key));
+        Assert.Equal('x', key.KeyChar);
+        Assert.False(raw.TryReadStdinBuffer(1000, false, out _));
+    }
+
     [Theory]
     [InlineData("abc")]
     [InlineData("\e[?")]
