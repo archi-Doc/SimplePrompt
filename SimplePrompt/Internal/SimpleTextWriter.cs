@@ -67,11 +67,11 @@ internal sealed class SimpleTextWriter : TextWriter
     public override void WriteLine(char value)
         => this.SimpleConsole.WriteLine(value);
 
-    public override void Write(char[]? value)
-        => this.SimpleConsole.WriteSpan(value, false);
+    public override void Write(char[]? buffer)
+        => this.SimpleConsole.WriteSpan(buffer, false);
 
-    public override void WriteLine(char[]? value)
-        => this.SimpleConsole.WriteSpan(value, true);
+    public override void WriteLine(char[]? buffer)
+        => this.SimpleConsole.WriteSpan(buffer, true);
 
     public override void Write(decimal value)
         => this.SimpleConsole.Write(value);
@@ -141,11 +141,11 @@ internal sealed class SimpleTextWriter : TextWriter
         }
     }
 
-    public override void Write(ReadOnlySpan<char> value)
-        => this.SimpleConsole.WriteSpan(value, false);
+    public override void Write(ReadOnlySpan<char> buffer)
+        => this.SimpleConsole.WriteSpan(buffer, false);
 
-    public override void WriteLine(ReadOnlySpan<char> value)
-        => this.SimpleConsole.WriteSpan(value, true);
+    public override void WriteLine(ReadOnlySpan<char> buffer)
+        => this.SimpleConsole.WriteSpan(buffer, true);
 
     public override void Write(StringBuilder? value)
     {

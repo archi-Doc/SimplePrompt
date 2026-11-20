@@ -37,6 +37,11 @@ public sealed class SimpleConsoleFixture
         => task.WaitAsync(Timeout, TestContext.Current.CancellationToken);
 
     /// <summary>
+    /// A cursor position reader which reports no position, so that the tracked cursor follows only the recorded output.
+    /// </summary>
+    public static readonly Func<(int Left, int Top)?> NoCursorPosition = static () => null;
+
+    /// <summary>
     /// The key which <see cref="SettleHook"/> consumes to signal <see cref="Settle"/>.
     /// </summary>
     private const ConsoleKey SettleKey = ConsoleKey.F24;
@@ -48,6 +53,7 @@ public sealed class SimpleConsoleFixture
     {
         System.Console.SetOut(this.Sink); // The instance captures Console.Out when it is created.
         this.Console = SimpleConsole.Instance;
+        this.Console.CursorPositionReader = NoCursorPosition; // The output goes to the sink, not to the console the tests run in.
         this.ConsoleOut = System.Console.Out; // SimpleTextWriter
         this.ConsoleIn = System.Console.In; // SimpleTextReader
         this.SettleHook = this.ProcessSettleKey;

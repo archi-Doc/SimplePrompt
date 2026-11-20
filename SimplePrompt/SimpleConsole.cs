@@ -116,7 +116,10 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     /// <summary>
     /// Gets the output writer captured when this instance was created.
     /// </summary>
-    /// <remarks>Receives rendered output. Direct writes bypass prompt redrawing and cursor tracking.</remarks>
+    /// <remarks>
+    /// Receives rendered output. Direct writes bypass prompt redrawing and cursor tracking;
+    /// see <see cref="SynchronizeCursorPosition"/>.
+    /// </remarks>
     public TextWriter UnderlyingTextWriter => this.simpleTextWriter.UnderlyingTextWriter;
 
     /// <summary>
@@ -134,6 +137,12 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
     }
 
     internal RawConsole RawConsole { get; }
+
+    /// <summary>
+    /// Gets or sets the function that reads the console's cursor position relative to the window, or returns null if it cannot be read.<br/>
+    /// Tests replace it, since their output does not reach the console.
+    /// </summary>
+    internal Func<(int Left, int Top)?> CursorPositionReader { get; set; } = static () => GetConsoleCursorPosition(false);
 
     internal int _windowWidth;
     internal int _windowHeight;
@@ -230,6 +239,10 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
             {
                 this.instanceList[^1].CurrentLocation.CursorLast();
             }
+            else if (this.TryReadCursorPosition(out var cursor))
+            {// Output that bypassed this instance, such as a child process sharing the console, may have moved the cursor.
+                (this._cursorLeft, this._cursorTop) = cursor;
+            }
 
             if (this._cursorLeft > 0)
             {
@@ -280,6 +293,52 @@ public partial class SimpleConsole : IConsoleService // , IDisposable
                 currentInstance.Redraw();
                 currentInstance.CurrentLocation.Restore(CursorOperation.None);
             }
+        }
+    }
+
+    /// <summary>
+    /// Replaces the tracked cursor position with the console's actual position.<br/>
+    /// Call this after output that bypassed this instance, such as writes to the raw standard streams,
+    /// <see cref="Console.Error"/>, or a child process sharing the console.
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> if the position was read; <see langword="false"/> if it cannot be read,
+    /// in which case the tracked position is unchanged.
+    /// </returns>
+    /// <remarks>
+    /// The position is read only on Windows, when standard output is a console. On Unix, reading it requires a terminal query
+    /// whose reply would compete with key input, so this method returns <see langword="false"/>.<br/>
+    /// Afterwards, <see cref="CursorLeft"/> tells whether the output left the cursor in the middle of a line.
+    /// If a read is pending and the cursor has moved, its prompt and input are redrawn below that output.<br/>
+    /// A new read synchronizes in the same way before drawing its prompt, which then starts at the beginning of a line.
+    /// </remarks>
+    public bool SynchronizeCursorPosition()
+    {
+        using (this.syncObject.EnterScope())
+        {
+            if (!this.TryReadCursorPosition(out var cursor))
+            {
+                return false;
+            }
+
+            if (cursor == (this._cursorLeft, this._cursorTop))
+            {// Nothing has moved the cursor; an active read is still displayed as tracked.
+                return true;
+            }
+
+            (this._cursorLeft, this._cursorTop) = cursor;
+            if (this.TryGetActiveInstance(out var activeInstance))
+            {// The output overwrote or scrolled the input, so draw it again below the output.
+                if (this._cursorLeft > 0)
+                {
+                    this.WriteNewLine();
+                }
+
+                activeInstance.Redraw();
+                activeInstance.CurrentLocation.Restore(CursorOperation.Show);
+            }
+
+            return true;
         }
     }
 
@@ -1141,9 +1200,9 @@ CompleteInstance:
         if (prevWindowWidth != this._windowWidth ||
             prevWindowHeight != this._windowHeight)
         {// Window size changed
-            try
+         // The worker reads stdin itself, so it may query the terminal on Unix.
+            if (GetConsoleCursorPosition(true) is { } newCursor)
             {
-                var newCursor = Console.GetCursorPosition();
                 using (this.syncObject.EnterScope())
                 {
                     if (this.TryGetActiveInstance(out var activeInstance))
@@ -1152,10 +1211,66 @@ CompleteInstance:
                     }
                 }
             }
-            catch
+        }
+    }
+
+    /// <summary>
+    /// Gets the console's cursor position relative to the window.
+    /// </summary>
+    /// <param name="queryTerminal">
+    /// Whether the terminal may be queried on Unix. The reply arrives on stdin, so only initialization and the worker,
+    /// which reads key input from stdin, may query it.
+    /// </param>
+    /// <returns>The zero-based column and row, or null if the position cannot be read.</returns>
+    private static (int Left, int Top)? GetConsoleCursorPosition(bool queryTerminal)
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
             {
+                if (Console.IsOutputRedirected)
+                {// The console API would report the position of another standard handle attached to the console.
+                    return null;
+                }
+
+                var (left, top) = Console.GetCursorPosition();
+
+                // The screen buffer may be taller than the window (conhost), whereas cursor sequences address the window.
+                return (left, Math.Max(0, top - Console.WindowTop));
+            }
+            else if (queryTerminal)
+            {
+                return Console.GetCursorPosition();
             }
         }
+        catch
+        {
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Reads the console's cursor position for synchronizing the tracked cursor, limited to the window.
+    /// </summary>
+    /// <param name="cursor">The zero-based column and row.</param>
+    /// <returns>Whether the position was read.</returns>
+    private bool TryReadCursorPosition(out (int Left, int Top) cursor)
+    {
+        try
+        {
+            if (this.CursorPositionReader() is { } position)
+            {
+                cursor = (Math.Clamp(position.Left, 0, this._windowWidth - 1), Math.Clamp(position.Top, 0, this._windowHeight - 1));
+                return true;
+            }
+        }
+        catch
+        {
+        }
+
+        cursor = default;
+        return false;
     }
 
     private void PrepareWindow()
@@ -1329,10 +1444,14 @@ CompleteInstance:
         {
             Console.SetOut(this.simpleTextWriter);
             Console.SetIn(this.simpleTextReader);
-            (this._cursorLeft, this._cursorTop) = Console.GetCursorPosition();
         }
         catch
         {
+        }
+
+        if (GetConsoleCursorPosition(true) is { } cursor)
+        {
+            (this._cursorLeft, this._cursorTop) = cursor;
         }
 
         this.PrepareWindow();
